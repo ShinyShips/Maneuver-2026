@@ -1,45 +1,72 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     
-    <!-- Primary Meta Tags -->
-    <title>Maneuver Core - FRC Scouting Framework</title>
+    <!-- Favicon and Icons -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" href="/Icon.svg" type="image/svg+xml"/>
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    
+    <!-- Android Chrome Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+    
+    <!-- Web App Manifest (optional) -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Theme Color for Android -->
+    <meta name="theme-color" content="#000000" />
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="title" content="Maneuver Core - FRC Scouting Framework" />
     <meta
       name="description"
       content="Year-agnostic FRC scouting framework. Offline-first PWA for robotics competition data collection and analysis."
     />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Maneuver - FRC Scouting Framework" />
+    <meta name="author" content="Andy Nguyen" />
+    <meta
+      name="keywords"
+      content="FRC scouting, Maneuver, Reefscape scouting, robotics, FRC, data visualization, match data, scouting app, robotics competition"
+    />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph (OG) Meta Tags for Social Sharing -->
+    <meta
+      property="og:title"
+      content="Maneuver Core - FRC Scouting Framework"
+    />
     <meta
       property="og:description"
       content="Year-agnostic FRC scouting framework. Offline-first PWA for robotics competition data collection and analysis."
     />
     <meta property="og:image" content="/android-chrome-512x512.png" />
+    <meta property="og:url" content="https://maneuver.netlify.app" />
+    <meta property="og:type" content="website" />
     
     <!-- PWA Support -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Maneuver FRC">
-    
+
     <!-- iOS Safari -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Maneuver FRC" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    
-    <!-- Theme Color -->
-    <meta name="theme-color" content="#000000" />
-    
+
     <!-- Microsoft Tiles -->
     <meta name="msapplication-TileColor" content="#000000" />
     <meta name="msapplication-TileImage" content="/android-chrome-192x192.png" />
+
+    <link rel="preload" as="image" href="/assets/Maneuver Wordmark Vertical.png" />
+
+    <title>Maneuver Core - FRC Scouting Framework</title>
   </head>
-    <!-- Google tag (gtag.js) -->
+  <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-QC65PEFPDJ"></script>
   <script>
     window.dataLayer = window.dataLayer || [];

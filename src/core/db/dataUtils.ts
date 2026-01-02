@@ -5,8 +5,6 @@
 
 import type {
   ScoutingEntryBase,
-  ScoutingDataWithId,
-  ScoutingDataCollection,
 } from '../types/scouting-entry';
 import { db } from './database';
 
@@ -37,99 +35,20 @@ export const generateDeterministicEntryId = (
 };
 
 /**
- * Generate entry ID from game data object
- * Extracts match info from data and creates composite ID
+ * Generate entry ID from ScoutingEntryBase object
  */
-export const generateEntryId = (data: Record<string, unknown>): string => {
-  const eventName = String(data.eventName || '');
-  const matchNumber = String(data.matchNumber || '');
-  const teamNumber = String(data.selectTeam || data.teamNumber || '');
-  const alliance = String(data.alliance || '');
+export const generateEntryId = (entry: Partial<ScoutingEntryBase>): string => {
+  const eventName = String(entry.eventName || '');
+  const matchNumber = String(entry.matchNumber || '');
+  const teamNumber = String(entry.teamNumber || '');
+  const alliance = String(entry.alliance || '');
   
   if (!eventName || !matchNumber || !teamNumber || !alliance) {
     // Fallback to hash-based ID if missing required fields
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
-    return `entry-${timestamp}-${random}`;
+    return `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
   
   return generateDeterministicEntryId(eventName, matchNumber, teamNumber, alliance);
-};
-
-/**
- * Add IDs to entries that don't have them
- */
-export const addIdsToScoutingData = <TGameData = Record<string, unknown>>(
-  data: ScoutingDataCollection<TGameData>
-): ScoutingDataCollection<TGameData> => {
-  const entriesWithIds = data.entries.map(entry => {
-    if (entry.id) {
-      return entry;
-    }
-    
-    const id = generateEntryId(entry.data as Record<string, unknown>);
-    return {
-      ...entry,
-      id,
-      timestamp: entry.timestamp || Date.now(),
-    };
-  });
-  
-  return {
-    ...data,
-    entries: entriesWithIds,
-  };
-};
-
-/**
- * Check if data has the new ID structure
- */
-export const hasIdStructure = (data: unknown): data is ScoutingDataCollection => {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-  
-  const obj = data as Record<string, unknown>;
-  return 'entries' in obj && Array.isArray(obj.entries);
-};
-
-/**
- * Migrate old array format to new ID structure
- * Legacy format: { data: [...] } → New format: { entries: [...] }
- */
-export const migrateToIdStructure = (legacyData: unknown): ScoutingDataCollection => {
-  if (!legacyData || typeof legacyData !== 'object') {
-    return { entries: [] };
-  }
-  
-  const obj = legacyData as Record<string, unknown>;
-  
-  // Handle new format (already has entries)
-  if ('entries' in obj && Array.isArray(obj.entries)) {
-    return addIdsToScoutingData(obj as unknown as ScoutingDataCollection);
-  }
-  
-  // Handle old format (has data array)
-  if ('data' in obj && Array.isArray(obj.data)) {
-    const entries = obj.data.map((item: unknown) => {
-      if (typeof item !== 'object' || !item) {
-        return null;
-      }
-      
-      const data = item as Record<string, unknown>;
-      const id = generateEntryId(data);
-      
-      return {
-        id,
-        data,
-        timestamp: Date.now(),
-      };
-    }).filter(Boolean) as ScoutingDataWithId[];
-    
-    return { entries };
-  }
-  
-  return { entries: [] };
 };
 
 /**
@@ -141,11 +60,11 @@ export type ConflictResolution =
   | 'manualReview'; // User must decide
 
 export interface ConflictResult<TGameData = Record<string, unknown>> {
-  autoImport: ScoutingDataWithId<TGameData>[];
-  autoReplace: ScoutingDataWithId<TGameData>[];
+  autoImport: ScoutingEntryBase<TGameData>[];
+  autoReplace: ScoutingEntryBase<TGameData>[];
   manualReview: Array<{
     existing: ScoutingEntryBase<TGameData>;
-    incoming: ScoutingDataWithId<TGameData>;
+    incoming: ScoutingEntryBase<TGameData>;
   }>;
 }
 
@@ -159,7 +78,7 @@ export interface ConflictResult<TGameData = Record<string, unknown>> {
  * - Otherwise → manualReview
  */
 export const detectConflicts = async <TGameData = Record<string, unknown>>(
-  incomingEntries: ScoutingDataWithId<TGameData>[]
+  incomingEntries: ScoutingEntryBase<TGameData>[]
 ): Promise<ConflictResult<TGameData>> => {
   const result: ConflictResult<TGameData> = {
     autoImport: [],
@@ -177,8 +96,7 @@ export const detectConflicts = async <TGameData = Record<string, unknown>>(
     }
     
     // Check if incoming is a correction
-    const incomingEntry = incoming as Partial<ScoutingEntryBase<TGameData>>;
-    if (incomingEntry.isCorrected) {
+    if (incoming.isCorrected) {
       result.autoReplace.push(incoming);
       continue;
     }
@@ -208,10 +126,10 @@ export const detectConflicts = async <TGameData = Record<string, unknown>>(
  * Merge scouting data collections with deduplication
  */
 export const mergeScoutingData = <TGameData = Record<string, unknown>>(
-  existingData: ScoutingDataWithId<TGameData>[],
-  newData: ScoutingDataWithId<TGameData>[]
+  existingData: ScoutingEntryBase<TGameData>[],
+  newData: ScoutingEntryBase<TGameData>[]
 ): {
-  merged: ScoutingDataWithId<TGameData>[];
+  merged: ScoutingEntryBase<TGameData>[];
   stats: {
     existing: number;
     new: number;
@@ -249,20 +167,15 @@ export const mergeScoutingData = <TGameData = Record<string, unknown>>(
 };
 
 /**
- * Find existing entry in database that matches incoming data
+ * Find existing entry in database that matches match/team/alliance
  * Supports fallback matching when eventName is missing
  */
 export const findExistingEntry = async (
-  incomingData: Record<string, unknown>
+  matchNumber: string,
+  teamNumber: string,
+  alliance: string,
+  eventName?: string
 ): Promise<ScoutingEntryBase | undefined> => {
-  const matchNumber = String(incomingData.matchNumber || '');
-  const teamNumber = String(incomingData.selectTeam || incomingData.teamNumber || '');
-  const alliance = String(incomingData.alliance || '')
-    .toLowerCase()
-    .replace('alliance', '')
-    .trim();
-  const eventName = String(incomingData.eventName || '').toLowerCase();
-  
   if (!matchNumber || !teamNumber || !alliance) {
     return undefined;
   }
@@ -287,56 +200,29 @@ export const findExistingEntry = async (
 };
 
 /**
- * Extract legacy data format from entries (for backward compatibility)
- * Converts { entries: [...] } → [...data objects...]
- */
-export const extractLegacyData = <TGameData = Record<string, unknown>>(
-  entries: ScoutingDataWithId<TGameData>[]
-): Record<string, unknown>[] => {
-  return entries.map(entry => entry.data as Record<string, unknown>);
-};
-
-/**
- * Load scouting data from database
+ * Load all scouting data from database
  */
 export const loadScoutingData = async <TGameData = Record<string, unknown>>(): Promise<
-  ScoutingDataCollection<TGameData>
+  ScoutingEntryBase<TGameData>[]
 > => {
   try {
     const { loadAllScoutingEntries } = await import('./database');
-    const entries = await loadAllScoutingEntries<TGameData>();
-    
-    // Convert to ScoutingDataWithId format
-    const dataWithIds: ScoutingDataWithId<TGameData>[] = entries.map(entry => ({
-      id: entry.id,
-      data: entry.data,
-      timestamp: entry.timestamp,
-    }));
-    
-    return { entries: dataWithIds };
+    return await loadAllScoutingEntries<TGameData>();
   } catch (error) {
     console.error('Error loading scouting data:', error);
-    return { entries: [] };
+    return [];
   }
-};
-
-/**
- * Load legacy format data for backward compatibility
- */
-export const loadLegacyScoutingData = async (): Promise<Record<string, unknown>[]> => {
-  const data = await loadScoutingData();
-  return extractLegacyData(data.entries);
 };
 
 /**
  * Save scouting data to database
  */
 export const saveScoutingData = async <TGameData = Record<string, unknown>>(
-  data: ScoutingDataCollection<TGameData>
+  entries: ScoutingEntryBase<TGameData>[]
 ): Promise<void> => {
   try {
     const { saveScoutingEntries } = await import('./database');
-    await saveScoutingEntries(data.entries);
+    await saveScoutingEntries(entries);
   } catch (error) {
     console.error('Error saving scouting data:', error);
     throw error;

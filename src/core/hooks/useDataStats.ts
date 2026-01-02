@@ -41,12 +41,12 @@ export const useDataStats = () => {
   const loadScoutingCount = useCallback(async () => {
     try {
       const scoutingData = await loadScoutingData();
-      const dataString = JSON.stringify(scoutingData.entries);
+      const dataString = JSON.stringify(scoutingData);
       const size = formatDataSize(dataString);
       
       setStats(prev => ({
         ...prev,
-        scoutingDataCount: scoutingData.entries.length,
+        scoutingDataCount: scoutingData.length,
         scoutingDataSize: size,
       }));
     } catch (error) {

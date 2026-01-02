@@ -6,8 +6,6 @@
 // Scouting entry types (from core/types/scouting-entry.ts)
 export type {
   ScoutingEntryBase,
-  ScoutingDataWithId,
-  ScoutingDataCollection,
   ScoutingDataExport,
   ImportResult,
   DBStats,

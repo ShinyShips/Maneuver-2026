@@ -47,18 +47,18 @@ export function WebRTCDataRequestDialog() {
       switch (requestDataType) {
         case 'scouting': {
           let scoutingData = await loadScoutingData();
-          originalCount = scoutingData.entries.length;
+          originalCount = scoutingData.length;
           
           // Apply filters if provided
           if (requestFilters) {
             console.log('📋 Applying filters to scouting data:', requestFilters);
             setTransferStatus(`Filtering ${originalCount} entries...`);
-            const filteredData = applyFilters(scoutingData as unknown as Parameters<typeof applyFilters>[0], requestFilters);
-            scoutingData = { entries: filteredData.entries as unknown as typeof scoutingData.entries };
-            console.log(`� Filtered: ${originalCount} entries → ${scoutingData.entries.length} entries`);
+            const filteredData = applyFilters({ entries: scoutingData }, requestFilters);
+            scoutingData = filteredData.entries as typeof scoutingData;
+            console.log(`🔍 Filtered: ${originalCount} entries → ${scoutingData.length} entries`);
           }
           
-          data = scoutingData;
+          data = { entries: scoutingData };
           break;
         }
 
@@ -96,19 +96,19 @@ export function WebRTCDataRequestDialog() {
 
           // Apply filters to scouting data if provided
           if (requestFilters) {
-            const origScoutingCount = scoutingData.entries.length;
+            const origScoutingCount = scoutingData.length;
             console.log('📋 Applying filters to combined scouting data:', requestFilters);
-            const filteredData = applyFilters(scoutingData as unknown as Parameters<typeof applyFilters>[0], requestFilters);
-            scoutingData = { entries: filteredData.entries as unknown as typeof scoutingData.entries };
-            console.log(`📊 Filtered scouting: ${origScoutingCount} → ${scoutingData.entries.length} entries`);
+            const filteredData = applyFilters({ entries: scoutingData }, requestFilters);
+            scoutingData = filteredData.entries as typeof scoutingData;
+            console.log(`📊 Filtered scouting: ${origScoutingCount} → ${scoutingData.length} entries`);
           }
 
           data = {
-            entries: scoutingData.entries,
+            entries: scoutingData,
             metadata: {
               exportedAt: new Date().toISOString(),
               version: "1.0",
-              scoutingEntriesCount: scoutingData.entries.length,
+              scoutingEntriesCount: scoutingData.length,
               scoutsCount: scouts.length,
               predictionsCount: predictions.length
             },
@@ -117,7 +117,7 @@ export function WebRTCDataRequestDialog() {
               predictions
             }
           };
-          originalCount = scoutingData.entries.length + scouts.length + predictions.length;
+          originalCount = scoutingData.length + scouts.length + predictions.length;
           console.log('📊 Loaded combined data');
           break;
         }

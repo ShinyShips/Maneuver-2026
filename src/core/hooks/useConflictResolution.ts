@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import type { ConflictInfo, ScoutingDataWithId } from "@/core/lib/scoutingDataUtils";
+import type { ConflictInfo } from "@/core/lib/scoutingDataUtils";
+import type { ScoutingEntryBase } from "@/types/scouting-entry";
 import { computeChangedFields } from "@/core/lib/scoutingDataUtils";
 
 // Debug logging helper - only logs in development
@@ -20,7 +21,7 @@ export const useConflictResolution = () => {
 
   // Generate conflict key from conflict info
   const getConflictKey = (conflict: ConflictInfo): string => {
-    return `${conflict.local.matchNumber}-${conflict.local.teamNumber}-${conflict.local.eventName}`;
+    return `${conflict.local.matchNumber}-${conflict.local.teamNumber}-${conflict.local.eventKey}`;
   };
 
   // Handle individual conflict resolution
@@ -47,7 +48,7 @@ export const useConflictResolution = () => {
 
   // Apply all conflict resolutions
   const applyConflictResolutions = async (resolutionsMap?: Map<string, 'replace' | 'skip'>) => {
-    const { saveScoutingEntry, db } = await import('@/lib/dexieDB');
+    const { db } = await import('@/core/db/database');
     
     const resolutions = resolutionsMap || conflictResolutions;
     let replaced = 0;
@@ -58,9 +59,16 @@ export const useConflictResolution = () => {
       const decision = resolutions.get(conflictKey);
 
       if (decision === 'replace') {
-        // Delete old entry and save new one
+        // Delete old entry and save new one directly (don't use saveScoutingEntry - it wraps in legacy format)
+        console.log('🔄 Replacing entry:', {
+          conflictKey,
+          incomingStructure: conflict.incoming,
+          hasGameData: 'gameData' in conflict.incoming,
+          hasData: 'data' in conflict.incoming,
+          localId: conflict.local.id
+        });
         await db.scoutingData.delete(conflict.local.id);
-        await saveScoutingEntry(conflict.incoming);
+        await db.scoutingData.put(conflict.incoming as never);
         replaced++;
       } else if (decision === 'skip') {
         // Keep existing entry, do nothing
@@ -89,13 +97,14 @@ export const useConflictResolution = () => {
       const newResolutions = new Map(conflictResolutions);
       for (let i = currentConflictIndex; i < currentConflicts.length; i++) {
         const conflict = currentConflicts[i];
+        if (!conflict) continue; // Skip if undefined
         const key = getConflictKey(conflict);
         newResolutions.set(key, action);
       }
       setConflictResolutions(newResolutions);
 
       // Apply immediately
-      const { saveScoutingEntry, db } = await import('@/lib/dexieDB');
+      const { db } = await import('@/core/db/database');
       let replaced = 0;
       let skipped = 0;
 
@@ -104,12 +113,13 @@ export const useConflictResolution = () => {
 
       for (let i = currentConflictIndex; i < currentConflicts.length; i++) {
         const conflict = currentConflicts[i];
+        if (!conflict) continue; // Skip if undefined
         const conflictKey = getConflictKey(conflict);
         const decision = newResolutions.get(conflictKey);
 
         if (decision === 'replace') {
           await db.scoutingData.delete(conflict.local.id);
-          await saveScoutingEntry(conflict.incoming);
+          await db.scoutingData.put(conflict.incoming as never);
           replaced++;
         } else {
           skipped++;
@@ -143,9 +153,11 @@ export const useConflictResolution = () => {
     if (resolutionHistory.length === 0) return;
 
     const lastResolution = resolutionHistory[resolutionHistory.length - 1];
+    if (!lastResolution) return; // Extra safety check
 
     // Remove last resolution from map
     const lastConflict = currentConflicts[lastResolution.index];
+    if (!lastConflict) return; // Skip if conflict not found
     const conflictKey = getConflictKey(lastConflict);
     const newResolutions = new Map(conflictResolutions);
     newResolutions.delete(conflictKey);
@@ -160,39 +172,39 @@ export const useConflictResolution = () => {
 
   // Handle batch review decision (for duplicate entries)
   const handleBatchReviewDecision = async (
-    batchReviewEntries: ScoutingDataWithId[],
+    batchReviewEntries: ScoutingEntryBase[],
     pendingConflicts: ConflictInfo[],
     decision: 'replace-all' | 'skip-all' | 'review-each'
   ) => {
     setIsProcessing(true);
     
     try {
-      const { saveScoutingEntry, db } = await import('@/lib/dexieDB');
+      const { db } = await import('@/core/db/database');
       
       if (decision === 'replace-all') {
         debugLog(`🔄 Batch replacing ${batchReviewEntries.length} duplicate entries...`);
         let replaced = 0;
         for (let i = 0; i < batchReviewEntries.length; i++) {
         const entry = batchReviewEntries[i];
-        const incomingData = entry.data;
-        const matchNumber = String(incomingData.matchNumber || '');
-        const teamNumber = String(incomingData.selectTeam || incomingData.teamNumber || '');
-        const alliance = String(incomingData.alliance || '').toLowerCase().replace('alliance', '').trim();
-        const eventName = String(incomingData.eventName || '');
+        if (!entry) continue; // Skip if undefined
+        const matchNumber = entry.matchNumber;
+        const teamNumber = entry.teamNumber;
+        const alliance = entry.allianceColor;
+        const eventKey = entry.eventKey;
         
         const existing = await db.scoutingData
           .toArray()
-          .then(entries => entries.find(e => 
+          .then(entries => entries.find((e: any) => 
             e.matchNumber === matchNumber &&
             e.teamNumber === teamNumber &&
-            e.alliance?.toLowerCase().replace('alliance', '').trim() === alliance &&
-            e.eventName === eventName
+            e.allianceColor === alliance &&
+            e.eventKey === eventKey
           ));
         
         if (existing) {
           await db.scoutingData.delete(existing.id);
         }
-        await saveScoutingEntry(entry);
+        await db.scoutingData.put(entry as never);
         replaced++;
         
         // Log progress for large batches
@@ -230,61 +242,29 @@ export const useConflictResolution = () => {
       
     } else if (decision === 'review-each') {
       // Convert batch entries to conflicts for individual review
+      const { db } = await import('@/core/db/database');
       const batchConflicts: ConflictInfo[] = await Promise.all(
         batchReviewEntries.map(async (entry) => {
-          const incomingData = entry.data;
-          const matchNumber = String(incomingData.matchNumber || '');
-          const teamNumber = String(incomingData.selectTeam || incomingData.teamNumber || '');
-          const eventName = String(incomingData.eventName || '');
+          const matchNumber = entry.matchNumber;
+          const teamNumber = entry.teamNumber;
+          const eventKey = entry.eventKey;
           
-          // Match on event, match, and team only (alliance is redundant)
-          // If eventName is missing, fall back to matching on match + team only
+          // Find existing local entry
           const local = await db.scoutingData
             .toArray()
-            .then(entries => {
-              if (eventName) {
-                // Normal matching: event + match + team
-                return entries.find(e => 
-                  e.matchNumber === matchNumber &&
-                  e.teamNumber === teamNumber &&
-                  e.eventName === eventName
-                );
-              } else {
-                // Fallback matching when eventName is missing: match + team only
-                return entries.find(e => 
-                  e.matchNumber === matchNumber &&
-                  e.teamNumber === teamNumber
-                );
-              }
-            });
+            .then((entries: any[]) => entries.find((e: any) => 
+              e.matchNumber === matchNumber &&
+              e.teamNumber === teamNumber &&
+              e.eventKey === eventKey
+            ));
           
-          const changedFields = local?.data 
-            ? computeChangedFields(local.data as Record<string, unknown>, incomingData as Record<string, unknown>)
+          const changedFields = local
+            ? computeChangedFields(local as ScoutingEntryBase, entry)
             : [];
           
           return {
             incoming: entry,
-            local: local ? {
-              id: local.id,
-              teamNumber: local.teamNumber,
-              matchNumber: local.matchNumber,
-              alliance: local.alliance,
-              eventName: local.eventName,
-              timestamp: local.timestamp,
-              scoutName: local.scoutName,
-              isCorrected: local.isCorrected,
-              correctionCount: local.correctionCount,
-              lastCorrectedAt: local.lastCorrectedAt,
-              lastCorrectedBy: local.lastCorrectedBy,
-              correctionNotes: local.correctionNotes,
-              originalScoutName: local.originalScoutName
-            } : {
-              id: '',
-              teamNumber,
-              matchNumber,
-              eventName,
-              timestamp: 0
-            },
+            local: local as ScoutingEntryBase,
             conflictType: 'corrected-vs-uncorrected' as const,
             isNewerIncoming: false,
             changedFields

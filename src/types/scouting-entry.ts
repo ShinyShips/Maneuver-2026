@@ -10,6 +10,7 @@
  * STRUCTURE NOTE:
  * Base fields (id, scoutName, teamNumber, etc.) are stored at the ROOT level.
  * Game-specific fields are stored in a separate "gameData" object for clean separation.
+ * Field order follows the match timeline: base info → gameData → comments (gathered last).
  * 
  * Example in database:
  * {
@@ -17,20 +18,28 @@
  *   "scoutName": "Alice",
  *   "teamNumber": 3314,
  *   "matchNumber": 100,
- *   "matchKey": "qm100",
  *   "eventKey": "2025mrcmp",
+ *   "matchKey": "qm100",
  *   "allianceColor": "red",
  *   "timestamp": 1760480094754,
+ *   "gameData": {
+ *    // Game-specific fields go here, organized by phase
+ *     "auto": {
+ *       "startPosition": 2,
+ *       "action1Count": 3
+ *     },
+ *     "teleop": {
+ *       "action1Count": 5
+ *     },
+ *     "endgame": {
+ *       "option1": true
+ *     }
+ *   },
+ *   "comments": "Robot performed well",
  *   "isCorrected": true,
  *   "correctionCount": 1,
  *   "lastCorrectedAt": 1728849900000,
  *   "lastCorrectedBy": "Alice",
- *   "gameData": {
- *     // Game-specific fields go here
- *     "autoCoralPlaceL4Count": 3,
- *     "teleopAlgaeNetCount": 2,
- *     // ... etc
- *   }
  * }
  */
 export interface ScoutingEntryBase {
@@ -79,6 +88,19 @@ export interface ScoutingEntryBase {
   timestamp: number;
 
   /**
+   * Game-specific data object
+   * All year-specific fields are stored here for clean separation.
+   * Organized by phase: auto → teleop → endgame
+   */
+  gameData: Record<string, unknown>;
+
+  /**
+   * Optional notes/comments from the scout
+   * Gathered last in the match timeline (endgame page)
+   */
+  comments?: string;
+
+  /**
    * Whether this entry has been corrected/edited after initial submission
    */
   isCorrected?: boolean;
@@ -102,15 +124,4 @@ export interface ScoutingEntryBase {
    * Notes about why the correction was made
    */
   correctionNotes?: string;
-
-  /**
-   * Optional notes/comments from the scout
-   */
-  comments?: string;
-
-  /**
-   * Game-specific data object
-   * All year-specific fields are stored here for clean separation
-   */
-  gameData: Record<string, unknown>;
 }

@@ -1,4 +1,4 @@
-import type { PitScoutingEntryBase } from '@/types/database';
+import type { PitScoutingEntry, PitScoutingData } from '@/core/types/scouting-entry';
 import { 
   savePitScoutingEntry as dbSavePitScoutingEntry, 
   loadPitScoutingByTeamAndEvent, 
@@ -10,16 +10,9 @@ import {
   getPitScoutingStats as dbGetPitScoutingStats 
 } from './dexieDB';
 
-// Type alias for convenience
-export type PitScoutingEntry = PitScoutingEntryBase;
-export interface PitScoutingData {
-  entries: PitScoutingEntry[];
-  lastUpdated: number;
-}
-
 // Generate unique ID for pit scouting entries
 export const generatePitScoutingId = (entry: Omit<PitScoutingEntry, 'id' | 'timestamp'>): string => {
-  const baseString = `${entry.teamNumber}-${entry.eventKey}-${entry.scoutName}`;
+  const baseString = `${entry.teamNumber}-${entry.eventName}-${entry.scoutName}`;
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   return `pit-${baseString}-${timestamp}-${random}`;
@@ -29,7 +22,7 @@ export const generatePitScoutingId = (entry: Omit<PitScoutingEntry, 'id' | 'time
 export const savePitScoutingEntry = async (entry: Omit<PitScoutingEntry, 'id' | 'timestamp'>): Promise<PitScoutingEntry> => {
   try {
     // Check if an entry for this team and event already exists
-    const existing = await loadPitScoutingByTeamAndEvent(entry.teamNumber, entry.eventKey);
+    const existing = await loadPitScoutingByTeamAndEvent(entry.teamNumber, entry.eventName);
     
     const completeEntry: PitScoutingEntry = {
       ...entry,
@@ -60,9 +53,9 @@ export const loadPitScoutingData = async (): Promise<PitScoutingData> => {
 };
 
 // Load pit scouting entry by team and event
-export const loadPitScoutingEntry = async (teamNumber: number, eventKey: string): Promise<PitScoutingEntry | null> => {
+export const loadPitScoutingEntry = async (teamNumber: string, eventName: string): Promise<PitScoutingEntry | null> => {
   try {
-    const result = await loadPitScoutingByTeamAndEvent(teamNumber, eventKey);
+    const result = await loadPitScoutingByTeamAndEvent(teamNumber, eventName);
     return result || null;
   } catch (error) {
     console.error('Error loading pit scouting entry:', error);
@@ -71,7 +64,7 @@ export const loadPitScoutingEntry = async (teamNumber: number, eventKey: string)
 };
 
 // Load pit scouting entries by team
-export const loadPitScoutingEntriesByTeam = async (teamNumber: number): Promise<PitScoutingEntry[]> => {
+export const loadPitScoutingEntriesByTeam = async (teamNumber: string): Promise<PitScoutingEntry[]> => {
   try {
     return await loadPitScoutingByTeam(teamNumber);
   } catch (error) {
@@ -81,9 +74,9 @@ export const loadPitScoutingEntriesByTeam = async (teamNumber: number): Promise<
 };
 
 // Load pit scouting entries by event
-export const loadPitScoutingEntriesByEvent = async (eventKey: string): Promise<PitScoutingEntry[]> => {
+export const loadPitScoutingEntriesByEvent = async (eventName: string): Promise<PitScoutingEntry[]> => {
   try {
-    return await loadPitScoutingByEvent(eventKey);
+    return await loadPitScoutingByEvent(eventName);
   } catch (error) {
     console.error('Error loading pit scouting entries by event:', error);
     return [];
@@ -113,7 +106,7 @@ export const clearAllPitScoutingData = async (): Promise<void> => {
 // Get pit scouting statistics
 export const getPitScoutingStats = async (): Promise<{
   totalEntries: number;
-  teams: number[];  // Team numbers are numeric
+  teams: string[];
   events: string[];
   scouts: string[];
 }> => {
@@ -178,7 +171,7 @@ export const downloadPitScoutingImagesOnly = async (): Promise<void> => {
         .filter(entry => entry.robotPhoto) // Only entries with images
         .map(entry => ({
           teamNumber: entry.teamNumber,
-          eventKey: entry.eventKey,
+          eventName: entry.eventName,
           robotPhoto: entry.robotPhoto,
           timestamp: entry.timestamp // For conflict resolution
         }))
@@ -220,11 +213,11 @@ export const importPitScoutingData = async (
       const existingEntries = await loadAllPitScoutingEntries();
       // Create a set of existing team-event combinations instead of IDs
       const existingTeamEvents = new Set(
-        existingEntries.map(e => `${e.teamNumber}-${e.eventKey}`)
+        existingEntries.map(e => `${e.teamNumber}-${e.eventName}`)
       );
       
       const newEntries = importData.entries.filter(entry => 
-        !existingTeamEvents.has(`${entry.teamNumber}-${entry.eventKey}`)
+        !existingTeamEvents.has(`${entry.teamNumber}-${entry.eventName}`)
       );
       
       // Save only new entries
@@ -241,105 +234,85 @@ export const importPitScoutingData = async (
   }
 };
 
-/**
- * Year-agnostic CSV export for pit scouting data
- * Dynamically creates columns for all gameData fields found across entries
- * Each unique gameData key becomes its own column
- */
+// Utility to convert pit scouting data to CSV
 export const exportPitScoutingToCSV = async (): Promise<string> => {
   const data = await loadPitScoutingData();
   
-  if (data.entries.length === 0) {
-    return '';
-  }
-
-  // Collect all unique gameData keys across all entries
-  const gameDataKeys = new Set<string>();
-  data.entries.forEach(entry => {
-    if (entry.gameData && typeof entry.gameData === 'object') {
-      // Recursively flatten nested objects with dot notation
-      const flattenObject = (obj: Record<string, unknown>, prefix = ''): void => {
-        Object.keys(obj).forEach(key => {
-          const value = obj[key];
-          const fullKey = prefix ? `${prefix}.${key}` : key;
-          
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-            // Recursively flatten nested objects
-            flattenObject(value as Record<string, unknown>, fullKey);
-          } else {
-            // Add leaf node as a column
-            gameDataKeys.add(fullKey);
-          }
-        });
-      };
-      
-      flattenObject(entry.gameData as Record<string, unknown>);
-    }
-  });
-
-  // Sort game data keys alphabetically for consistent column order
-  const sortedGameDataKeys = Array.from(gameDataKeys).sort();
-
-  // Universal headers + dynamic game data headers
   const headers = [
-    'ID',
-    'Team Number',
-    'Event Key',
-    'Scout',
-    'Timestamp',
-    'Weight (lbs)',
-    'Drivetrain',
-    'Programming Language',
-    'Robot Photo',
-    'Notes',
-    ...sortedGameDataKeys // Add all game data fields as columns
+    'ID', 'Team Number', 'Event Name', 'Scout', 'Timestamp',
+    'Weight', 'Drivetrain', 'Programming Language',
+    'Coral Ground Pickup', 'Algae Ground Pickup',
+    'Auto Pos0 Coral L1', 'Auto Pos0 Coral L2', 'Auto Pos0 Coral L3', 'Auto Pos0 Coral L4', 'Auto Pos0 Algae Net', 'Auto Pos0 Algae Processor',
+    'Auto Pos1 Coral L1', 'Auto Pos1 Coral L2', 'Auto Pos1 Coral L3', 'Auto Pos1 Coral L4', 'Auto Pos1 Algae Net', 'Auto Pos1 Algae Processor',
+    'Auto Pos2 Coral L1', 'Auto Pos2 Coral L2', 'Auto Pos2 Coral L3', 'Auto Pos2 Coral L4', 'Auto Pos2 Algae Net', 'Auto Pos2 Algae Processor',
+    'Auto Pos3 Coral L1', 'Auto Pos3 Coral L2', 'Auto Pos3 Coral L3', 'Auto Pos3 Coral L4', 'Auto Pos3 Algae Net', 'Auto Pos3 Algae Processor',
+    'Auto Pos4 Coral L1', 'Auto Pos4 Coral L2', 'Auto Pos4 Coral L3', 'Auto Pos4 Coral L4', 'Auto Pos4 Algae Net', 'Auto Pos4 Algae Processor',
+    'Teleop Coral L1', 'Teleop Coral L2', 'Teleop Coral L3', 'Teleop Coral L4', 'Teleop Total Algae', 'Teleop Algae Net Shots', 'Teleop Algae Processor',
+    'Can Shallow Climb', 'Can Deep Climb', 'Can Park',
+    'Notes'
   ];
 
-  // Helper to get nested value using dot notation
-  const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
-    return path.split('.').reduce((current, key) => {
-      if (current && typeof current === 'object') {
-        return (current as Record<string, unknown>)[key];
-      }
-      return undefined;
-    }, obj as unknown);
-  };
+  const rows = data.entries.map(entry => [
+    entry.id,
+    entry.teamNumber,
+    entry.eventName,
+    entry.scoutName,
+    new Date(entry.timestamp).toISOString(),
+    entry.weight || '',
+    entry.drivetrain || '',
+    entry.programmingLanguage || '',
+    entry.groundPickupCapabilities?.coralGroundPickup ? 'Yes' : 'No',
+    entry.groundPickupCapabilities?.algaeGroundPickup ? 'Yes' : 'No',
+    // Auto Position 0
+    entry.reportedAutoScoring?.position0?.coralL1 || 0,
+    entry.reportedAutoScoring?.position0?.coralL2 || 0,
+    entry.reportedAutoScoring?.position0?.coralL3 || 0,
+    entry.reportedAutoScoring?.position0?.coralL4 || 0,
+    entry.reportedAutoScoring?.position0?.algaeNet || 0,
+    entry.reportedAutoScoring?.position0?.algaeProcessor || 0,
+    // Auto Position 1
+    entry.reportedAutoScoring?.position1?.coralL1 || 0,
+    entry.reportedAutoScoring?.position1?.coralL2 || 0,
+    entry.reportedAutoScoring?.position1?.coralL3 || 0,
+    entry.reportedAutoScoring?.position1?.coralL4 || 0,
+    entry.reportedAutoScoring?.position1?.algaeNet || 0,
+    entry.reportedAutoScoring?.position1?.algaeProcessor || 0,
+    // Auto Position 2
+    entry.reportedAutoScoring?.position2?.coralL1 || 0,
+    entry.reportedAutoScoring?.position2?.coralL2 || 0,
+    entry.reportedAutoScoring?.position2?.coralL3 || 0,
+    entry.reportedAutoScoring?.position2?.coralL4 || 0,
+    entry.reportedAutoScoring?.position2?.algaeNet || 0,
+    entry.reportedAutoScoring?.position2?.algaeProcessor || 0,
+    // Auto Position 3
+    entry.reportedAutoScoring?.position3?.coralL1 || 0,
+    entry.reportedAutoScoring?.position3?.coralL2 || 0,
+    entry.reportedAutoScoring?.position3?.coralL3 || 0,
+    entry.reportedAutoScoring?.position3?.coralL4 || 0,
+    entry.reportedAutoScoring?.position3?.algaeNet || 0,
+    entry.reportedAutoScoring?.position3?.algaeProcessor || 0,
+    // Auto Position 4
+    entry.reportedAutoScoring?.position4?.coralL1 || 0,
+    entry.reportedAutoScoring?.position4?.coralL2 || 0,
+    entry.reportedAutoScoring?.position4?.coralL3 || 0,
+    entry.reportedAutoScoring?.position4?.coralL4 || 0,
+    entry.reportedAutoScoring?.position4?.algaeNet || 0,
+    entry.reportedAutoScoring?.position4?.algaeProcessor || 0,
+    // Teleop Scoring
+    entry.reportedTeleopScoring?.coralL1 || 0,
+    entry.reportedTeleopScoring?.coralL2 || 0,
+    entry.reportedTeleopScoring?.coralL3 || 0,
+    entry.reportedTeleopScoring?.coralL4 || 0,
+    entry.reportedTeleopScoring?.totalAlgae || 0,
+    entry.reportedTeleopScoring?.algaeNetShots ? 'Yes' : 'No',
+    entry.reportedTeleopScoring?.algaeProcessor ? 'Yes' : 'No',
+    // Endgame
+    entry.reportedEndgame?.canShallowClimb ? 'Yes' : 'No',
+    entry.reportedEndgame?.canDeepClimb ? 'Yes' : 'No',
+    entry.reportedEndgame?.canPark ? 'Yes' : 'No',
+    entry.notes || ''
+  ]);
 
-  // Helper to format value for CSV
-  const formatValue = (value: unknown): string => {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return JSON.stringify(value);
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
-  };
-
-  // Map entries to rows with universal fields + dynamic game data fields
-  const rows = data.entries.map(entry => {
-    const universalFields = [
-      entry.id,
-      entry.teamNumber.toString(),
-      entry.eventKey,
-      entry.scoutName,
-      new Date(entry.timestamp).toISOString(),
-      entry.weight?.toString() || '',
-      entry.drivetrain || '',
-      entry.programmingLanguage || '',
-      entry.robotPhoto ? 'Has Image' : 'No Image',
-      entry.notes || ''
-    ];
-
-    // Add dynamic game data values in the same order as headers
-    const gameDataValues = sortedGameDataKeys.map(key => {
-      if (!entry.gameData) return '';
-      const value = getNestedValue(entry.gameData as Record<string, unknown>, key);
-      return formatValue(value);
-    });
-
-    return [...universalFields, ...gameDataValues];
-  });
-
-  // Convert to CSV format
   return [headers, ...rows].map(row => 
     row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
   ).join('\n');
@@ -350,8 +323,8 @@ export const importPitScoutingImagesOnly = async (
   imagesData: {
     type: string;
     entries: Array<{
-      teamNumber: number;
-      eventKey: string;
+      teamNumber: string;
+      eventName: string;
       robotPhoto: string;
       timestamp: number;
     }>;
@@ -367,17 +340,17 @@ export const importPitScoutingImagesOnly = async (
     let notFound = 0;
 
     console.log('Images import debug:');
-    console.log('Existing entries:', existingEntries.map(e => `${e.teamNumber}@${e.eventKey}`));
-    console.log('Image entries to match:', imagesData.entries.map(e => `${e.teamNumber}@${e.eventKey}`));
+    console.log('Existing entries:', existingEntries.map(e => `${e.teamNumber}@${e.eventName}`));
+    console.log('Image entries to match:', imagesData.entries.map(e => `${e.teamNumber}@${e.eventName}`));
 
     for (const imageEntry of imagesData.entries) {
       // Find existing entry by team and event
       const existingEntry = existingEntries.find(
         entry => entry.teamNumber === imageEntry.teamNumber && 
-                 entry.eventKey === imageEntry.eventKey
+                 entry.eventName === imageEntry.eventName
       );
 
-      console.log(`Looking for ${imageEntry.teamNumber}@${imageEntry.eventKey}: ${existingEntry ? 'FOUND' : 'NOT FOUND'}`);
+      console.log(`Looking for ${imageEntry.teamNumber}@${imageEntry.eventName}: ${existingEntry ? 'FOUND' : 'NOT FOUND'}`);
 
       if (existingEntry) {
         // Update existing entry with the image

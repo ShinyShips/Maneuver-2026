@@ -99,8 +99,8 @@ const EndgamePage = () => {
         matchKey: matchKey,
         allianceColor: allianceColor as 'red' | 'blue',
         timestamp: Date.now(),
-        comments: comment,
         gameData: transformedGameData, // Store transformed counter fields (not action arrays)
+        comments: comment, // Comments comes last - final field in match timeline
       };
 
       // Save to database (cast to any since we're using new structure but database expects old)

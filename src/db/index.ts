@@ -91,15 +91,10 @@ export {
 export {
   generateDeterministicEntryId,
   generateEntryId,
-  addIdsToScoutingData,
-  hasIdStructure,
-  migrateToIdStructure,
   detectConflicts,
   mergeScoutingData,
   findExistingEntry,
-  extractLegacyData,
   loadScoutingData,
-  loadLegacyScoutingData,
   saveScoutingData,
 } from '../core/db/dataUtils';
 
@@ -107,16 +102,6 @@ export type {
   ConflictResolution,
   ConflictResult,
 } from '../core/db/dataUtils';
-
-// Migration utilities
-export {
-  checkMigrationNeeded,
-  migrateFromLocalStorage,
-  clearOldDatabases,
-  migrateScoutingEntryIds,
-  migrateScoutingMetadata,
-  runStartupMigrations,
-} from '../core/db/migrationUtils';
 
 // Scout gamification utilities
 export {

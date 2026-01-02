@@ -13,7 +13,6 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   ScoutingEntryBase,
-  ScoutingDataWithId,
   ScoutingDataExport,
   ImportResult,
   DBStats,
@@ -123,103 +122,26 @@ gameDB.open().catch(error => {
 // UTILITY FUNCTIONS
 // ============================================================================
 
-/**
- * Safely convert value to string, returning undefined for empty/null values
- */
-const safeStringify = (value: unknown): string | undefined => {
-  if (value === null || value === undefined || value === '') {
-    return undefined;
-  }
-  const str = String(value).trim();
-  return str === '' ? undefined : str;
-};
-
-/**
- * Enhance entry with indexed fields for faster queries
- * Extracts top-level fields from data object for database indexes
- */
-const enhanceEntry = <TGameData = Record<string, unknown>>(
-  entry: ScoutingDataWithId<TGameData>
-): ScoutingEntryBase<TGameData> => {
-  const data = entry.data as Record<string, unknown>;
-  let actualData = data;
-  
-  // Handle nested data structure (legacy compatibility)
-  if (data && typeof data === 'object') {
-    if ('data' in data && typeof data.data === 'object') {
-      actualData = data.data as Record<string, unknown>;
-    }
-  }
-  
-  // Extract indexed fields from data
-  const matchNumber = safeStringify(actualData?.matchNumber);
-  let alliance = safeStringify(actualData?.alliance);
-  const scoutName = safeStringify(actualData?.scoutName);
-  const teamNumber = safeStringify(actualData?.selectTeam || actualData?.teamNumber);
-  let eventName = safeStringify(actualData?.eventName);
-  
-  // Normalize alliance: "redAlliance" -> "red", "blueAlliance" -> "blue"
-  if (alliance) {
-    alliance = alliance.toLowerCase().replace('alliance', '').trim();
-  }
-  
-  // Normalize event name to lowercase for consistency
-  if (eventName) {
-    eventName = eventName.toLowerCase();
-  }
-  
-  // Preserve correction tracking fields if they exist
-  const existingEntry = entry as Partial<ScoutingEntryBase>;
-  const isCorrected = existingEntry.isCorrected;
-  const correctionCount = existingEntry.correctionCount;
-  const lastCorrectedAt = existingEntry.lastCorrectedAt;
-  const lastCorrectedBy = existingEntry.lastCorrectedBy;
-  const correctionNotes = existingEntry.correctionNotes;
-  const originalScoutName = existingEntry.originalScoutName;
-  
-  // Ensure data is properly structured (not nested)
-  const normalizedData = actualData !== data ? actualData : undefined;
-  
-  return {
-    id: entry.id,
-    teamNumber,
-    matchNumber,
-    alliance,
-    scoutName,
-    eventName,
-    data: (normalizedData || data) as TGameData,
-    timestamp: entry.timestamp || Date.now(),
-    isCorrected,
-    correctionCount,
-    lastCorrectedAt,
-    lastCorrectedBy,
-    correctionNotes,
-    originalScoutName,
-  };
-};
-
 // ============================================================================
 // SCOUTING DATA CRUD OPERATIONS
 // ============================================================================
 
 /**
- * Save a single scouting entry
+ * Save a single scouting entry (ScoutingEntryBase format)
  */
 export const saveScoutingEntry = async <TGameData = Record<string, unknown>>(
-  entry: ScoutingDataWithId<TGameData>
+  entry: ScoutingEntryBase<TGameData>
 ): Promise<void> => {
-  const enhancedEntry = enhanceEntry(entry);
-  await db.scoutingData.put(enhancedEntry as ScoutingEntryBase<Record<string, unknown>>);
+  await db.scoutingData.put(entry as ScoutingEntryBase<Record<string, unknown>>);
 };
 
 /**
  * Save multiple scouting entries (bulk operation)
  */
 export const saveScoutingEntries = async <TGameData = Record<string, unknown>>(
-  entries: ScoutingDataWithId<TGameData>[]
+  entries: ScoutingEntryBase<TGameData>[]
 ): Promise<void> => {
-  const enhancedEntries = entries.map(enhanceEntry) as ScoutingEntryBase<Record<string, unknown>>[];
-  await db.scoutingData.bulkPut(enhancedEntries);
+  await db.scoutingData.bulkPut(entries as ScoutingEntryBase<Record<string, unknown>>[]);
 };
 
 /**
@@ -308,7 +230,7 @@ export const findExistingScoutingEntry = async <TGameData = Record<string, unkno
  */
 export const updateScoutingEntryWithCorrection = async <TGameData = Record<string, unknown>>(
   id: string,
-  newData: ScoutingDataWithId<TGameData>,
+  newData: ScoutingEntryBase<TGameData>,
   correctionNotes: string,
   correctedBy: string
 ): Promise<void> => {
@@ -318,11 +240,10 @@ export const updateScoutingEntryWithCorrection = async <TGameData = Record<strin
   }
 
   // Extract match info from new data
-  const data = newData.data as Record<string, unknown>;
-  const matchNumber = String(data.matchNumber || '');
-  const teamNumber = String((data.selectTeam || data.teamNumber) || '');
-  const alliance = String(data.alliance || '').toLowerCase().replace('alliance', '').trim();
-  const eventName = String(data.eventName || '').toLowerCase();
+  const matchNumber = newData.matchNumber;
+  const teamNumber = newData.teamNumber;
+  const alliance = newData.alliance;
+  const eventName = newData.eventName;
 
   // Delete ALL other entries for same match/team/alliance to prevent duplicates
   const duplicates = await db.scoutingData
@@ -335,16 +256,17 @@ export const updateScoutingEntryWithCorrection = async <TGameData = Record<strin
   }
 
   // Update entry with correction metadata
-  await db.scoutingData.update(id, {
-    data: newData.data as Record<string, unknown>,
+  const updatedEntry: Partial<ScoutingEntryBase<Record<string, unknown>>> = {
+    ...newData as ScoutingEntryBase<Record<string, unknown>>,
     timestamp: Date.now(),
     isCorrected: true,
     correctionCount: (existing.correctionCount || 0) + 1,
     lastCorrectedAt: Date.now(),
     lastCorrectedBy: correctedBy,
     correctionNotes: correctionNotes,
-    originalScoutName: existing.originalScoutName || existing.scoutName,
-  });
+  };
+  
+  await db.scoutingData.put(updatedEntry as ScoutingEntryBase<Record<string, unknown>>);
 };
 
 /**

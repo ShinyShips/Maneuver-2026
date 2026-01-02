@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { ScoutingDataWithId } from './scoutingDataUtils';
+import type { ScoutingEntryBase } from '@/types/scouting-entry';
 import type { PitScoutingEntryBase } from '@/types/database';
 
 // Scout gamification types
@@ -35,24 +35,11 @@ export interface ScoutAchievement {
   progress?: number;
 }
 
-export interface ScoutingEntryDB {
-  id: string;
-  teamNumber?: string;
-  matchNumber?: string;
-  alliance?: string;
-  scoutName?: string;
-  eventName?: string;
-  data: Record<string, unknown>;
-  timestamp: number;
-  
-  // Correction tracking fields
-  isCorrected?: boolean;         // Has this been re-scouted?
-  correctionCount?: number;      // Number of times corrected (1, 2, 3...)
-  lastCorrectedAt?: number;      // Timestamp of last correction
-  lastCorrectedBy?: string;      // Scout name who did correction
-  correctionNotes?: string;      // Why it was corrected
-  originalScoutName?: string;    // Original scout (preserved on first correction)
-}
+/**
+ * Database entry type - now uses ScoutingEntryBase directly
+ * No more legacy 'data' wrapper
+ */
+export type ScoutingEntryDB = ScoutingEntryBase;
 
 export class MatchScoutingDB extends Dexie {
   scoutingData!: Table<ScoutingEntryDB>;
@@ -62,7 +49,7 @@ export class MatchScoutingDB extends Dexie {
     
     // Version 1: Complete schema for maneuver-core template
     this.version(1).stores({
-      scoutingData: 'id, teamNumber, matchNumber, alliance, scoutName, eventName, timestamp, isCorrected'
+      scoutingData: 'id, teamNumber, matchNumber, allianceColor, scoutName, eventKey, timestamp, isCorrected'
     });
   }
 }
@@ -112,105 +99,44 @@ export const db = new MatchScoutingDB();
 export const pitDB = new PitScoutingDB();
 export const gameDB = new ScoutProfileDB();
 
-const safeStringify = (value: unknown): string | undefined => {
-  if (value === null || value === undefined || value === '') {
-    return undefined;
-  }
-  const str = String(value).trim();
-  return str === '' ? undefined : str;
+/**
+ * Save a scouting entry directly (ScoutingEntryBase format)
+ * No longer wraps in legacy format - saves as-is
+ */
+export const saveScoutingEntry = async (entry: ScoutingEntryBase): Promise<void> => {
+  await db.scoutingData.put(entry as never);
 };
 
-const enhanceEntry = (entry: ScoutingDataWithId): ScoutingEntryDB => {
-  const data = entry.data;
-  let actualData = data;
-  
-  if (data && typeof data === 'object') {
-    if ('data' in data && typeof data.data === 'object') {
-      actualData = data.data as Record<string, unknown>;
-    }
-  }
-  
-  const matchNumber = safeStringify(actualData?.matchNumber);
-  let alliance = safeStringify(actualData?.alliance);
-  const scoutName = safeStringify(actualData?.scoutName);
-  const teamNumber = safeStringify(actualData?.selectTeam);
-  let eventName = safeStringify(actualData?.eventName);
-  
-  // Normalize alliance value: "redAlliance" -> "red", "blueAlliance" -> "blue"
-  if (alliance) {
-    alliance = alliance.toLowerCase().replace('alliance', '').trim();
-  }
-  
-  // Normalize event name to lowercase for consistency
-  // This prevents "2025MRcmp" and "2025mrcmp" from being treated as different events
-  if (eventName) {
-    eventName = eventName.toLowerCase().trim();
-  }
-
-  // Extract correction metadata from data if present
-  const isCorrected = Boolean(actualData?.isCorrected);
-  const correctionCount = typeof actualData?.correctionCount === 'number' ? actualData.correctionCount : undefined;
-  const lastCorrectedAt = typeof actualData?.lastCorrectedAt === 'number' ? actualData.lastCorrectedAt : undefined;
-  const lastCorrectedBy = typeof actualData?.lastCorrectedBy === 'string' ? actualData.lastCorrectedBy : undefined;
-  const correctionNotes = typeof actualData?.correctionNotes === 'string' ? actualData.correctionNotes : undefined;
-
-  // Update the data object with normalized values for consistency
-  const normalizedData = {
-    ...actualData,
-    eventName,  // Use normalized lowercase eventName
-    alliance,   // Use normalized alliance (already normalized above)
-  };
-
-  return {
-    id: entry.id,
-    teamNumber,
-    matchNumber,
-    alliance,
-    scoutName,
-    eventName,
-    data: normalizedData || data,
-    timestamp: entry.timestamp || Date.now(),
-    isCorrected,
-    correctionCount,
-    lastCorrectedAt,
-    lastCorrectedBy,
-    correctionNotes
-  };
-};
-
-export const saveScoutingEntry = async (entry: ScoutingDataWithId): Promise<void> => {
-  const enhancedEntry = enhanceEntry(entry);
-  await db.scoutingData.put(enhancedEntry);
-};
-
-export const saveScoutingEntries = async (entries: ScoutingDataWithId[]): Promise<void> => {  
-  const enhancedEntries = entries.map(enhanceEntry);
-  await db.scoutingData.bulkPut(enhancedEntries);
+/**
+ * Save multiple scouting entries (ScoutingEntryBase format)
+ */
+export const saveScoutingEntries = async (entries: ScoutingEntryBase[]): Promise<void> => {  
+  await db.scoutingData.bulkPut(entries as never[]);
 };
 
 export const loadAllScoutingEntries = async (): Promise<ScoutingEntryDB[]> => {
   return await db.scoutingData.toArray();
 };
 
-export const loadScoutingEntriesByTeam = async (teamNumber: string): Promise<ScoutingEntryDB[]> => {
+export const loadScoutingEntriesByTeam = async (teamNumber: number): Promise<ScoutingEntryDB[]> => {
   return await db.scoutingData.where('teamNumber').equals(teamNumber).toArray();
 };
 
-export const loadScoutingEntriesByMatch = async (matchNumber: string): Promise<ScoutingEntryDB[]> => {
+export const loadScoutingEntriesByMatch = async (matchNumber: number): Promise<ScoutingEntryDB[]> => {
   return await db.scoutingData.where('matchNumber').equals(matchNumber).toArray();
 };
 
-export const loadScoutingEntriesByEvent = async (eventName: string): Promise<ScoutingEntryDB[]> => {
-  return await db.scoutingData.where('eventName').equals(eventName).toArray();
+export const loadScoutingEntriesByEvent = async (eventKey: string): Promise<ScoutingEntryDB[]> => {
+  return await db.scoutingData.where('eventKey').equals(eventKey).toArray();
 };
 
 export const loadScoutingEntriesByTeamAndEvent = async (
-  teamNumber: string, 
-  eventName: string
+  teamNumber: number, 
+  eventKey: string
 ): Promise<ScoutingEntryDB[]> => {
   return await db.scoutingData
-    .where('[teamNumber+eventName]')
-    .equals([teamNumber, eventName])
+    .where('teamNumber').equals(teamNumber)
+    .and(entry => entry.eventKey === eventKey)
     .toArray();
 };
 
@@ -222,11 +148,11 @@ export const cleanupDuplicateEntries = async () => {
     const allEntries = await db.scoutingData.toArray();
     console.log(`[Cleanup] Found ${allEntries.length} total entries`);
     
-    // Group by match-team-alliance-event
+    // Group by match-team-allianceColor-event (using core standard field names)
     const entriesByKey = new Map<string, ScoutingEntryDB[]>();
     
     allEntries.forEach(entry => {
-      const key = `${entry.eventName}-${entry.matchNumber}-${entry.alliance}-${entry.teamNumber}`;
+      const key = `${entry.eventKey}-${entry.matchNumber}-${entry.allianceColor}-${entry.teamNumber}`;
       if (!entriesByKey.has(key)) {
         entriesByKey.set(key, []);
       }
@@ -269,43 +195,27 @@ export const cleanupDuplicateEntries = async () => {
   }
 };
 
-// Fix alliance values in existing data (redAlliance -> red, blueAlliance -> blue)
-export const normalizeAllianceValues = async () => {
-  console.log('[Normalize] Fixing alliance values...');
-  
-  try {
-    const allEntries = await db.scoutingData.toArray();
-    let fixedCount = 0;
-    
-    for (const entry of allEntries) {
-      if (entry.alliance && (entry.alliance.includes('Alliance') || entry.alliance.includes('alliance'))) {
-        const normalizedAlliance = entry.alliance.toLowerCase().replace('alliance', '').trim();
-        await db.scoutingData.update(entry.id, { alliance: normalizedAlliance });
-        fixedCount++;
-      }
-    }
-    
-    console.log(`[Normalize] Fixed ${fixedCount} entries out of ${allEntries.length} total`);
-    return { fixed: fixedCount, total: allEntries.length };
-  } catch (error) {
-    console.error('[Normalize] Error during normalization:', error);
-    throw error;
-  }
-};
+// Remove legacy alliance normalization function - not needed with core standard
+// All data should already use 'red' or 'blue' format
 
 export const findExistingScoutingEntry = async (
-  matchNumber: string,
-  teamNumber: string,
-  alliance: string,
-  eventName: string
+  matchNumber: number,
+  teamNumber: number,
+  allianceColor: 'red' | 'blue',
+  eventKey: string
 ): Promise<ScoutingEntryDB | undefined> => {
   const entries = await db.scoutingData
-    .where({ matchNumber, teamNumber, alliance, eventName })
+    .where('matchNumber').equals(matchNumber)
+    .and(entry => 
+      entry.teamNumber === teamNumber && 
+      entry.allianceColor === allianceColor && 
+      entry.eventKey === eventKey
+    )
     .toArray();
   
   // Log if there are duplicates
   if (entries.length > 1) {
-    console.warn(`Found ${entries.length} duplicate entries for match ${matchNumber}, team ${teamNumber}, alliance ${alliance}`);
+    console.warn(`Found ${entries.length} duplicate entries for match ${matchNumber}, team ${teamNumber}, alliance ${allianceColor}`);
     console.warn('Entry IDs:', entries.map(e => e.id));
   }
   
@@ -314,7 +224,7 @@ export const findExistingScoutingEntry = async (
 
 export const updateScoutingEntryWithCorrection = async (
   id: string,
-  newData: ScoutingDataWithId,
+  newData: ScoutingEntryBase,
   correctionNotes: string,
   correctedBy: string
 ): Promise<void> => {
@@ -324,13 +234,13 @@ export const updateScoutingEntryWithCorrection = async (
   }
 
   // Find and delete ALL other entries for the same match/team/alliance to prevent duplicates
-  const matchNumber = newData.data.matchNumber as string;
-  const teamNumber = newData.data.selectTeam as string;
-  const alliance = newData.data.alliance as string;
-  const eventName = newData.data.eventName as string;
+  const matchNumber = newData.matchNumber;
+  const teamNumber = newData.teamNumber;
+  const allianceColor = newData.allianceColor;
+  const eventKey = newData.eventKey;
   
   const duplicates = await db.scoutingData
-    .where({ matchNumber, teamNumber, alliance, eventName })
+    .where({ matchNumber, teamNumber, allianceColor, eventKey })
     .toArray();
   
   // Delete all duplicates except the one we're updating
@@ -342,19 +252,16 @@ export const updateScoutingEntryWithCorrection = async (
     console.warn(`Deleting ${duplicateIds.length} duplicate entries:`, duplicateIds);
     await db.scoutingData.bulkDelete(duplicateIds);
   }
-
-  const enhancedEntry = enhanceEntry(newData);
   
   // Completely replace the entry with new data, keeping only correction metadata
   await db.scoutingData.put({
-    ...enhancedEntry,
+    ...newData,
     id: id, // Keep the same ID to replace the existing entry
     lastCorrectedAt: Date.now(),
     lastCorrectedBy: correctedBy,
     correctionNotes: correctionNotes || undefined,
     isCorrected: true,
     correctionCount: (existing.correctionCount || 0) + 1,
-    originalScoutName: existing.originalScoutName || existing.scoutName,
   });
 };
 
@@ -372,8 +279,8 @@ export const clearAllScoutingData = async (): Promise<void> => {
 
 export const getDBStats = async (): Promise<{
   totalEntries: number;
-  teams: string[];
-  matches: string[];
+  teams: number[];
+  matches: number[];
   scouts: string[];
   events: string[];
   oldestEntry?: number;
@@ -381,8 +288,8 @@ export const getDBStats = async (): Promise<{
 }> => {
   const entries = await db.scoutingData.toArray();
   
-  const teams = new Set<string>();
-  const matches = new Set<string>();
+  const teams = new Set<number>();
+  const matches = new Set<number>();
   const scouts = new Set<string>();
   const events = new Set<string>();
   let oldestEntry: number | undefined;
@@ -392,7 +299,7 @@ export const getDBStats = async (): Promise<{
     if (entry.teamNumber) teams.add(entry.teamNumber);
     if (entry.matchNumber) matches.add(entry.matchNumber);
     if (entry.scoutName) scouts.add(entry.scoutName);
-    if (entry.eventName) events.add(entry.eventName);
+    if (entry.eventKey) events.add(entry.eventKey);
     
     if (!oldestEntry || entry.timestamp < oldestEntry) {
       oldestEntry = entry.timestamp;
@@ -404,89 +311,13 @@ export const getDBStats = async (): Promise<{
   
   return {
     totalEntries: entries.length,
-    teams: Array.from(teams).sort((a, b) => Number(a) - Number(b)),
-    matches: Array.from(matches).sort((a, b) => Number(a) - Number(b)),
+    teams: Array.from(teams).sort((a, b) => a - b),
+    matches: Array.from(matches).sort((a, b) => a - b),
     scouts: Array.from(scouts).sort(),
     events: Array.from(events).sort(),
     oldestEntry,
     newestEntry
   };
-};
-
-export const migrateFromLocalStorage = async (): Promise<{
-  success: boolean;
-  migratedCount: number;
-  error?: string;
-}> => {
-  try {
-    const existingDataStr = localStorage.getItem('scoutingData');
-    if (!existingDataStr) {
-      return { success: true, migratedCount: 0 };
-    }
-    
-    const { migrateToIdStructure, hasIdStructure } = await import('./scoutingDataUtils');
-    
-    const parsed = JSON.parse(existingDataStr);
-    let dataToMigrate: { entries: ScoutingDataWithId[] };
-    
-    if (hasIdStructure(parsed)) {
-      dataToMigrate = parsed;
-    } else {
-      dataToMigrate = migrateToIdStructure(parsed);
-    }
-    
-    await saveScoutingEntries(dataToMigrate.entries);
-    
-    localStorage.setItem('scoutingData_backup', existingDataStr);
-    localStorage.removeItem('scoutingData');
-    
-    return {
-      success: true,
-      migratedCount: dataToMigrate.entries.length
-    };
-  } catch (error) {
-    console.error('Migration failed:', error);
-    return {
-      success: false,
-      migratedCount: 0,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
-};
-
-export const migrateFromIndexedDB = async (): Promise<{
-  success: boolean;
-  migratedCount: number;
-  error?: string;
-}> => {
-  try {
-    const { loadAllScoutingEntries: loadOldEntries } = await import('./indexedDBUtils');
-    
-    const oldEntries = await loadOldEntries();
-    if (oldEntries.length === 0) {
-      return { success: true, migratedCount: 0 };
-    }
-    
-    const convertedEntries: ScoutingDataWithId[] = oldEntries.map(entry => ({
-      id: entry.id,
-      data: entry.data,
-      timestamp: entry.timestamp
-    }));
-    
-    await saveScoutingEntries(convertedEntries);
-    
-    return {
-      success: true,
-      migratedCount: convertedEntries.length
-    };
-  } catch (error) {
-    console.error('IndexedDB migration failed:', error);
-    return {
-      success: false,
-      migratedCount: 0,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
 };
 
 export const exportScoutingData = async (): Promise<{
@@ -545,10 +376,10 @@ export const importScoutingData = async (
 };
 
 export const queryScoutingEntries = async (filters: {
-  teamNumbers?: string[];
-  matchNumbers?: string[];
-  eventNames?: string[];
-  alliances?: string[];
+  teamNumbers?: number[];
+  matchNumbers?: number[];
+  eventKeys?: string[];
+  alliances?: ('red' | 'blue')[];
   scoutName?: string[];
   dateRange?: { start: number; end: number };
 }): Promise<ScoutingEntryDB[]> => {
@@ -573,15 +404,15 @@ export const queryScoutingEntries = async (filters: {
     );
   }
   
-  if (filters.eventNames && filters.eventNames.length > 0) {
+  if (filters.eventKeys && filters.eventKeys.length > 0) {
     collection = collection.filter(entry => 
-      Boolean(entry.eventName && filters.eventNames!.includes(entry.eventName))
+      Boolean(entry.eventKey && filters.eventKeys!.includes(entry.eventKey))
     );
   }
   
   if (filters.alliances && filters.alliances.length > 0) {
     collection = collection.filter(entry => 
-      Boolean(entry.alliance && filters.alliances!.includes(entry.alliance))
+      Boolean(entry.allianceColor && filters.alliances!.includes(entry.allianceColor))
     );
   }
   
@@ -595,16 +426,16 @@ export const queryScoutingEntries = async (filters: {
 };
 
 export const getFilterOptions = async (): Promise<{
-  teams: string[];
-  matches: string[];
+  teams: number[];
+  matches: number[];
   events: string[];
-  alliances: string[];
+  alliances: ('red' | 'blue')[];
   scouts: string[];
 }> => {
   const stats = await getDBStats();
   
   const entries = await db.scoutingData.toArray();
-  const alliances = [...new Set(entries.map(e => e.alliance).filter(Boolean))].sort() as string[];
+  const alliances = [...new Set(entries.map(e => e.allianceColor).filter(Boolean))].sort() as ('red' | 'blue')[];
   
   return {
     teams: stats.teams,
@@ -957,144 +788,5 @@ export const deleteScout = async (name: string): Promise<void> => {
 export const clearGameData = async (): Promise<void> => {
   await gameDB.scouts.clear();
   await gameDB.predictions.clear();
-};
-
-/**
- * Migration: Regenerate IDs for all scouting entries to use composite key format
- * This converts old hash-based IDs to the new event::match::team::alliance format
- * for faster lookups and natural collision detection
- */
-export const migrateScoutingEntryIds = async (): Promise<{ updated: number; errors: number }> => {
-  console.log('🔄 [Migration] Starting scouting entry ID migration...');
-  
-  try {
-    const allEntries = await db.scoutingData.toArray();
-    console.log(`📊 [Migration] Found ${allEntries.length} entries to migrate`);
-    
-    let updated = 0;
-    let errors = 0;
-    
-    for (const entry of allEntries) {
-      try {
-        // Skip entries missing required fields
-        if (!entry.matchNumber || !entry.teamNumber || !entry.alliance || !entry.eventName) {
-          console.warn(`⚠️ [Migration] Skipping entry ${entry.id} - missing required fields`);
-          errors++;
-          continue;
-        }
-        
-        // Generate new composite ID from the entry's fields
-        const { generateDeterministicEntryId } = await import('./scoutingDataUtils');
-        const newId = generateDeterministicEntryId(
-          entry.matchNumber,
-          entry.teamNumber,
-          entry.alliance,
-          entry.eventName
-        );
-        
-        // Only update if ID changed
-        if (entry.id !== newId) {
-          // Delete old entry
-          await db.scoutingData.delete(entry.id);
-          
-          // Add with new ID
-          await db.scoutingData.add({
-            ...entry,
-            id: newId
-          });
-          
-          updated++;
-          
-          if (updated % 100 === 0) {
-            console.log(`✅ [Migration] Migrated ${updated} entries...`);
-          }
-        }
-      } catch (error) {
-        console.error(`❌ [Migration] Error migrating entry ${entry.id}:`, error);
-        errors++;
-      }
-    }
-    
-    console.log(`✅ [Migration] Complete! Updated: ${updated}, Errors: ${errors}`);
-    return { updated, errors };
-  } catch (error) {
-    console.error('❌ [Migration] Fatal error during migration:', error);
-    throw error;
-  }
-};
-
-/**
- * Migrate existing entries to populate top-level scoutName and timestamp fields
- * This fixes entries where these fields are only in the data object
- */
-export const migrateScoutingMetadata = async (): Promise<{ updated: number; errors: number }> => {
-  try {
-    console.log('🔄 [Metadata Migration] Starting migration to populate top-level fields...');
-    
-    const allEntries = await db.scoutingData.toArray();
-    console.log(`📊 [Metadata Migration] Found ${allEntries.length} entries to check`);
-    
-    let updated = 0;
-    let errors = 0;
-    
-    for (const entry of allEntries) {
-      try {
-        const data = entry.data as Record<string, unknown>;
-        let needsUpdate = false;
-        const updates: Partial<ScoutingEntryDB> = {};
-        
-        // Debug first entry to see structure
-        if (updated === 0 && errors === 0) {
-          console.log('🔍 [Metadata Migration] Sample entry structure:', {
-            id: entry.id,
-            topLevelScoutName: entry.scoutName,
-            topLevelTimestamp: entry.timestamp,
-            hasData: !!data,
-            dataScoutName: data?.scoutName,
-            dataTimestamp: data?.timestamp,
-            scoutNameType: typeof entry.scoutName,
-            timestampType: typeof entry.timestamp
-          });
-        }
-        
-        // Check if scoutName is missing at top level but exists in data
-        if (!entry.scoutName && data?.scoutName) {
-          updates.scoutName = String(data.scoutName);
-          needsUpdate = true;
-          console.log(`📝 [Metadata Migration] Will update scoutName for ${entry.id}`);
-        }
-        
-        // Check if timestamp is missing or zero
-        if ((!entry.timestamp || entry.timestamp === 0) && typeof data?.timestamp === 'number') {
-          updates.timestamp = data.timestamp;
-          needsUpdate = true;
-          console.log(`📝 [Metadata Migration] Will update timestamp for ${entry.id}`);
-        } else if (!entry.timestamp || entry.timestamp === 0) {
-          // If no timestamp anywhere, use current time
-          updates.timestamp = Date.now();
-          needsUpdate = true;
-          console.log(`📝 [Metadata Migration] Will set current timestamp for ${entry.id}`);
-        }
-        
-        if (needsUpdate) {
-          await db.scoutingData.update(entry.id, updates);
-          updated++;
-          
-          if (updated % 100 === 0) {
-            console.log(`✅ [Metadata Migration] Updated ${updated} entries...`);
-          }
-        }
-      } catch (error) {
-        console.error(`❌ [Metadata Migration] Error updating entry ${entry.id}:`, error);
-        errors++;
-      }
-    }
-    
-    console.log(`✅ [Metadata Migration] Complete! Updated: ${updated}, Errors: ${errors}`);
-    return { updated, errors };
-  } catch (error) {
-    console.error('❌ [Metadata Migration] Fatal error during migration:', error);
-    throw error;
-  }
 };
 

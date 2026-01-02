@@ -12,8 +12,8 @@ import { toast } from 'sonner';
 import {
   fetchTBAMatchDetail,
   fetchTBAEventMatchesDetailed,
-  extractTeamNumbers,
   hasScoreBreakdown,
+  extractTeamNumbers,
   type TBAMatchData,
 } from '@/core/lib/tbaMatchData';
 import {
@@ -96,7 +96,7 @@ export function useTBAMatchData(): UseTBAMatchDataReturn {
         const cached = await getCachedTBAMatch(matchKey);
         if (cached) {
           console.log(`Using cached data for match ${matchKey}`);
-          return cached;
+          return cached as TBAMatchData;  // Type assertion: cache stores generic, we return typed
         }
       }
 
@@ -284,9 +284,9 @@ function formatCacheAge(timestamp: number): string {
  * Helper hook for getting team numbers from TBA match
  */
 export function useMatchTeams(match: TBAMatchData | null): {
-  redTeams: string[];
-  blueTeams: string[];
-  allTeams: string[];
+  redTeams: number[];
+  blueTeams: number[];
+  allTeams: number[];
 } {
   if (!match) {
     return { redTeams: [], blueTeams: [], allTeams: [] };

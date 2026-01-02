@@ -65,28 +65,6 @@ export interface ScoutingEntryBase<TGameData = Record<string, unknown>> {
 }
 
 /**
- * Scouting entry with guaranteed ID and timestamp
- * This is the format used for database storage
- */
-export interface ScoutingDataWithId<TGameData = Record<string, unknown>> {
-  id: string;
-  data: TGameData;
-  timestamp: number;
-}
-
-/**
- * Collection of scouting entries for import/export
- */
-export interface ScoutingDataCollection<TGameData = Record<string, unknown>> {
-  entries: ScoutingDataWithId<TGameData>[];
-  metadata?: {
-    version?: string;
-    exportTimestamp?: number;
-    eventName?: string;
-  };
-}
-
-/**
  * Database export format with metadata
  */
 export interface ScoutingDataExport<TGameData = Record<string, unknown>> {

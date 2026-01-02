@@ -6,7 +6,7 @@ import { useIsMobile } from '@/core/hooks/use-mobile';
 import { useNavigationConfirm } from '@/core/hooks/useNavigationConfirm';
 import { NavigationConfirmDialog } from '@/core/components/NavigationConfirmDialog';
 import { haptics } from '@/core/lib/haptics';
-import Button from '@/core/components/ui/button';
+import { Button } from '@/core/components/ui/button';
 
 /**
  * Bottom Navigation Component

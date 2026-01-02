@@ -1,4 +1,8 @@
 
+// DEPRECATED: This header is 2025-specific and should not be used in core framework
+// CSV export now dynamically generates headers from actual data structure
+// For 2025-specific reference, see: src/game-template/tba/tbaMatchData2025.ts
+// TODO: Remove this entirely or move to maneuver-2025 implementation
 export const SCOUTING_DATA_HEADER = [
   "id","matchNumber","alliance","scoutName","selectTeam",
   "startPoses0","startPoses1","startPoses2","startPoses3","startPoses4","startPoses5",

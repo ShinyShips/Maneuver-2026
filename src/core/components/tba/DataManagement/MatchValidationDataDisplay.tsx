@@ -51,11 +51,12 @@ export function MatchValidationDataDisplay({
   // Extract available validation fields from score breakdown
   // This is year-agnostic - it automatically detects what data is available
   const getAvailableFields = (): string[] => {
-    const matchWithBreakdown = matches.find(m => m.score_breakdown);
-    if (!matchWithBreakdown || !matchWithBreakdown.score_breakdown) return [];
+    const matchWithBreakdown = matches.find(m => hasScoreBreakdown(m));
+    if (!matchWithBreakdown || !hasScoreBreakdown(matchWithBreakdown)) return [];
     
-    const breakdown = matchWithBreakdown.score_breakdown;
-    const redAlliance = breakdown.red || {};
+    // Type assertion needed because hasScoreBreakdown doesn't narrow the type
+    const breakdown = (matchWithBreakdown as TBAMatchData & { score_breakdown: Record<string, any> }).score_breakdown;
+    const redAlliance = breakdown?.red || {};
     
     // Get all top-level keys from the score breakdown
     return Object.keys(redAlliance).filter(key => {
