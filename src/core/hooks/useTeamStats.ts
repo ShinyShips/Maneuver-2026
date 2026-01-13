@@ -67,7 +67,17 @@ export const useTeamStats = () => {
                 // Return a basic object with matchesPlayed: 0
                 return {
                     teamNumber: teamNum,
-                    matchesPlayed: 0
+                    eventKey: eventFilter || '',
+                    matchCount: 0,
+                    totalPoints: 0,
+                    autoPoints: 0,
+                    teleopPoints: 0,
+                    endgamePoints: 0,
+                    overall: { avgTotalPoints: 0, totalPiecesScored: 0, avgGamePiece1: 0, avgGamePiece2: 0 },
+                    auto: { avgPoints: 0, avgGamePiece1: 0, avgGamePiece2: 0, mobilityRate: 0, startPositions: [] },
+                    teleop: { avgPoints: 0, avgGamePiece1: 0, avgGamePiece2: 0 },
+                    endgame: { avgPoints: 0, climbRate: 0, parkRate: 0 },
+                    matchesPlayed: 0,
                 } as TeamStats;
             }
 

@@ -259,6 +259,7 @@ export const unlockAchievement = async (
 
     if (!existing) {
         await gamificationDB.scoutAchievements.put({
+            id: `${scoutName}_${achievementId}_${Date.now()}`,
             scoutName,
             achievementId,
             unlockedAt: Date.now(),

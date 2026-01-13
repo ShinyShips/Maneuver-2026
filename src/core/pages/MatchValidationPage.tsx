@@ -43,7 +43,6 @@ export const MatchValidationPage: React.FC = () => {
     isValidating,
     matchList,
     filteredMatchList,
-    summary,
     filters,
     setFilters,
     validateEvent,
@@ -184,7 +183,7 @@ export const MatchValidationPage: React.FC = () => {
             setSelectedMatch(null);
             validateEvent();
           }}
-          formatMatchLabel={formatMatchLabel}
+          formatMatchLabel={formatMatchLabel as any}
         />
       )}
 

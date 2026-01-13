@@ -53,7 +53,7 @@ export function WebRTCDataRequestDialog() {
           if (requestFilters) {
             console.log('📋 Applying filters to scouting data:', requestFilters);
             setTransferStatus(`Filtering ${originalCount} entries...`);
-            const filteredData = applyFilters({ entries: scoutingData }, requestFilters);
+            const filteredData = applyFilters({ entries: scoutingData, exportedAt: Date.now(), version: '1.0' }, requestFilters);
             scoutingData = filteredData.entries as typeof scoutingData;
             console.log(`🔍 Filtered: ${originalCount} entries → ${scoutingData.length} entries`);
           }
@@ -98,7 +98,7 @@ export function WebRTCDataRequestDialog() {
           if (requestFilters) {
             const origScoutingCount = scoutingData.length;
             console.log('📋 Applying filters to combined scouting data:', requestFilters);
-            const filteredData = applyFilters({ entries: scoutingData }, requestFilters);
+            const filteredData = applyFilters({ entries: scoutingData, exportedAt: Date.now(), version: '1.0' }, requestFilters);
             scoutingData = filteredData.entries as typeof scoutingData;
             console.log(`📊 Filtered scouting: ${origScoutingCount} → ${scoutingData.length} entries`);
           }

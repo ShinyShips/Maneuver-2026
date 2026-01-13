@@ -135,10 +135,9 @@ export const UniversalFountainScanner = ({
   const neededPacketsRef = useRef<number>(0);
 
   const handleQRScan = useCallback(async (result: { rawValue: string; }[]) => {
-    // Destructure current props/state from ref
+    // Destructure current props/state from ref (only those used in this callback)
     const {
-      allowDuplicates, expectedPacketType, saveData, validateData,
-      completionMessage, getDataSummary, onComplete, onBack, dataType, decompressData
+      allowDuplicates, expectedPacketType, saveData, validateData, decompressData
     } = propsRef.current;
 
     // THROTTLE: Limit scan processing to once every 50ms (20fps max)

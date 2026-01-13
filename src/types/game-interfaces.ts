@@ -11,6 +11,7 @@
 import * as React from 'react';
 import type { ScoutingEntryBase } from './scouting-entry';
 import type { TeamStats } from '../core/types/team-stats';
+export type { TeamStats };
 
 /**
  * Interface 1: GameConfig

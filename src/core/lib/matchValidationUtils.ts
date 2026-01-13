@@ -23,7 +23,8 @@ import {
     getAllMappedToggleKeys,
     getActionMapping,
     getToggleMapping,
-    getValidationCategories,
+    actions,
+    toggles,
     type TBAMappingType,
 } from '@/game-template/game-schema';
 
@@ -564,31 +565,28 @@ function calculateSeverity(
  * Get human-readable label for action key
  */
 function getActionLabel(actionKey: string): string {
-    // Import from game-schema if available
-    try {
-        const { actions } = require('@/game-template/game-schema');
-        return actions[actionKey]?.label ?? actionKey;
-    } catch {
-        return actionKey;
+    // Check if this action key exists in the actions object
+    if (actionKey in actions) {
+        return actions[actionKey as keyof typeof actions].label;
     }
+    return actionKey;
 }
 
 /**
  * Get human-readable label for toggle key
  */
 function getToggleLabel(toggleKey: string): string {
-    try {
-        const { toggles } = require('@/game-template/game-schema');
-        // Check all toggle phases
-        for (const phase of ['auto', 'teleop', 'endgame']) {
-            if (toggles[phase]?.[toggleKey]) {
-                return toggles[phase][toggleKey].label;
+    // Check all toggle phases for the key
+    for (const phase of ['auto', 'teleop', 'endgame'] as const) {
+        const phaseToggles = toggles[phase];
+        if (phaseToggles && toggleKey in phaseToggles) {
+            const toggle = (phaseToggles as Record<string, { label: string }>)[toggleKey];
+            if (toggle?.label) {
+                return toggle.label;
             }
         }
-        return toggleKey;
-    } catch {
-        return toggleKey;
     }
+    return toggleKey;
 }
 
 // ============================================================================

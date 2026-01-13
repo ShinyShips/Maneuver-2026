@@ -103,7 +103,19 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
 
         if (matchCount === 0) {
             return {
+                // Base TeamStats required fields
                 teamNumber: 0,
+                eventKey: '',
+                matchCount: 0,
+                totalPoints: 0,
+                autoPoints: 0,
+                teleopPoints: 0,
+                endgamePoints: 0,
+                overall: { avgTotalPoints: 0, totalPiecesScored: 0, avgGamePiece1: 0, avgGamePiece2: 0 },
+                auto: { avgPoints: 0, avgGamePiece1: 0, avgGamePiece2: 0, mobilityRate: 0, startPositions: [] },
+                teleop: { avgPoints: 0, avgGamePiece1: 0, avgGamePiece2: 0 },
+                endgame: { avgPoints: 0, climbRate: 0, parkRate: 0 },
+                // Template-specific fields
                 matchesPlayed: 0,
                 avgTotalPoints: 0,
                 avgAutoPoints: 0,
@@ -188,7 +200,38 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
         const avgEndgamePoints = matchResults.reduce((sum, m) => sum + m.endgamePoints, 0) / matchCount;
 
         return {
+            // Base TeamStats required fields
             teamNumber: entries[0]?.teamNumber || 0,
+            eventKey: entries[0]?.eventKey || '',
+            matchCount,
+            totalPoints: matchResults.reduce((sum, m) => sum + m.totalPoints, 0),
+            autoPoints: matchResults.reduce((sum, m) => sum + m.autoPoints, 0),
+            teleopPoints: matchResults.reduce((sum, m) => sum + m.teleopPoints, 0),
+            endgamePoints: matchResults.reduce((sum, m) => sum + m.endgamePoints, 0),
+            overall: {
+                avgTotalPoints: Math.round((avgAutoPoints + avgTeleopPoints + avgEndgamePoints) * 10) / 10,
+                totalPiecesScored: totals.autoAction1 + totals.autoAction2 + totals.teleopAction1 + totals.teleopAction2,
+                avgGamePiece1: Math.round(((totals.autoAction1 + totals.teleopAction1) / matchCount) * 10) / 10,
+                avgGamePiece2: Math.round(((totals.autoAction2 + totals.teleopAction2) / matchCount) * 10) / 10,
+            },
+            auto: {
+                avgPoints: Math.round(avgAutoPoints * 10) / 10,
+                avgGamePiece1: Math.round((totals.autoAction1 / matchCount) * 10) / 10,
+                avgGamePiece2: Math.round((totals.autoAction2 / matchCount) * 10) / 10,
+                mobilityRate: 0,
+                startPositions: Object.entries(startPositions).map(([key, value]) => ({ position: key, percentage: value })),
+            },
+            teleop: {
+                avgPoints: Math.round(avgTeleopPoints * 10) / 10,
+                avgGamePiece1: Math.round((totals.teleopAction1 / matchCount) * 10) / 10,
+                avgGamePiece2: Math.round((totals.teleopAction2 / matchCount) * 10) / 10,
+            },
+            endgame: {
+                avgPoints: Math.round(avgEndgamePoints * 10) / 10,
+                climbRate: Math.round((totals.endgameSuccess / matchCount) * 100),
+                parkRate: 0,
+            },
+            // Template-specific fields
             matchesPlayed: matchCount,
             avgTotalPoints: Math.round((avgAutoPoints + avgTeleopPoints + avgEndgamePoints) * 10) / 10,
             avgAutoPoints: Math.round(avgAutoPoints * 10) / 10,

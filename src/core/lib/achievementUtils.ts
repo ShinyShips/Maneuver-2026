@@ -35,6 +35,7 @@ export const checkForNewAchievements = async (scoutName: string): Promise<Achiev
       }
 
       const scoutAchievement: ScoutAchievement = {
+        id: `${scoutName}_${achievement.id}_${Date.now()}`,
         scoutName,
         achievementId: achievement.id,
         unlockedAt: Date.now(),

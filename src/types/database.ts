@@ -31,7 +31,8 @@ export interface ScoutingDatabaseSchema {
 // ============================================================================
 
 // Entry types are in: src/core/types/pit-scouting.ts
-import type { PitScoutingEntryBase } from '../core/types/pit-scouting';
+import type { PitScoutingEntryBase, DrivetrainType, ProgrammingLanguage } from '../core/types/pit-scouting';
+export type { PitScoutingEntryBase, DrivetrainType, ProgrammingLanguage };
 
 /**
  * Pit scouting database schema

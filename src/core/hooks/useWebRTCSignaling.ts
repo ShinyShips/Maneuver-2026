@@ -33,7 +33,7 @@ export function useWebRTCSignaling({
   onMessage,
 }: UseWebRTCSignalingOptions) {
   console.log('🎣 useWebRTCSignaling hook called:', { roomId, peerId, peerName, role, enabled });
-  
+
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,7 +41,7 @@ export function useWebRTCSignaling({
 
   // Determine the signaling server URL
   // Use absolute URL to ensure it works across devices on the network
-  const signalingUrl = import.meta.env.DEV 
+  const signalingUrl = import.meta.env.DEV
     ? `${window.location.protocol}//${window.location.hostname}:8888/.netlify/functions/webrtc-signal`
     : '/.netlify/functions/webrtc-signal';
 
@@ -49,7 +49,7 @@ export function useWebRTCSignaling({
   const sendMessage = useCallback(
     async (message: Omit<SignalingMessage, 'roomId' | 'peerId' | 'peerName' | 'role'>) => {
       console.log(`📤 sendMessage called: ${message.type}, roomId=${roomId}, enabled=${enabled}`);
-      
+
       if (!roomId || !enabled) {
         console.warn(`⚠️ sendMessage aborted: roomId=${roomId}, enabled=${enabled}`);
         return;
@@ -102,7 +102,7 @@ export function useWebRTCSignaling({
         } catch {
           functionsAvailableRef.current = false;
         }
-        
+
         if (!functionsAvailableRef.current) {
           const devError = 'Netlify Functions not available. Please run with "npm run dev" instead of "npm run dev:vite" to enable room code connections.';
           console.error('❌', devError);
@@ -111,7 +111,7 @@ export function useWebRTCSignaling({
           return;
         }
       }
-      
+
       console.log('📤 Sending join message to room:', roomId);
       await sendMessage({ type: 'join' });
       console.log('✅ Join message sent successfully');
@@ -181,13 +181,13 @@ export function useWebRTCSignaling({
       }
 
       const data = await response.json();
-      
+
       // console.log(`📬 Poll result: ${data.messages?.length || 0} messages`);
-      
+
       // Process new messages
       if (data.messages && Array.isArray(data.messages)) {
         if (data.messages.length > 0) {
-          console.log(`📨 Received ${data.messages.length} messages:`, data.messages.map((m: {type: string; peerName?: string}) => `${m.type} from ${m.peerName}`).join(', '));
+          console.log(`📨 Received ${data.messages.length} messages:`, data.messages.map((m: { type: string; peerName?: string }) => `${m.type} from ${m.peerName}`).join(', '));
         }
         for (const message of data.messages) {
           // Process all messages from the server without client-side deduplication
@@ -211,16 +211,17 @@ export function useWebRTCSignaling({
     if (connected && enabled) {
       // Poll immediately
       poll();
-      
+
       // Then poll every 2 seconds
       pollingIntervalRef.current = setInterval(poll, 2000);
-      
+
       return () => {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
         }
       };
     }
+    return undefined;
   }, [connected, enabled, poll]);
 
   // Join on mount if enabled
@@ -228,16 +229,16 @@ export function useWebRTCSignaling({
   const currentRoomRef = useRef<string | null>(null);
   const enabledRef = useRef(enabled);
   const roomIdRef = useRef(roomId);
-  
+
   // Update refs on every render
   useEffect(() => {
     enabledRef.current = enabled;
     roomIdRef.current = roomId;
   });
-  
+
   useEffect(() => {
     console.log('📡 Signaling hook effect:', { enabled, roomId, hasJoined: hasJoinedRef.current, currentRoom: currentRoomRef.current });
-    
+
     if (enabled && roomId) {
       // Only join if we haven't joined this room yet
       if (!hasJoinedRef.current || currentRoomRef.current !== roomId) {
@@ -251,14 +252,14 @@ export function useWebRTCSignaling({
     } else {
       console.log('⏸️ Signaling disabled or no room');
     }
-    
+
     // Leave when disabled or room changes or unmounting
     return () => {
       // Use refs to get the LATEST values, not the captured ones from closure
       const currentEnabled = enabledRef.current;
       const currentRoomId = roomIdRef.current;
       console.log('🧹 Signaling cleanup:', { currentEnabled, currentRoomId, hasJoined: hasJoinedRef.current, currentRoom: currentRoomRef.current });
-      
+
       // Only leave if actually disabled or room changed
       if (hasJoinedRef.current && (!currentEnabled || currentRoomRef.current !== currentRoomId)) {
         console.log('👋 Leaving room in cleanup');

@@ -85,7 +85,8 @@ interface GameSpecificQuestionsProps {
  */
 export function GameSpecificQuestions({
   gameData = {},
-  onGameDataChange,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onGameDataChange: _onGameDataChange,
 }: GameSpecificQuestionsProps) {
   return (
     <Card>

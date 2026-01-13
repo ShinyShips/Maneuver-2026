@@ -183,7 +183,7 @@ export function usePitScoutingForm(): UsePitScoutingFormReturn {
         drivetrain: formState.drivetrain,
         programmingLanguage: formState.programmingLanguage,
         notes: formState.notes,
-        gameData: formState.gameData,
+        gameData: formState.gameData ?? {}, // Default to empty object if undefined
       };
 
       await savePitScoutingEntry(entry);

@@ -51,26 +51,30 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
     }
 
     const newAssignments: PitAssignment[] = [];
-    
+
     if (assignmentMode === 'sequential') {
       // Sort teams numerically first
       const sortedTeams = [...currentTeams].sort((a, b) => a - b);
       const totalTeams = sortedTeams.length;
       const totalScouts = scoutsList.length;
-      
+
       // Calculate block size for each scout
       const baseBlockSize = Math.floor(totalTeams / totalScouts);
       const remainder = totalTeams % totalScouts;
-      
+
       let teamIndex = 0;
-      
+
       // Assign blocks to each scout
       scoutsList.forEach((scoutName, scoutIndex) => {
         // First 'remainder' scouts get one extra team
         const blockSize = scoutIndex < remainder ? baseBlockSize + 1 : baseBlockSize;
-        
+
         for (let i = 0; i < blockSize && teamIndex < totalTeams; i++) {
           const teamNumber = sortedTeams[teamIndex];
+          if (teamNumber === undefined) {
+            teamIndex++;
+            continue;
+          }
           newAssignments.push({
             id: `${selectedEvent}-${teamNumber}`,
             eventKey: selectedEvent,
@@ -82,7 +86,7 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
           teamIndex++;
         }
       });
-      
+
       onAssignmentsGenerated(newAssignments, true); // Sequential assignments are automatically confirmed
     } else if (assignmentMode === 'spatial') {
       // Spatial assignment based on pit map locations
@@ -92,7 +96,7 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
 
       // Create team-position mapping
       const teamPositions: { teamNumber: number; x: number; y: number }[] = [];
-      
+
       if (pitAddresses) {
         // Method 1: Use pit addresses mapping (when available)
         currentTeams.forEach(teamNumber => {
@@ -102,7 +106,7 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
             // Check for coordinates in multiple possible formats
             const x = pit.position?.x || pit.x || 0;
             const y = pit.position?.y || pit.y || 0;
-            
+
             if (x !== 0 || y !== 0) { // Accept any non-zero coordinates
               teamPositions.push({
                 teamNumber,
@@ -121,7 +125,7 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
             // Check for coordinates in multiple possible formats
             const x = typedPitData.position?.x || typedPitData.x || 0;
             const y = typedPitData.position?.y || typedPitData.y || 0;
-            
+
             if (x !== 0 || y !== 0) { // Accept any non-zero coordinates
               teamPositions.push({
                 teamNumber,
@@ -150,11 +154,12 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
 
       // Advanced spatial clustering: Create compact regions that minimize walking
       const spatialClusters = createSpatialClusters(teamPositions, scoutsList.length);
-      
+
       // Assign clusters to scouts
       spatialClusters.forEach((cluster: TeamPosition[], index: number) => {
         const scoutName = scoutsList[index % scoutsList.length];
-        
+        if (!scoutName) return; // Skip if no scout name available
+
         cluster.forEach((teamPosition: TeamPosition) => {
           newAssignments.push({
             id: `${selectedEvent}-${teamPosition.teamNumber}`,
@@ -212,17 +217,17 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {assignmentMode === 'sequential' 
+              {assignmentMode === 'sequential'
                 ? `Block Assignment: Teams are divided into consecutive blocks, with each scout getting ~${Math.ceil(currentTeams.length / scoutsList.length)} teams in sequence`
                 : assignmentMode === 'spatial'
-                ? 'Spatial Assignment: Teams are assigned based on their physical proximity in the pit map, creating geographic zones for each scout'
-                : 'Manual Assignment: Click on team cards to assign them to specific scouts one by one'
+                  ? 'Spatial Assignment: Teams are assigned based on their physical proximity in the pit map, creating geographic zones for each scout'
+                  : 'Manual Assignment: Click on team cards to assign them to specific scouts one by one'
               }
             </p>
           </div>
 
           <div className="flex gap-2">
-            <Button 
+            <Button
               disabled={hasAssignments || (assignmentMode !== 'sequential' && assignmentMode !== 'spatial')}
               onClick={handleGenerateAssignments}
               className="flex items-center gap-2"
