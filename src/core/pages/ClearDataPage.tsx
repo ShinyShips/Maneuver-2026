@@ -27,7 +27,7 @@ const ClearDataPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen w-full px-4 pt-6 pb-6">
+    <div className="min-h-screen w-full px-4 pt-12 pb-24">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col items-start gap-4 max-w-2xl mb-6">
@@ -40,8 +40,8 @@ const ClearDataPage = () => {
         {/* Top Row - Device Info and Alert */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <DeviceInfoCard playerStation={playerStation} />
-          <BackupRecommendationAlert 
-            onClearAllClick={() => setShowClearAllConfirm(true)} 
+          <BackupRecommendationAlert
+            onClearAllClick={() => setShowClearAllConfirm(true)}
           />
         </div>
 

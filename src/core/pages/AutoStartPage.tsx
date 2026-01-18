@@ -113,7 +113,7 @@ const AutoStartPage = () => {
   const hasSelection = startPosition.some(pos => pos === true);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center px-4 pt-6 pb-8 md:pb-6">
+    <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24 2xl:pb-6">
       <div className="w-full max-w-7xl xl:max-w-360 2xl:max-w-400">
         <h1 className="text-2xl font-bold pb-4 xl:text-3xl 2xl:text-4xl xl:pb-6">Auto Start</h1>
       </div>

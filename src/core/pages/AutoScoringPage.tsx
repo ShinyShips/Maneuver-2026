@@ -9,6 +9,7 @@ import { ScoringSections, StatusToggles } from "@/game-template/components";
 import { useWorkflowNavigation } from "@/core/hooks/useWorkflowNavigation";
 import { submitMatchData } from "@/core/lib/submitMatch";
 import { useGame } from "@/core/contexts/GameContext";
+import { workflowConfig } from "@/game-template/game-schema";
 
 const AutoScoringPage = () => {
   const { transformation } = useGame();
@@ -121,7 +122,7 @@ const AutoScoringPage = () => {
   };
 
   return (
-    <div className="h-fit w-full flex flex-col items-center px-4 pt-6 pb-8 md:pb-6">
+    <div className="h-full flex flex-col items-center pt-12 pb-24 px-4 2xl:pb-6">
       <div className="w-full max-w-7xl">
         <h1 className="text-2xl font-bold pb-4">Autonomous</h1>
       </div>
@@ -135,6 +136,13 @@ const AutoScoringPage = () => {
             phase="auto"
             onAddAction={addScoringAction}
             actions={scoringActions}
+            onUndo={undoLastAction}
+            canUndo={undoHistory.length > 0}
+            matchNumber={states?.inputs?.matchNumber}
+            matchType={states?.inputs?.matchType}
+            teamNumber={states?.inputs?.selectTeam}
+            onBack={handleBack}
+            onProceed={handleProceed}
           />
 
           {/* Action Buttons - Mobile Only */}
@@ -220,18 +228,20 @@ const AutoScoringPage = () => {
             </Card>
 
             {/* Robot Status Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Robot Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StatusToggles
-                  phase="auto"
-                  status={robotStatus}
-                  onStatusUpdate={updateRobotStatus}
-                />
-              </CardContent>
-            </Card>
+            {workflowConfig.pages.showAutoStatus && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Robot Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <StatusToggles
+                    phase="auto"
+                    status={robotStatus}
+                    onStatusUpdate={updateRobotStatus}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Undo Button */}
             <Button

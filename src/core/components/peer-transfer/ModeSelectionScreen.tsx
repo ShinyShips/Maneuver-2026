@@ -12,7 +12,7 @@ interface ModeSelectionScreenProps {
 
 export function ModeSelectionScreen({ onSelectLead, onSelectScout }: ModeSelectionScreenProps) {
     return (
-        <div className="min-h-screen w-full flex flex-col items-center px-4 pt-6 pb-8 md:pb-6">
+        <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24 2xl:pb-6">
             <div className="flex flex-col items-left gap-4 max-w-md w-full">
                 <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold">WiFi Transfer</h1>

@@ -32,7 +32,7 @@ export const ScoutMode = ({
     const shouldShowConnected = webrtcMode === 'scout' && connectionStatus.includes('Connected');
 
     return (
-        <div className="h-screen w-full flex flex-col items-center justify-start px-4 pt-12 pb-8 md:pb-6 overflow-y-auto">
+        <div className="h-screen w-full flex flex-col items-center justify-start px-4 pt-12 pb-24 2xl:pb-6 overflow-y-auto">
             <div className="flex flex-col items-start gap-6 max-w-md w-full">
                 <Button onClick={onBack} variant="ghost" size="sm">
                     ← Change Mode

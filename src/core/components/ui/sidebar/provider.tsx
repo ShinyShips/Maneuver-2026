@@ -52,19 +52,19 @@ export function SidebarProvider({
     const checkAndApplyScrollLock = () => {
       // Check if we're below 2xl breakpoint (1536px) - same as useIsMobile
       const isBelow2xlBreakpoint = window.innerWidth < 1536
-      
+
       if (isBelow2xlBreakpoint && openMobile) {
         // Store original styles
         const originalOverflow = document.body.style.overflow
         const originalTouchAction = document.body.style.touchAction
         const originalPosition = document.body.style.position
-        
+
         // Apply lock styles
         document.body.style.overflow = 'hidden'
         document.body.style.touchAction = 'none'
         document.body.style.position = 'fixed'
         document.body.style.width = '100%'
-        
+
         // Return cleanup function
         return () => {
           document.body.style.overflow = originalOverflow
@@ -73,13 +73,13 @@ export function SidebarProvider({
           document.body.style.width = ''
         }
       }
-      
+
       return undefined
     }
-    
+
     // Apply immediately
     const cleanup = checkAndApplyScrollLock()
-    
+
     // Listen for resize events to recheck breakpoint
     const handleResize = () => {
       // Clean up previous state
@@ -87,9 +87,9 @@ export function SidebarProvider({
       // Reapply based on new window size
       checkAndApplyScrollLock()
     }
-    
+
     window.addEventListener('resize', handleResize)
-    
+
     return () => {
       window.removeEventListener('resize', handleResize)
       if (cleanup) cleanup()
@@ -147,7 +147,7 @@ export function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-auto overflow-auto w-full",
+            "group/sidebar-wrapper h-full has-data-[variant=inset]:bg-sidebar flex min-h-auto overflow-auto w-full",
             className
           )}
           {...props}

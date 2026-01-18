@@ -10,6 +10,7 @@ import { ArrowRight } from "lucide-react";
 import { useGame } from "@/core/contexts/GameContext";
 import { useWorkflowNavigation } from "@/core/hooks/useWorkflowNavigation";
 import { submitMatchData } from "@/core/lib/submitMatch";
+import { workflowConfig } from "@/game-template/game-schema";
 
 const EndgamePage = () => {
   const { ui, transformation } = useGame();
@@ -60,7 +61,7 @@ const EndgamePage = () => {
   };
 
   return (
-    <div className="h-full w-full flex flex-col items-center px-4 pt-6 pb-6">
+    <div className="h-full w-full flex flex-col items-center px-4 pt-12 pb-24">
       <div className="w-full max-w-2xl">
         <h1 className="text-2xl font-bold pb-4">Endgame</h1>
       </div>
@@ -113,18 +114,20 @@ const EndgamePage = () => {
         )}
 
         {/* Endgame Robot Status Section */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg">Endgame Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatusToggles
-              phase="endgame"
-              status={robotStatus}
-              onStatusUpdate={updateRobotStatus}
-            />
-          </CardContent>
-        </Card>
+        {workflowConfig.pages.showEndgameStatus && (
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-lg">Endgame Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatusToggles
+                phase="endgame"
+                status={robotStatus}
+                onStatusUpdate={updateRobotStatus}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Comments Section */}
         <Card className="w-full flex-1">

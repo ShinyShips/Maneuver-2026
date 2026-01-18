@@ -129,7 +129,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
     }, [compareTeam, selectedEvent, calculateStats]);
 
     return (
-        <div className="min-h-screen w-full flex flex-col items-center px-4 pt-4 pb-6">
+        <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24">
             <div className="w-full max-w-7xl">
                 {/* Page Title & Attribution */}
                 <div className="flex items-center justify-between mb-4">

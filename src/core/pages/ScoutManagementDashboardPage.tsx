@@ -27,7 +27,7 @@ const ScoutManagementDashboardPage: React.FC = () => {
     } = useScoutDashboard();
 
     return (
-        <div className="min-h-screen container mx-auto p-4 space-y-6">
+        <div className="min-h-screen container mx-auto px-4 pt-12 pb-24 space-y-6">
             <div className="text-start space-y-2">
                 <div className="flex justify-between items-start">
                     <div>

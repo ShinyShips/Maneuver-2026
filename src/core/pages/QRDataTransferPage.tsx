@@ -402,7 +402,7 @@ const QRDataTransferPage = () => {
 
     return (
         <>
-            <div className="h-screen w-full flex flex-col items-center px-4 pt-6 pb-6">
+            <div className="h-screen w-full flex flex-col items-center px-4 pt-12 pb-24">
                 <div className="flex flex-col items-start gap-4 max-w-md w-full">
                     <h1 className="text-2xl font-bold">QR Data Transfer</h1>
                     <p className="text-muted-foreground">

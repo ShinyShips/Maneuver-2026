@@ -45,7 +45,7 @@ const MatchStrategyPage = () => {
     const handleSaveAll = () => saveAllStrategyCanvases(matchNumber, selectedTeams, fieldImage);
 
     return (
-        <div className="min-h-screen w-full flex flex-col items-center px-4 pt-6 pb-6">
+        <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24">
             <div className="w-full max-w-7xl">
                 <h1 className="text-2xl font-bold">Match Strategy</h1>
             </div>

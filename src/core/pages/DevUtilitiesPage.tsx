@@ -127,7 +127,7 @@ const DevUtilitiesPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen container mx-auto p-4 space-y-6">
+        <div className="min-h-screen container mx-auto px-4 pt-12 pb-24 space-y-6">
             <div className="text-center space-y-2">
                 <h1 className="text-3xl font-bold">Agnostic Dev Utilities</h1>
                 <p className="text-gray-600 dark:text-gray-400">

@@ -277,7 +277,7 @@ const GameStartPage = () => {
   const currentScout = getCurrentScout();
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center px-4 pt-6 pb-8 md:pb-6">
+    <div className="min-h-screen pt-12 w-full flex flex-col items-center px-4 pb-24 2xl:pb-6">
       <div className="w-full max-w-2xl">
         <h1 className="text-2xl font-bold pb-4">Game Start</h1>
       </div>

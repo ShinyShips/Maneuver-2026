@@ -59,7 +59,7 @@ export function PitScoutingPage({
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 pb-24">
+    <div className="min-h-screen bg-background px-4 pt-12 pb-24">
       <div className="mx-auto max-w-2xl space-y-4">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -124,18 +124,18 @@ export function PitScoutingPage({
 
 
         {/* Submit Button */}
-          <div className="mx-auto max-w-2xl">
-            <Button
-              onClick={onSubmit}
-              disabled={isLoading}
-              className="w-full"
-              size="lg"
-            >
-              <Save className="mr-2 h-5 w-5" />
-              {submitButtonText}
-            </Button>
-          </div>
+        <div className="mx-auto max-w-2xl">
+          <Button
+            onClick={onSubmit}
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            <Save className="mr-2 h-5 w-5" />
+            {submitButtonText}
+          </Button>
         </div>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Toaster } from "@/core/components/ui/sonner";
 
 const MainLayout = () => {
   return (
-    <div className="flex bg-background h-screen w-screen flex-col justify-center items-center">
+    <div className="flex bg-background h-screen w-screen flex-col">
       <Dashboard />
       <Toaster />
     </div>

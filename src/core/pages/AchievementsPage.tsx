@@ -38,7 +38,7 @@ const AchievementsPage: React.FC = () => {
 
     if (!currentScout) {
         return (
-            <div className="min-h-screen container mx-auto p-4 space-y-6">
+            <div className="min-h-screen container mx-auto px-4 pt-12 pb-24 space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-3xl font-bold">Achievements</h1>
                     <p className="text-gray-600 dark:text-gray-400">
@@ -50,7 +50,7 @@ const AchievementsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen container mx-auto p-4 space-y-6">
+        <div className="min-h-screen container mx-auto px-4 pt-12 pb-24 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>

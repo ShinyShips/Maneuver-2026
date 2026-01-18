@@ -179,7 +179,7 @@ export default function StrategyOverviewPage() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen gap-6 p-4 md:p-8">
+        <div className="flex flex-col min-h-screen gap-6 px-4 pt-12 pb-24 md:p-8">
             <StrategyHeader
                 filteredTeamCount={filteredTeamStats.length}
                 totalTeamCount={teamStats.length}

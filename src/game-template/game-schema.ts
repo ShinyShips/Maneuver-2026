@@ -31,15 +31,21 @@ export interface WorkflowConfig {
         autoScoring: boolean;
         teleopScoring: boolean;
         endgame: boolean;
+        showAutoStatus: boolean;
+        showTeleopStatus: boolean;
+        showEndgameStatus: boolean;
     };
 }
 
 export const workflowConfig: WorkflowConfig = {
     pages: {
-        autoStart: true,      // Starting position selection page
+        autoStart: false,      // Starting position selection page
         autoScoring: true,    // Auto period scoring (required)
         teleopScoring: true,  // Teleop period scoring (required)
         endgame: true,        // Endgame page with climb selection & submit
+        showAutoStatus: false, // Hide robot status on Auto (requested)
+        showTeleopStatus: true,
+        showEndgameStatus: true,
     },
 };
 

@@ -46,7 +46,7 @@ const PickListPage = () => {
     } = usePickList();
 
     return (
-        <div className="min-h-screen w-full flex flex-col px-4 pt-4">
+        <div className="min-h-screen w-full flex flex-col px-4 pt-12 pb-24">
             <div className="flex flex-col max-w-7xl w-full mx-auto flex-1 pb-6">
                 <h1 className="text-2xl font-bold">Pick Lists</h1>
                 <p className="text-muted-foreground pb-2">Create and manage alliance selection pick lists</p>

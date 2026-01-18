@@ -9,6 +9,7 @@ import { ScoringSections, StatusToggles } from "@/game-template/components";
 import { useWorkflowNavigation } from "@/core/hooks/useWorkflowNavigation";
 import { submitMatchData } from "@/core/lib/submitMatch";
 import { useGame } from "@/core/contexts/GameContext";
+import { workflowConfig } from "@/game-template/game-schema";
 
 const TeleopScoringPage = () => {
   const location = useLocation();
@@ -125,7 +126,7 @@ const TeleopScoringPage = () => {
   };
 
   return (
-    <div className="h-fit w-full flex flex-col items-center px-4 pt-6 pb-8 md:pb-6">
+    <div className="h-fit w-full flex flex-col items-center px-4 pt-12 pb-24 2xl:pb-6">
       <div className="w-full max-w-7xl">
         <h1 className="text-2xl font-bold pb-4">Teleoperated</h1>
       </div>
@@ -222,18 +223,20 @@ const TeleopScoringPage = () => {
           </Card>
 
           {/* Robot Status Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Robot Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatusToggles
-                phase="teleop"
-                status={robotStatus}
-                onStatusUpdate={updateRobotStatus}
-              />
-            </CardContent>
-          </Card>
+          {workflowConfig.pages.showTeleopStatus && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Robot Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatusToggles
+                  phase="teleop"
+                  status={robotStatus}
+                  onStatusUpdate={updateRobotStatus}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Undo Button */}
           <Button

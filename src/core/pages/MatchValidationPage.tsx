@@ -77,7 +77,7 @@ export const MatchValidationPage: React.FC = () => {
   };
 
   return (
-    <div className="container min-h-screen mx-auto p-4 pb-24 space-y-6 mt-safe">
+    <div className="container min-h-screen mx-auto px-4 pt-12 pb-24 space-y-6 mt-safe">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
