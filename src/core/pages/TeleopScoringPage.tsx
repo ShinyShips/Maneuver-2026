@@ -78,11 +78,9 @@ const TeleopScoringPage = () => {
     if (lastChange.type === 'action') {
       // Undo scoring action
       setScoringActions((prev: any) => prev.slice(0, -1));
-      toast.success("Undid last action");
     } else if (lastChange.type === 'status') {
       // Restore previous status
       setRobotStatus(lastChange.data);
-      toast.success("Undid status change");
     }
 
     // Remove from undo history
@@ -140,6 +138,8 @@ const TeleopScoringPage = () => {
             phase="teleop"
             onAddAction={addScoringAction}
             actions={scoringActions}
+            onBack={handleBack}
+            onProceed={handleProceed}
           />
 
           {/* Action Buttons - Mobile Only */}
