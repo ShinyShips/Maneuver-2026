@@ -16,9 +16,12 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/core/components/ui/button";
 import { Card } from "@/core/components/ui/card";
 import { Badge } from "@/core/components/ui/badge";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/core/hooks/use-mobile";
 import { cn } from "@/core/lib/utils";
+import { loadPitScoutingByTeamAndEvent } from "@/core/db/database";
+import { submitMatchData } from "@/core/lib/submitMatch";
+import { useGame } from "@/core/contexts/GameContext";
 import fieldImage from "@/game-template/assets/2026-field.png";
 import {
     FIELD_ELEMENTS,
@@ -145,6 +148,10 @@ function AutoFieldMapContent() {
         setIsSelectingCollect,
     } = useAutoScoring();
 
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { transformation } = useGame();
+
     const fieldCanvasRef = useRef<FieldCanvasRef>(null);
     const canvasRef = useMemo(() => ({
         get current() { return fieldCanvasRef.current?.canvas ?? null; }
@@ -155,8 +162,38 @@ function AutoFieldMapContent() {
     // Local state (UI-only, not shared)
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [currentZone, setCurrentZone] = useState<ZoneType>('allianceZone');
+    const [robotCapacity, setRobotCapacity] = useState<number | undefined>();
+    const [actionLogOpen, setActionLogOpen] = useState(false);
+    
+    // Broken down state - persisted with localStorage
+    const [brokenDownStart, setBrokenDownStart] = useState<number | null>(() => {
+        const saved = localStorage.getItem('autoBrokenDownStart');
+        return saved ? parseInt(saved, 10) : null;
+    });
+    const [totalBrokenDownTime, setTotalBrokenDownTime] = useState<number>(() => {
+        const saved = localStorage.getItem('autoBrokenDownTime');
+        return saved ? parseInt(saved, 10) : 0;
+    });
+    const isBrokenDown = brokenDownStart !== null;
 
     const isMobile = useIsMobile();
+
+    // Load pit scouting data for fuel capacity
+    useEffect(() => {
+        const loadPitData = async () => {
+            if (!teamNumber) return;
+            try {
+                const eventKey = localStorage.getItem('eventKey') || '';
+                const pitData = await loadPitScoutingByTeamAndEvent(Number(teamNumber), eventKey);
+                if (pitData && pitData.gameData) {
+                    setRobotCapacity(pitData.gameData.fuelCapacity as number);
+                }
+            } catch (error) {
+                console.error('Failed to load pit scouting data:', error);
+            }
+        };
+        loadPitData();
+    }, [teamNumber]);
 
     // Path drawing hook - use current zone bounds
     const currentZoneBounds = ZONE_BOUNDS[currentZone];
@@ -261,6 +298,23 @@ function AutoFieldMapContent() {
         onAddAction(waypoint);
     }, [onAddAction, generateId]);
 
+    const handleBrokenDownToggle = () => {
+        if (brokenDownStart) {
+            // Robot is back up - accumulate the time
+            const duration = Date.now() - brokenDownStart;
+            const newTotal = totalBrokenDownTime + duration;
+            setTotalBrokenDownTime(newTotal);
+            localStorage.setItem('autoBrokenDownTime', String(newTotal));
+            setBrokenDownStart(null);
+            localStorage.removeItem('autoBrokenDownStart');
+        } else {
+            // Robot is breaking down - start tracking time
+            const now = Date.now();
+            setBrokenDownStart(now);
+            localStorage.setItem('autoBrokenDownStart', String(now));
+        }
+    };
+
     const handleElementClick = (elementKey: string) => {
         const element = FIELD_ELEMENTS[elementKey as keyof typeof FIELD_ELEMENTS];
         if (!element) return;
@@ -293,8 +347,8 @@ function AutoFieldMapContent() {
             return;
         }
 
-        // Block clicks while any popup is active or robot is stuck elsewhere
-        if (pendingWaypoint || isSelectingScore || isSelectingPass || isSelectingCollect || selectedStartKey || isAnyStuck) {
+        // Block clicks while any popup is active or robot is stuck elsewhere or broken down
+        if (pendingWaypoint || isSelectingScore || isSelectingPass || isSelectingCollect || selectedStartKey || isAnyStuck || isBrokenDown) {
             return;
         }
 
@@ -418,10 +472,25 @@ function AutoFieldMapContent() {
         resetDrawing();
     };
 
+    // Undo wrapper that also clears active broken down state
+    const handleUndo = () => {
+        if (brokenDownStart) {
+            setBrokenDownStart(null);
+        }
+        if (onUndo) {
+            onUndo();
+        }
+    };
 
-
-
-
+    // Handle no-show submission
+    const handleNoShow = async () => {
+        await submitMatchData({
+            inputs: location.state?.inputs,
+            transformation,
+            noShow: true,
+            onSuccess: () => navigate('/game-start'),
+        });
+    };
 
     // ==========================================================================
     // RENDER
@@ -439,17 +508,29 @@ function AutoFieldMapContent() {
                 currentZone={currentZone}
                 isFullscreen={isFullscreen}
                 onFullscreenToggle={() => setIsFullscreen(!isFullscreen)}
-                actionLogSlot={<AutoActionLog actions={actions} totalScore={totalScore} />}
+                actionLogSlot={<AutoActionLog actions={actions} totalScore={totalScore} open={actionLogOpen} onOpenChange={setActionLogOpen} />}
+                onActionLogOpen={() => setActionLogOpen(true)}
                 matchNumber={matchNumber}
                 matchType={matchType}
                 teamNumber={teamNumber}
                 alliance={alliance}
                 isFieldRotated={isFieldRotated}
                 canUndo={canUndo}
-                onUndo={onUndo}
+                onUndo={handleUndo}
                 onBack={onBack}
-                onProceed={onProceed}
+                onProceed={() => {
+                    // Capture any active broken down time before proceeding
+                    if (brokenDownStart) {
+                        const duration = Date.now() - brokenDownStart;
+                        const finalTotal = totalBrokenDownTime + duration;
+                        localStorage.setItem('autoBrokenDownTime', String(finalTotal));
+                    }
+                    if (onProceed) onProceed();
+                }}
                 toggleFieldOrientation={toggleFieldOrientation}
+                isBrokenDown={isBrokenDown}
+                onBrokenDownToggle={handleBrokenDownToggle}
+                onNoShow={handleNoShow}
             />
 
             {/* Field with Overlay Buttons */}
@@ -630,6 +711,7 @@ function AutoFieldMapContent() {
                         fuelHistory={fuelHistory}
                         climbResult={climbResult}
                         isFieldRotated={isFieldRotated}
+                        robotCapacity={robotCapacity}
                         onFuelSelect={(value: number) => {
                             setAccumulatedFuel(prev => prev + value);
                             setFuelHistory(prev => [...prev, value]);

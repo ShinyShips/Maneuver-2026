@@ -12,7 +12,8 @@ import { Badge } from '@/core/components/ui/badge';
 import { Check, X, Undo2 } from 'lucide-react';
 import { cn } from '@/core/lib/utils';
 import type { PathWaypoint, ClimbLevel, ClimbResult } from './types';
-import { FUEL_OPTIONS, CLIMB_LEVELS } from './constants';
+import { getFuelOptions, CLIMB_LEVELS } from './constants';
+import { useEffect, useRef } from 'react';
 
 // =============================================================================
 // TYPES
@@ -23,6 +24,7 @@ export interface PendingWaypointPopupProps {
     accumulatedFuel: number;
     fuelHistory: number[];
     isFieldRotated: boolean;
+    robotCapacity?: number; // Fuel capacity from pit scouting
 
     // Fuel callbacks
     onFuelSelect: (value: number, label: string) => void;
@@ -51,6 +53,7 @@ export function PendingWaypointPopup({
     accumulatedFuel,
     fuelHistory,
     isFieldRotated,
+    robotCapacity,
     onFuelSelect,
     onFuelUndo,
     climbResult,
@@ -62,6 +65,19 @@ export function PendingWaypointPopup({
     onCancel,
 }: PendingWaypointPopupProps) {
     const isClimb = pendingWaypoint.type === 'climb';
+    const fuelOptions = getFuelOptions(robotCapacity);
+    
+    // Prevent immediate clicks after popup appears
+    const justOpenedRef = useRef(true);
+    
+    useEffect(() => {
+        justOpenedRef.current = true;
+        const timer = setTimeout(() => {
+            justOpenedRef.current = false;
+        }, 150); // Small delay to prevent the initial click from triggering buttons
+        
+        return () => clearTimeout(timer);
+    }, []);
 
     // Determine if confirm is enabled
     const canConfirm = isClimb
@@ -142,12 +158,18 @@ export function PendingWaypointPopup({
                     ) : (
                         // Fuel selection
                         <div className="grid grid-cols-4 gap-2 px-1">
-                            {FUEL_OPTIONS.map((opt) => (
+                            {fuelOptions.map((opt) => (
                                 <Button
                                     key={opt.label}
                                     variant="outline"
                                     size="lg"
-                                    onClick={(e) => { e.stopPropagation(); onFuelSelect(opt.value, opt.label); }}
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        if (!justOpenedRef.current) {
+                                            onFuelSelect(opt.value, opt.label);
+                                        }
+                                    }}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     className="h-10 w-full text-xs md:text-sm rounded-lg font-bold transition-all"
                                 >
                                     {opt.label.includes('/') || opt.label === 'Full' ? opt.label : `+${opt.label}`}

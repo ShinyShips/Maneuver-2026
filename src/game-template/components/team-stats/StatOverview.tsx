@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Button } from "@/core/components/ui/button";
 import { StatCard } from "@/core/components/team-stats/StatCard";
-import { ProgressCard } from "@/core/components/team-stats/ProgressCard";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { StatSectionDefinition, RateSectionDefinition } from "@/types/team-stats-display";
 
@@ -17,7 +16,7 @@ export function StatOverview({
     teamStats,
     compareStats,
     statSections,
-    rateSections,
+    rateSections: _rateSections,
     setActiveTab
 }: StatOverviewProps) {
     if (teamStats.matchesPlayed === 0) {
@@ -39,10 +38,10 @@ export function StatOverview({
     }
 
     const sections = statSections.filter(s => s.tab === 'overview');
-    const rateSecs = rateSections.filter(s => s.tab === 'overview');
 
-    const getStatValue = (stats: TeamStats, key: string): number => {
+    const getStatValue = (stats: TeamStats, key: string): string | number => {
         const value = (stats as Record<string, unknown>)[key];
+        if (typeof value === 'string') return value;
         return typeof value === 'number' ? value : 0;
     };
 
@@ -70,26 +69,6 @@ export function StatOverview({
                     </CardContent>
                 </Card>
             ))}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {rateSecs.map(section => (
-                    <Card key={section.id}>
-                        <CardHeader>
-                            <CardTitle>{section.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {section.rates.map(rate => (
-                                <ProgressCard
-                                    key={rate.key}
-                                    title={rate.label}
-                                    value={getStatValue(teamStats, rate.key)}
-                                    compareValue={compareStats ? getStatValue(compareStats, rate.key) : undefined}
-                                />
-                            ))}
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
         </div>
     );
 }

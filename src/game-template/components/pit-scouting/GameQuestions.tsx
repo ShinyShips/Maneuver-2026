@@ -1,117 +1,241 @@
 /**
- * Game-Specific Pit Scouting Questions Component
+ * 2026 REBUILT Pit Scouting Questions
  * 
- * This component allows teams to add game-specific questions to the pit scouting form.
- * It receives the current game data and a callback to update it.
- * 
- * HOW TO CUSTOMIZE FOR YOUR GAME YEAR:
- * ====================================
- * 
- * 1. Define what game-specific data you want to collect
- * 2. Create form inputs for each piece of data
- * 3. Use the onGameDataChange callback to update the form state
- * 4. Data is automatically saved to the database with the pit scouting entry
- * 
- * EXAMPLE QUESTIONS:
- * 
- * For 2025 Reefscape:
- * - Can score coral? (checkbox)
- * - Can score algae? (checkbox)
- * - Can climb? (checkbox)
- * - Preferred scoring location? (dropdown)
- * 
- * For 2024 Crescendo:
- * - Can score in amp? (checkbox)
- * - Can score in speaker? (checkbox)
- * - Autonomous capabilities? (checkboxes)
- * - Climb capability? (dropdown)
- * 
- * INTERFACE:
- * - gameData: Record<string, unknown> - Current game-specific data
- * - onGameDataChange: (data: Record<string, unknown>) => void - Update callback
- * 
- * USAGE EXAMPLE:
- * ```tsx
- * // Single field update
- * const handleCheckboxChange = (checked: boolean) => {
- *   onGameDataChange({ ...gameData, canScoreCoral: checked });
- * };
- * 
- * // Multiple field updates
- * const handleMultipleChanges = () => {
- *   onGameDataChange({ 
- *     ...gameData, 
- *     canScoreCoral: true,
- *     canScoreAlgae: false,
- *     preferredLocation: 'reef'
- *   });
- * };
- * 
- * // Using a helper function (recommended for cleaner code)
- * const updateField = (key: string, value: unknown) => {
- *   onGameDataChange({ ...gameData, [key]: value });
- * };
- * ```
- * 
- * DATA STORAGE:
- * Game data is stored in the pit scouting entry as:
- * {
- *   teamNumber: 3314,
- *   eventKey: "2025week1",
- *   // ... universal fields ...
- *   gameData: {
- *     canScoreCoral: true,
- *     canScoreAlgae: false,
- *     // ... your custom fields ...
- *   }
- * }
+ * Game-specific questions focused on robot capabilities that cannot be determined
+ * from watching matches:
+ * - Physical specifications (height, trench capability)
+ * - Capacity and intake methods
+ * - Strategic preferences (starting positions, roles)
+ * - Autonomous and endgame capabilities
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { Button } from "@/core/components/ui/button";
+import { Label } from "@/core/components/ui/label";
+import { Input } from "@/core/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/core/components/ui/select";
 
 interface GameSpecificQuestionsProps {
   gameData?: Record<string, unknown>;
   onGameDataChange: (data: Record<string, unknown>) => void;
 }
 
-/**
- * Default/Placeholder Game-Specific Questions Component
- * 
- * This is a simple placeholder that shows teams where to implement their
- * year-specific pit scouting questions.
- * 
- * Replace this entire component with your game-specific implementation.
- */
-export function GameSpecificQuestions({
-  gameData = {},
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onGameDataChange: _onGameDataChange,
-}: GameSpecificQuestionsProps) {
+const START_POSITIONS = ['Left Trench', 'Left Bump', 'Hub', 'Right Bump', 'Right Trench'];
+const ROLES = ['Cycler', 'Clean Up', 'Passer', 'Thief', 'Defense'];
+
+export function GameSpecificQuestions({ gameData = {}, onGameDataChange }: GameSpecificQuestionsProps) {
+  const handleChange = (key: string, value: unknown) => {
+    onGameDataChange({ ...gameData, [key]: value });
+  };
+
+  const handleMultiSelectChange = (key: string, value: string, checked: boolean) => {
+    const current = (gameData[key] as string[]) || [];
+    const updated = checked
+      ? [...current, value]
+      : current.filter(v => v !== value);
+    handleChange(key, updated);
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Game-Specific Questions</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Add questions specific to your game year
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-          <AlertTriangle className="h-12 w-12 text-amber-500" />
+    <div className="space-y-4">
+      {/* Physical Specifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Physical Specifications</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Game-Specific Implementation Needed</h3>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Replace this component with your game year's pit scouting questions.
-              See the JSDoc comments in this file for implementation guidance.
-            </p>
+            <Label htmlFor="maxLength">Robot Max Length (inches, with any extension)</Label>
+            <Input
+              id="maxLength"
+              type="number"
+              placeholder="e.g., 30"
+              value={(gameData.maxLength as number) || ''}
+              onChange={(e) => handleChange('maxLength', parseFloat(e.target.value) || 0)}
+            />
           </div>
-          <div className="text-xs text-muted-foreground bg-muted p-3 rounded-md max-w-sm">
-            <p className="font-mono">gameData: {JSON.stringify(gameData, null, 2)}</p>
+
+          <div className="space-y-2">
+            <Label htmlFor="maxWidth">Robot Max Width (inches, with any extension)</Label>
+            <Input
+              id="maxWidth"
+              type="number"
+              placeholder="e.g., 28"
+              value={(gameData.maxWidth as number) || ''}
+              onChange={(e) => handleChange('maxWidth', parseFloat(e.target.value) || 0)}
+            />
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          <div className="space-y-2">
+            <Label htmlFor="maxHeight">Robot Max Height (inches)</Label>
+            <Input
+              id="maxHeight"
+              type="number"
+              placeholder="e.g., 22"
+              value={(gameData.maxHeight as number) || ''}
+              onChange={(e) => handleChange('maxHeight', parseFloat(e.target.value) || 0)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant={gameData.canGoUnderTrench ? "default" : "outline"}
+              onClick={() => handleChange('canGoUnderTrench', !gameData.canGoUnderTrench)}
+              className="flex-1"
+            >
+              Can go under trench (22.25" clearance)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Fuel Handling */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Fuel Handling</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="fuelCapacity">Fuel Capacity (max pieces held)</Label>
+            <Input
+              id="fuelCapacity"
+              type="number"
+              placeholder="e.g., 8"
+              value={(gameData.fuelCapacity as number) || ''}
+              onChange={(e) => handleChange('fuelCapacity', parseInt(e.target.value) || 0)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant={gameData.canOutpostPickup ? "default" : "outline"}
+              onClick={() => handleChange('canOutpostPickup', !gameData.canOutpostPickup)}
+              className="flex-1"
+            >
+              Can pickup from outpost chute
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant={gameData.canPassToCorral ? "default" : "outline"}
+              onClick={() => handleChange('canPassToCorral', !gameData.canPassToCorral)}
+              className="flex-1"
+            >
+              Can pass fuel to corral
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Strategic Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Strategic Preferences</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Preferred Starting Position(s)</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {START_POSITIONS.map((position) => (
+                <Button
+                  key={position}
+                  type="button"
+                  variant={((gameData.preferredStartPositions as string[]) || []).includes(position) ? "default" : "outline"}
+                  onClick={() => 
+                    handleMultiSelectChange('preferredStartPositions', position, 
+                      !((gameData.preferredStartPositions as string[]) || []).includes(position))
+                  }
+                  className="h-auto py-3"
+                >
+                  {position}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Preferred Role - Active Shift</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {ROLES.map((role) => (
+                <Button
+                  key={`active-${role}`}
+                  type="button"
+                  variant={((gameData.preferredActiveRoles as string[]) || []).includes(role) ? "default" : "outline"}
+                  onClick={() => 
+                    handleMultiSelectChange('preferredActiveRoles', role, 
+                      !((gameData.preferredActiveRoles as string[]) || []).includes(role))
+                  }
+                  className="h-auto py-3"
+                >
+                  {role}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Preferred Role - Inactive Shift</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {ROLES.map((role) => (
+                <Button
+                  key={`inactive-${role}`}
+                  type="button"
+                  variant={((gameData.preferredInactiveRoles as string[]) || []).includes(role) ? "default" : "outline"}
+                  onClick={() => 
+                    handleMultiSelectChange('preferredInactiveRoles', role, 
+                      !((gameData.preferredInactiveRoles as string[]) || []).includes(role))
+                  }
+                  className="h-auto py-3"
+                >
+                  {role}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Autonomous & Endgame */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Autonomous & Endgame</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant={gameData.canAutoClimbL1 ? "default" : "outline"}
+              onClick={() => handleChange('canAutoClimbL1', !gameData.canAutoClimbL1)}
+              className="flex-1"
+            >
+              Can climb Level 1 in auto
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="targetClimbLevel">Target Endgame Climb Level</Label>
+            <Select
+              value={(gameData.targetClimbLevel as string) || 'none'}
+              onValueChange={(value) => handleChange('targetClimbLevel', value)}
+            >
+              <SelectTrigger id="targetClimbLevel">
+                <SelectValue placeholder="Select climb level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="level1">Level 1 (10 pts)</SelectItem>
+                <SelectItem value="level2">Level 2 (20 pts)</SelectItem>
+                <SelectItem value="level3">Level 3 (30 pts)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

@@ -1,0 +1,300 @@
+/**
+ * Teleop Paths Visualization Component
+ * 
+ * Displays teleop paths for team analysis.
+ * Uses the same field visualization as TeleopFieldMap but in read-only mode.
+ */
+
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { Card } from '@/core/components/ui/card';
+import { Badge } from '@/core/components/ui/badge';
+import { Button } from '@/core/components/ui/button';
+import { Checkbox } from '@/core/components/ui/checkbox';
+import { Maximize2 } from 'lucide-react';
+import { cn } from '@/core/lib/utils';
+import type { MatchResult } from '@/game-template/analysis';
+import { FieldCanvas, type FieldCanvasRef, FieldHeader } from '@/game-template/components/field-map';
+import fieldImage from '@/game-template/assets/2026-field.png';
+
+interface TeleopPathsVisualizationProps {
+    matchResults: MatchResult[];
+    alliance?: 'red' | 'blue';
+}
+
+export function TeleopPathsVisualization({ matchResults, alliance = 'blue' }: TeleopPathsVisualizationProps) {
+    const [selectedMatches, setSelectedMatches] = useState<Set<string>>(new Set());
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const fieldCanvasRef = useRef<FieldCanvasRef>(null);
+
+    // Filter matches that have teleop path data
+    const matchesWithPaths = useMemo(() => 
+        matchResults.filter(m => m.teleopPath && (m.teleopPath as any[]).length > 0),
+        [matchResults]
+    );
+
+    // Get actions to display from selected matches
+    const displayActions = useMemo(() => {
+        return matchResults
+            .filter(m => selectedMatches.has(m.matchNumber))
+            .flatMap(m => (m.teleopPath as any[]) || [])
+            .filter(wp => wp && wp.position); // Filter out undefined or invalid waypoints
+    }, [matchResults, selectedMatches]);
+
+    // Canvas dimensions - dynamically update based on container size
+    const [canvasDimensions, setCanvasDimensions] = useState({ width: 640, height: 320 });
+
+    useEffect(() => {
+        const updateDimensions = () => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setCanvasDimensions({ width: rect.width, height: rect.width / 2 });
+            }
+        };
+
+        updateDimensions();
+        window.addEventListener('resize', updateDimensions);
+        return () => window.removeEventListener('resize', updateDimensions);
+    }, []);
+
+    // Toggle match selection
+    const toggleMatch = (matchNumber: string) => {
+        setSelectedMatches(prev => {
+            const next = new Set(prev);
+            if (next.has(matchNumber)) {
+                next.delete(matchNumber);
+            } else {
+                next.add(matchNumber);
+            }
+            return next;
+        });
+    };
+
+    // Select all matches
+    const selectAll = () => {
+        setSelectedMatches(new Set(matchResults.map(m => m.matchNumber)));
+    };
+
+    // Clear all selections
+    const clearAll = () => {
+        setSelectedMatches(new Set());
+    };
+
+    return (
+        <div className="space-y-4">
+            {isFullscreen ? (
+                <div className="fixed inset-0 z-100 bg-background p-4 flex flex-col gap-2">
+                    {/* Header */}
+                    <FieldHeader
+                        phase="teleop"
+                        stats={[
+                            { label: 'Total Matches', value: matchResults.length, color: 'slate' },
+                            { label: 'With Paths', value: matchesWithPaths.length, color: 'purple' },
+                        ]}
+                        isFullscreen={isFullscreen}
+                        onFullscreenToggle={() => setIsFullscreen(false)}
+                        alliance="blue"
+                        isFieldRotated={false}
+                        actionLogSlot={
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={selectAll}
+                                    disabled={matchResults.length === 0}
+                                >
+                                    Select All
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearAll}
+                                    disabled={selectedMatches.size === 0}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        }
+                    />
+
+                    {/* Field */}
+                    <div
+                        ref={containerRef}
+                        className={cn(
+                            "relative rounded-lg overflow-hidden border border-slate-700 bg-slate-900 select-none flex-1",
+                            "w-full aspect-2/1"
+                        )}
+                    >
+                        <img
+                            src={fieldImage}
+                            alt="2026 Field"
+                            className="w-full h-full object-fill"
+                            style={{ opacity: 0.9 }}
+                        />
+
+                        <FieldCanvas
+                            ref={fieldCanvasRef}
+                            actions={displayActions}
+                            pendingWaypoint={null}
+                            drawingPoints={[]}
+                            alliance={alliance}
+                            isFieldRotated={false}
+                            width={canvasDimensions.width}
+                            height={canvasDimensions.height}
+                            isSelectingScore={false}
+                            isSelectingPass={false}
+                            isSelectingCollect={false}
+                            drawConnectedPaths={false}
+                            drawingZoneBounds={undefined}
+                        />
+
+                        {displayActions.length === 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <p className="text-muted-foreground text-sm">
+                                    {matchResults.length === 0
+                                        ? 'No matches available'
+                                        : 'Select matches to view teleop paths'}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="grid md:grid-cols-[1fr_300px] gap-4">
+                    {/* Field Visualization */}
+                    <Card className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold">Shooting Paths</h3>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={selectAll}
+                                    disabled={matchResults.length === 0}
+                                >
+                                    Select All
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearAll}
+                                    disabled={selectedMatches.size === 0}
+                                >
+                                    Clear
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsFullscreen(true)}
+                                >
+                                    <Maximize2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Field Display */}
+                        <div
+                            ref={containerRef}
+                            className="relative rounded-lg overflow-hidden border border-slate-700 bg-slate-900 w-full aspect-2/1"
+                        >
+                            {/* Field Background */}
+                            <img
+                                src={fieldImage}
+                                alt="2026 Field"
+                                className="w-full h-full object-fill"
+                                style={{ opacity: 0.9 }}
+                            />
+
+                            {/* Path Canvas */}
+                            <FieldCanvas
+                                ref={fieldCanvasRef}
+                                actions={displayActions}
+                                pendingWaypoint={null}
+                                drawingPoints={[]}
+                                alliance={alliance}
+                                isFieldRotated={false}
+                                width={canvasDimensions.width}
+                                height={canvasDimensions.height}
+                                isSelectingScore={false}
+                                isSelectingPass={false}
+                                isSelectingCollect={false}
+                                drawConnectedPaths={false}
+                                drawingZoneBounds={undefined}
+                            />
+
+                            {/* No paths message */}
+                            {displayActions.length === 0 && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <p className="text-muted-foreground text-sm">
+                                        {matchResults.length === 0
+                                            ? 'No matches available'
+                                            : 'Select matches to view teleop paths'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Match List */}
+                    <Card className="p-4 max-h-125 overflow-y-auto">
+                        <h3 className="font-semibold mb-3">Matches ({matchResults.length})</h3>
+                        {matchResults.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No matches available</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {matchResults.map(match => {
+                                    const isSelected = selectedMatches.has(match.matchNumber);
+                                    const teleopPath = (match.teleopPath as any[]) || [];
+                                    const hasPath = teleopPath.length > 0;
+                                    
+                                    return (
+                                        <div
+                                            key={match.matchNumber}
+                                            className={cn(
+                                                'p-3 rounded-lg border cursor-pointer transition-colors',
+                                                isSelected
+                                                    ? 'border-primary bg-primary/10'
+                                                    : 'border-border hover:border-primary/50'
+                                            )}
+                                            onClick={() => toggleMatch(match.matchNumber)}
+                                        >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        onCheckedChange={() => toggleMatch(match.matchNumber)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                    <span className="font-medium">Match {match.matchNumber}</span>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            'text-xs',
+                                                            match.alliance === 'red' ? 'border-red-500 text-red-400' : 'border-blue-500 text-blue-400'
+                                                        )}
+                                                    >
+                                                        {match.alliance}
+                                                    </Badge>
+                                                </div>
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {match.teleopPoints} pts
+                                                </Badge>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground ml-6">
+                                                {match.teleopFuel} fuel scored
+                                                {hasPath
+                                                    ? ` • ${teleopPath.length} actions` 
+                                                    : ' • No path data'}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </Card>
+                </div>
+            )}
+        </div>
+    );
+}

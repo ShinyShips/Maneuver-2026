@@ -8,13 +8,15 @@
  * Compare with TeamStatsDialog which shows aggregated stats.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/core/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/core/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/animate-ui/radix/tabs";
 import { Eye } from "lucide-react";
-import { AutoStartPositionMap } from "./AutoStartPositionMap";
-import strategyAnalysis, { type MatchResult } from "@/game-template/analysis";
+import { cn } from "@/core/lib/utils";
+import { FieldCanvas, type FieldCanvasRef } from "@/game-template/components/field-map";
+import fieldImage from "@/game-template/assets/2026-field.png";
+import { type MatchResult } from "@/game-template/analysis";
 
 /**
  * MatchData for the dialog - uses MatchResult as base (single source of truth)
@@ -66,6 +68,25 @@ export function MatchStatsDialog({
 }: MatchStatsDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("scoring");
+    const fieldCanvasRef = useRef<FieldCanvasRef>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [canvasDimensions, setCanvasDimensions] = useState({ width: 640, height: 320 });
+
+    // Update canvas dimensions when container resizes or auto tab is active
+    useEffect(() => {
+        if (activeTab !== 'auto') return;
+        
+        const updateDimensions = () => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setCanvasDimensions({ width: rect.width, height: rect.width / 2 });
+            }
+        };
+
+        updateDimensions();
+        window.addEventListener('resize', updateDimensions);
+        return () => window.removeEventListener('resize', updateDimensions);
+    }, [activeTab]);
 
     if (!matchData) {
         return (
@@ -81,27 +102,19 @@ export function MatchStatsDialog({
         return typeof value === 'number' ? value : 0;
     };
 
-    // Calculate totals by summing all action counts
-    const sumCounts = (phaseData: GameDataPhase | undefined): number => {
+    // Calculate fuel moved totals (only fuel scoring actions)
+    const sumFuelCounts = (phaseData: GameDataPhase | undefined): number => {
         if (!phaseData) return 0;
         return Object.entries(phaseData)
-            .filter(([key]) => key.endsWith('Count'))
+            .filter(([key]) => key === 'fuelScoredCount' || key === 'fuelPassedCount')
             .reduce((sum, [, value]) => sum + num(value), 0);
     };
 
-    const autoTotal = sumCounts(matchData.gameData?.auto);
-    const teleopTotal = sumCounts(matchData.gameData?.teleop);
-
-
-    // Determine climb status (customize per game)
-    const getClimbStatus = () => {
-        if (matchData.brokeDown) return { text: "Broke Down", color: "text-red-600" };
-        if (matchData.climbSucceeded) return { text: "Climbed", color: "text-green-600" };
-        if (matchData.climbAttempted) return { text: "Climb Failed", color: "text-orange-600" };
-        if (matchData.parkAttempted) return { text: "Park", color: "text-yellow-600" };
-        return { text: "None", color: "text-gray-600" };
-    };
-    const climbStatus = getClimbStatus();
+    const autoFuelMoved = sumFuelCounts(matchData.gameData?.auto);
+    const teleopFuelMoved = sumFuelCounts(matchData.gameData?.teleop);
+    
+    // Other actions (non-scoring)
+    const otherActionKeys = ['depotCollectCount', 'outpostCollectCount', 'foulCommittedCount', 'stealCount', 'brokenDownCount'];
 
     // Simplify alliance name
     const allianceName = String(matchData.alliance || '').replace(/Alliance$/i, '').trim();
@@ -142,9 +155,9 @@ export function MatchStatsDialog({
                                     <div>
                                         <h4 className="font-semibold mb-3">Auto Scoring</h4>
                                         <div className="space-y-2">
-                                            {/* Dynamically render action counts from gameData.auto */}
+                                            {/* Only show fuel-related scoring actions */}
                                             {matchData.gameData?.auto && Object.entries(matchData.gameData.auto as Record<string, unknown>)
-                                                .filter(([key]) => key.endsWith('Count'))
+                                                .filter(([key]) => key === 'fuelScoredCount' || key === 'fuelPassedCount')
                                                 .map(([key, value]) => (
                                                     <div key={key} className="flex justify-between">
                                                         <span>{key.replace('Count', '').replace(/([A-Z])/g, ' $1').trim()}:</span>
@@ -153,17 +166,17 @@ export function MatchStatsDialog({
                                                 ))
                                             }
                                             <div className="flex justify-between pt-2 border-t">
-                                                <span className="font-semibold">Total Scored:</span>
-                                                <span className="font-bold text-blue-600">{autoTotal}</span>
+                                                <span className="font-semibold">Fuel Moved:</span>
+                                                <span className="font-bold text-blue-600">{autoFuelMoved}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div>
                                         <h4 className="font-semibold mb-3">Teleop Scoring</h4>
                                         <div className="space-y-2">
-                                            {/* Dynamically render action counts from gameData.teleop */}
+                                            {/* Only show fuel-related scoring actions */}
                                             {matchData.gameData?.teleop && Object.entries(matchData.gameData.teleop as Record<string, unknown>)
-                                                .filter(([key]) => key.endsWith('Count'))
+                                                .filter(([key]) => key === 'fuelScoredCount' || key === 'fuelPassedCount')
                                                 .map(([key, value]) => (
                                                     <div key={key} className="flex justify-between">
                                                         <span>{key.replace('Count', '').replace(/([A-Z])/g, ' $1').trim()}:</span>
@@ -172,8 +185,43 @@ export function MatchStatsDialog({
                                                 ))
                                             }
                                             <div className="flex justify-between pt-2 border-t">
-                                                <span className="font-semibold">Total Scored:</span>
-                                                <span className="font-bold text-purple-600">{teleopTotal}</span>
+                                                <span className="font-semibold">Fuel Moved:</span>
+                                                <span className="font-bold text-purple-600">{teleopFuelMoved}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Other Actions Section */}
+                                <div className="mt-6">
+                                    <h4 className="font-semibold mb-3">Other Actions</h4>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <div className="text-sm text-muted-foreground mb-2">Auto</div>
+                                            <div className="space-y-2">
+                                                {matchData.gameData?.auto && Object.entries(matchData.gameData.auto as Record<string, unknown>)
+                                                    .filter(([key]) => otherActionKeys.includes(key))
+                                                    .map(([key, value]) => (
+                                                        <div key={key} className="flex justify-between text-sm">
+                                                            <span className="text-muted-foreground">{key.replace('Count', '').replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                                            <span>{num(value)}</span>
+                                                        </div>
+                                                    ))
+                                                }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm text-muted-foreground mb-2">Teleop</div>
+                                            <div className="space-y-2">
+                                                {matchData.gameData?.teleop && Object.entries(matchData.gameData.teleop as Record<string, unknown>)
+                                                    .filter(([key]) => otherActionKeys.includes(key))
+                                                    .map(([key, value]) => (
+                                                        <div key={key} className="flex justify-between text-sm">
+                                                            <span className="text-muted-foreground">{key.replace('Count', '').replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                                            <span>{num(value)}</span>
+                                                        </div>
+                                                    ))
+                                                }
                                             </div>
                                         </div>
                                     </div>
@@ -211,33 +259,64 @@ export function MatchStatsDialog({
                                         <h4 className="font-semibold mb-3">Auto Performance</h4>
                                         <div className="space-y-2">
                                             <div className="flex justify-between">
-                                                <span>Points:</span>
+                                                <span>Auto Points:</span>
                                                 <span className="font-bold text-blue-600">{num(matchData.autoPoints)}</span>
                                             </div>
-                                            <div className="flex items-center gap-2 pt-2">
+                                            <div className="flex justify-between">
+                                                <span>Fuel Scored:</span>
+                                                <span className="font-bold text-yellow-600">{num(matchData.autoFuel)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Fuel Passed:</span>
+                                                <span className="font-bold text-blue-600">{num(matchData.autoFuelPassed)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-2 border-t">
                                                 <input
                                                     type="checkbox"
-                                                    checked={!!matchData.autoPassedMobilityLine}
+                                                    checked={!!matchData.gameData?.auto?.autoClimbL1}
                                                     disabled
                                                     className="rounded"
                                                 />
-                                                <span>Passed Mobility Line</span>
+                                                <span>Auto Climb L1</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div>
-                                        <h4 className="font-semibold mb-3">Starting Position</h4>
-                                        {matchData.startPosition !== undefined && matchData.startPosition >= 0 ? (
-                                            <div className="h-64 md:h-48">
-                                                <AutoStartPositionMap
-                                                    config={strategyAnalysis.getStartPositionConfig()}
-                                                    highlightedPosition={matchData.startPosition}
+                                        <h4 className="font-semibold mb-3">Auto Path</h4>
+                                        {matchData.autoPath && matchData.autoPath.length > 0 ? (
+                                            <div
+                                                ref={containerRef}
+                                                className={cn(
+                                                    "relative rounded-lg overflow-hidden border border-slate-700 bg-slate-900 select-none",
+                                                    "w-full aspect-2/1"
+                                                )}
+                                            >
+                                                <img
+                                                    src={fieldImage}
+                                                    alt="2026 Field"
+                                                    className="w-full h-full object-fill"
+                                                    style={{ opacity: 0.9 }}
+                                                />
+
+                                                <FieldCanvas
+                                                    ref={fieldCanvasRef}
+                                                    actions={matchData.autoPath}
+                                                    pendingWaypoint={null}
+                                                    drawingPoints={[]}
                                                     alliance={matchData.alliance?.toLowerCase().includes('blue') ? 'blue' : 'red'}
+                                                    isFieldRotated={false}
+                                                    width={canvasDimensions.width}
+                                                    height={canvasDimensions.height}
+                                                    isSelectingScore={false}
+                                                    isSelectingPass={false}
+                                                    isSelectingCollect={false}
+                                                    drawConnectedPaths={true}
+                                                    drawingZoneBounds={undefined}
                                                 />
                                             </div>
                                         ) : (
                                             <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
-                                                <div className="text-muted-foreground text-center">Unknown</div>
+                                                <div className="text-muted-foreground text-center">No path data</div>
                                             </div>
                                         )}
                                     </div>
@@ -246,46 +325,33 @@ export function MatchStatsDialog({
 
                             {/* Endgame Tab */}
                             <TabsContent value="endgame" className="space-y-4 h-full mt-0">
-                                <div className="grid grid-cols-1 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <h4 className="font-semibold mb-3">Endgame Performance</h4>
+                                        <h4 className="font-semibold mb-3">Climbing</h4>
                                         <div className="space-y-3">
                                             <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="font-medium">Status:</span>
-                                                    <span className={`font-bold ${climbStatus.color}`}>
-                                                        {climbStatus.text}
+                                                    <span className="font-medium">Climb Level:</span>
+                                                    <span className="font-bold text-xl text-blue-600">
+                                                        {matchData.climbLevel && matchData.climbLevel > 0 ? `L${matchData.climbLevel}` : 'None'}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!matchData.climbAttempted}
-                                                        disabled
-                                                        className="rounded"
-                                                    />
-                                                    <span>Climb Attempted</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!matchData.climbSucceeded}
-                                                        disabled
-                                                        className="rounded"
-                                                    />
-                                                    <span>Climb Succeeded</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!matchData.parkAttempted}
-                                                        disabled
-                                                        className="rounded"
-                                                    />
-                                                    <span>Park Attempted</span>
+                                            <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950 rounded border border-red-200 dark:border-red-800">
+                                                <span className="text-red-600">Climb Failed</span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!matchData.gameData?.endgame?.climbFailed}
+                                                    disabled
+                                                    className="rounded"
+                                                />
+                                            </div>
+
+                                            <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-medium">Endgame Points:</span>
+                                                    <span className="font-bold text-xl text-orange-600">{num(matchData.endgamePoints)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -293,24 +359,71 @@ export function MatchStatsDialog({
 
                                     <div>
                                         <h4 className="font-semibold mb-3">Other Performance</h4>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={!!matchData.playedDefense}
-                                                    disabled
-                                                    className="rounded"
-                                                />
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded">
                                                 <span>Played Defense</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
                                                 <input
                                                     type="checkbox"
-                                                    checked={!!matchData.brokeDown}
+                                                    checked={!!matchData.gameData?.teleop?.defense}
                                                     disabled
                                                     className="rounded"
                                                 />
-                                                <span className="text-red-600">Broke Down</span>
+                                            </div>
+                                            
+                                            {/* Stuck Metrics */}
+                                            <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded border border-orange-200 dark:border-orange-800">
+                                                <h4 className="font-semibold mb-2 text-sm text-orange-600">Stuck Incidents</h4>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm">
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className="font-medium">Auto:</span>
+                                                        </div>
+                                                        <div className="ml-4 space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span>Trench:</span>
+                                                                <span>{num(matchData.gameData?.auto?.trenchStuckCount)}x ({Math.round(num(matchData.gameData?.auto?.trenchStuckDuration) / 1000)}s)</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span>Bump:</span>
+                                                                <span>{num(matchData.gameData?.auto?.bumpStuckCount)}x ({Math.round(num(matchData.gameData?.auto?.bumpStuckDuration) / 1000)}s)</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-sm">
+                                                        <div className="flex justify-between mb-1">
+                                                            <span className="font-medium">Teleop:</span>
+                                                        </div>
+                                                        <div className="ml-4 space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span>Trench:</span>
+                                                                <span>{num(matchData.gameData?.teleop?.trenchStuckCount)}x ({Math.round(num(matchData.gameData?.teleop?.trenchStuckDuration) / 1000)}s)</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span>Bump:</span>
+                                                                <span>{num(matchData.gameData?.teleop?.bumpStuckCount)}x ({Math.round(num(matchData.gameData?.teleop?.bumpStuckDuration) / 1000)}s)</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Broken Down Metrics */}
+                                            <div className="p-3 bg-red-50 dark:bg-red-950 rounded border border-red-200 dark:border-red-800">
+                                                <h4 className="font-semibold mb-2 text-sm text-red-600">Broken Down Time</h4>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm">
+                                                        <div className="ml-4 space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span>Auto:</span>
+                                                                <span>{num(matchData.gameData?.auto?.brokenDownCount)}x ({Math.round(num(matchData.gameData?.auto?.brokenDownDuration) / 1000)}s)</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span>Teleop:</span>
+                                                                <span>{num(matchData.gameData?.teleop?.brokenDownCount)}x ({Math.round(num(matchData.gameData?.teleop?.brokenDownDuration) / 1000)}s)</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

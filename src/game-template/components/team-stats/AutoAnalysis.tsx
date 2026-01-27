@@ -4,6 +4,7 @@ import type { TeamStats } from "@/core/types/team-stats";
 import type { StartPositionConfig } from "@/types/team-stats-display";
 import type { MatchResult } from "@/game-template/analysis";
 import { AutoStartPositionMap } from "./AutoStartPositionMap";
+import { AutoPathsByPosition } from "./AutoPathsByPosition";
 
 interface AutoAnalysisProps {
     teamStats: TeamStats;
@@ -84,6 +85,19 @@ export function AutoAnalysis({
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Auto Paths by Starting Position */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Auto Paths by Starting Position</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <AutoPathsByPosition
+                        matchResults={matchResults}
+                        alliance="blue"
+                    />
+                </CardContent>
+            </Card>
         </div>
     );
 }

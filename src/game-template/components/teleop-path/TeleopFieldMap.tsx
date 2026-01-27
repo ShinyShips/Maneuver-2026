@@ -14,6 +14,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/core/components/ui/button';
 import { cn } from '@/core/lib/utils';
+import { loadPitScoutingByTeamAndEvent } from '@/core/db/database';
 
 import { useLocation } from 'react-router-dom';
 import { useIsMobile } from '@/core/hooks/use-mobile';
@@ -103,6 +104,7 @@ function TeleopFieldMapContent() {
         setAccumulatedFuel,
         fuelHistory,
         setFuelHistory,
+        resetFuel,
         stuckStarts,
         setStuckStarts,
         isAnyStuck,
@@ -143,6 +145,49 @@ function TeleopFieldMapContent() {
 
     // Local state (UI-only)
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [robotCapacity, setRobotCapacity] = useState<number | undefined>();
+    const [actionLogOpen, setActionLogOpen] = useState(false);
+    
+    // Broken down state - persisted with localStorage
+    const [brokenDownStart, setBrokenDownStart] = useState<number | null>(() => {
+        const saved = localStorage.getItem('teleopBrokenDownStart');
+        return saved ? parseInt(saved, 10) : null;
+    });
+    const [totalBrokenDownTime, setTotalBrokenDownTime] = useState<number>(() => {
+        const saved = localStorage.getItem('teleopBrokenDownTime');
+        return saved ? parseInt(saved, 10) : 0;
+    });
+    const isBrokenDown = brokenDownStart !== null;
+
+    // Load pit scouting data for fuel capacity
+    useEffect(() => {
+        const loadPitData = async () => {
+            if (!teamNumber) return;
+            try {
+                const eventKey = localStorage.getItem('eventKey') || '';
+                const pitData = await loadPitScoutingByTeamAndEvent(Number(teamNumber), eventKey);
+                if (pitData && pitData.gameData) {
+                    setRobotCapacity(pitData.gameData.fuelCapacity as number);
+                }
+            } catch (error) {
+                console.error('Failed to load pit scouting data:', error);
+            }
+        };
+        loadPitData();
+    }, [teamNumber]);
+
+    // Reset fuel accumulation when entering Teleop (component mounts)
+    // Also reset when pendingWaypoint changes to ensure clean state
+    useEffect(() => {
+        resetFuel();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    
+    // Reset fuel when any pending waypoint is cleared
+    useEffect(() => {
+        if (!pendingWaypoint) {
+            resetFuel();
+        }
+    }, [pendingWaypoint, resetFuel]);
 
     // Path drawing hook - constrain to active zone bounds
     const currentZoneBounds = activeZone ? ZONE_BOUNDS[activeZone] : undefined;
@@ -184,6 +229,23 @@ function TeleopFieldMapContent() {
     // ==========================================================================
     // HANDLERS
     // ==========================================================================
+
+    const handleBrokenDownToggle = () => {
+        if (brokenDownStart) {
+            // Robot is back up - accumulate the time
+            const duration = Date.now() - brokenDownStart;
+            const newTotal = totalBrokenDownTime + duration;
+            setTotalBrokenDownTime(newTotal);
+            localStorage.setItem('teleopBrokenDownTime', String(newTotal));
+            setBrokenDownStart(null);
+            localStorage.removeItem('teleopBrokenDownStart');
+        } else {
+            // Robot is breaking down - start tracking time
+            const now = Date.now();
+            setBrokenDownStart(now);
+            localStorage.setItem('teleopBrokenDownStart', String(now));
+        }
+    };
 
     const handleZoneClick = (zone: ZoneType) => {
         setActiveZone(zone);
@@ -231,8 +293,8 @@ function TeleopFieldMapContent() {
     }, [isSelectingScore, isSelectingPass, activeZone, generateId, setAccumulatedFuel, setFuelHistory, setPendingWaypoint, setIsSelectingScore, setIsSelectingPass]);
 
     const handleElementClick = (elementKey: string) => {
-        // Block if popup active
-        if (pendingWaypoint || isSelectingScore || isSelectingPass) return;
+        // Block if popup active or broken down
+        if (pendingWaypoint || isSelectingScore || isSelectingPass || isBrokenDown) return;
 
         const element = FIELD_ELEMENTS[elementKey];
         if (!element) return;
@@ -372,6 +434,16 @@ function TeleopFieldMapContent() {
         setClimbLevel(undefined);
     };
 
+    // Undo wrapper that also clears active broken down state
+    const handleUndoWrapper = () => {
+        if (brokenDownStart) {
+            setBrokenDownStart(null);
+        }
+        if (onUndo) {
+            onUndo();
+        }
+    };
+
     // ==========================================================================
     // GET VISIBLE ELEMENTS FOR ACTIVE ZONE
     // ==========================================================================
@@ -395,17 +467,28 @@ function TeleopFieldMapContent() {
                 currentZone={activeZone}
                 isFullscreen={isFullscreen}
                 onFullscreenToggle={() => setIsFullscreen(!isFullscreen)}
-                actionLogSlot={<TeleopActionLog actions={actions} />}
+                actionLogSlot={<TeleopActionLog actions={actions} open={actionLogOpen} onOpenChange={setActionLogOpen} />}
+                onActionLogOpen={() => setActionLogOpen(true)}
                 matchNumber={matchNumber}
                 matchType={matchType}
                 teamNumber={teamNumber}
                 alliance={alliance}
                 isFieldRotated={isFieldRotated}
                 canUndo={canUndo}
-                onUndo={onUndo}
+                onUndo={handleUndoWrapper}
                 onBack={onBack}
-                onProceed={onProceed}
+                onProceed={() => {
+                    // Capture any active broken down time before proceeding
+                    if (brokenDownStart) {
+                        const duration = Date.now() - brokenDownStart;
+                        const finalTotal = totalBrokenDownTime + duration;
+                        localStorage.setItem('teleopBrokenDownTime', String(finalTotal));
+                    }
+                    if (onProceed) onProceed();
+                }}
                 toggleFieldOrientation={toggleFieldOrientation}
+                isBrokenDown={isBrokenDown}
+                onBrokenDownToggle={handleBrokenDownToggle}
             />
 
             {/* Field Map */}
@@ -552,6 +635,7 @@ function TeleopFieldMapContent() {
                             accumulatedFuel={accumulatedFuel}
                             fuelHistory={fuelHistory}
                             isFieldRotated={isFieldRotated}
+                            robotCapacity={robotCapacity}
                             onFuelSelect={handleFuelSelect}
                             onFuelUndo={handleFuelUndo}
                             climbResult={climbResult}

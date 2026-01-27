@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { Badge } from "@/core/components/ui/badge";
 import { ProgressCard } from "@/core/components/team-stats/ProgressCard";
 import { MatchStatsDialog } from "./MatchStatsDialog";
+import { MatchProgressionChart } from "@/core/components/team-stats/MatchProgressionChart";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { RateSectionDefinition, MatchBadgeDefinition } from "@/types/team-stats-display";
 
@@ -34,6 +35,10 @@ export function PerformanceAnalysis({
         const value = (stats as Record<string, unknown>)[key];
         return typeof value === 'number' ? value : 0;
     };
+
+    // Extract match results for progression chart
+    const matchResults = (teamStats as TeamStats & { matchResults?: any[] })?.matchResults || [];
+    const compareMatchResults = compareStats ? (compareStats as TeamStats & { matchResults?: any[] })?.matchResults || [] : undefined;
 
     const renderMatchResults = () => {
         const matchResults = (teamStats as TeamStats & { matchResults?: Record<string, unknown>[] })?.matchResults;
@@ -120,6 +125,11 @@ export function PerformanceAnalysis({
                                     parkAttempted: !!match['parkAttempted'],
                                     brokeDown: !!match['brokeDown'],
                                     playedDefense: !!match['playedDefense'],
+                                    autoPath: Array.isArray(match['autoPath']) ? match['autoPath'] : [],
+                                    teleopPath: Array.isArray(match['teleopPath']) ? match['teleopPath'] : [],
+                                    autoFuel: typeof match['autoFuel'] === 'number' ? match['autoFuel'] : 0,
+                                    autoFuelPassed: typeof match['autoFuelPassed'] === 'number' ? match['autoFuelPassed'] : 0,
+                                    climbLevel: typeof match['climbLevel'] === 'number' ? match['climbLevel'] : undefined,
                                     gameData: match['gameData'] as {
                                         auto?: Record<string, unknown>;
                                         teleop?: Record<string, unknown>;
@@ -138,7 +148,13 @@ export function PerformanceAnalysis({
     };
 
     return (
-        <div className="space-y-6 pb-6">
+        <div className="space-y-6 pb-6">            {/* Match Progression Chart */}
+            <MatchProgressionChart
+                matchResults={matchResults}
+                compareMatchResults={compareMatchResults}
+                teamNumber={teamStats.teamNumber}
+                compareTeamNumber={compareStats?.teamNumber}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>

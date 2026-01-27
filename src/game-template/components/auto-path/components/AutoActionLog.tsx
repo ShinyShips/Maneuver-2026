@@ -20,6 +20,8 @@ import { actions as schemaActions } from '@/game-template/game-schema';
 export interface AutoActionLogProps {
     actions: PathWaypoint[];
     totalScore: number;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 // =============================================================================
@@ -64,9 +66,9 @@ function getActionDisplay(action: PathWaypoint): { label: string; points: number
 // COMPONENT
 // =============================================================================
 
-export function AutoActionLog({ actions, totalScore }: AutoActionLogProps) {
+export function AutoActionLog({ actions, totalScore, open, onOpenChange }: AutoActionLogProps) {
     return (
-        <Sheet>
+        <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-800">
                     <List className="h-4 w-4" />

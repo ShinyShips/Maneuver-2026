@@ -18,7 +18,8 @@ export type PathActionType =
     | 'defense'    // Defense action (Teleop)
     | 'stuck'      // Robot stuck on obstacle (Teleop)
     | 'unstuck'    // Robot freed from obstacle (Teleop)
-    | 'steal';     // Stealing fuel (Teleop)
+    | 'steal'      // Stealing fuel (Teleop)
+    | 'broken-down'; // Robot broken down
 
 export type ZoneType = 'allianceZone' | 'neutralZone' | 'opponentZone';
 

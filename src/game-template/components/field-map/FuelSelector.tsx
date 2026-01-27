@@ -8,7 +8,7 @@
 import { Button } from '@/core/components/ui/button';
 import { cn } from '@/core/lib/utils';
 import { Check, X, Undo2 } from 'lucide-react';
-import { FUEL_OPTIONS } from './constants';
+import { getFuelOptions } from './constants';
 
 // =============================================================================
 // PROPS
@@ -24,6 +24,7 @@ export interface FuelSelectorProps {
     isLarge?: boolean;
     type?: 'score' | 'pass' | 'collect';
     className?: string;
+    robotCapacity?: number; // Fuel capacity from pit scouting
 }
 
 // =============================================================================
@@ -40,7 +41,10 @@ export function FuelSelector({
     isLarge = false,
     type = 'score',
     className,
+    robotCapacity,
 }: FuelSelectorProps) {
+    const fuelOptions = getFuelOptions(robotCapacity);
+    
     const getTypeColor = () => {
         switch (type) {
             case 'score': return 'text-green-400';
@@ -57,12 +61,13 @@ export function FuelSelector({
                 "grid gap-1.5 items-center justify-center p-1 w-full",
                 isLarge ? "grid-cols-4 gap-2 px-1" : "flex flex-wrap gap-1"
             )}>
-                {FUEL_OPTIONS.map((opt) => (
+                {fuelOptions.map((opt) => (
                     <Button
                         key={opt.label}
                         variant="outline"
                         size={isLarge ? "lg" : "sm"}
                         onClick={(e) => { e.stopPropagation(); onSelect(opt.value, opt.label); }}
+                        onPointerDown={(e) => e.stopPropagation()}
                         className={cn(
                             "font-bold transition-all",
                             isLarge && "h-10 w-full text-xs md:text-sm rounded-lg",

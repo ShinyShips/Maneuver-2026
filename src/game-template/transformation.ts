@@ -112,6 +112,36 @@ export const gameDataTransformation: DataTransformation = {
     };
 
     // =========================================================================
+    // Broken Down Time Tracking (from localStorage)
+    // =========================================================================
+    
+    // Read broken down time from localStorage (set by field maps)
+    const autoBrokenDownTime = localStorage.getItem('autoBrokenDownTime');
+    const teleopBrokenDownTime = localStorage.getItem('teleopBrokenDownTime');
+    
+    if (autoBrokenDownTime) {
+      const duration = parseInt(autoBrokenDownTime, 10);
+      if (duration > 0) {
+        result.auto.brokenDownCount = 1;
+        result.auto.brokenDownDuration = duration;
+      }
+      // Clear after reading
+      localStorage.removeItem('autoBrokenDownTime');
+      localStorage.removeItem('autoBrokenDownStart');
+    }
+    
+    if (teleopBrokenDownTime) {
+      const duration = parseInt(teleopBrokenDownTime, 10);
+      if (duration > 0) {
+        result.teleop.brokenDownCount = 1;
+        result.teleop.brokenDownDuration = duration;
+      }
+      // Clear after reading
+      localStorage.removeItem('teleopBrokenDownTime');
+      localStorage.removeItem('teleopBrokenDownStart');
+    }
+
+    // =========================================================================
     // Path-Based Tracking (AutoPathTracker waypoints)
     // =========================================================================
 
@@ -169,6 +199,11 @@ export const gameDataTransformation: DataTransformation = {
               result.auto.bumpStuckDuration = (result.auto.bumpStuckDuration || 0) + (wp.duration || 0);
             }
             break;
+          case 'broken-down':
+            // Track broken down incidents
+            result.auto.brokenDownCount = (result.auto.brokenDownCount || 0) + 1;
+            result.auto.brokenDownDuration = (result.auto.brokenDownDuration || 0) + (wp.duration || 0);
+            break;
           // 'start' and 'stuck' types don't increment counters here
         }
       });
@@ -218,6 +253,11 @@ export const gameDataTransformation: DataTransformation = {
               result.teleop.bumpStuckCount = (result.teleop.bumpStuckCount || 0) + 1;
               result.teleop.bumpStuckDuration = (result.teleop.bumpStuckDuration || 0) + (wp.duration || 0);
             }
+            break;
+          case 'broken-down':
+            // Track broken down incidents
+            result.teleop.brokenDownCount = (result.teleop.brokenDownCount || 0) + 1;
+            result.teleop.brokenDownDuration = (result.teleop.brokenDownDuration || 0) + (wp.duration || 0);
             break;
           // 'stuck' type is the start marker - we only count on 'unstuck' which has the duration
         }

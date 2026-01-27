@@ -43,7 +43,12 @@ export interface GameData {
         autoBump?: boolean;
         // Stuck counters (trouble with obstacles)
         trenchStuckCount?: number;
+        trenchStuckDuration?: number;
         bumpStuckCount?: number;
+        bumpStuckDuration?: number;
+        // Broken down tracking
+        brokenDownCount?: number;
+        brokenDownDuration?: number;
         // Other counters
         foulCommittedCount?: number;
         // Auto toggles
@@ -56,6 +61,14 @@ export interface GameData {
         fuelPassedCount?: number;
         // Action counters
         stealCount?: number;
+        // Stuck counters
+        trenchStuckCount?: number;
+        trenchStuckDuration?: number;
+        bumpStuckCount?: number;
+        bumpStuckDuration?: number;
+        // Broken down tracking
+        brokenDownCount?: number;
+        brokenDownDuration?: number;
         // Teleop toggles
         playedDefense?: boolean;
         [key: string]: unknown;

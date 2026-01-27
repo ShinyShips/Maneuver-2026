@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { StatCard } from "@/core/components/team-stats/StatCard";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { StatSectionDefinition } from "@/types/team-stats-display";
+import { TeleopPathsVisualization } from "./TeleopPathsVisualization";
+import { type TeamStatsTemplate } from "@/game-template/analysis";
 
 interface ScoringAnalysisProps {
     teamStats: TeamStats;
@@ -14,6 +16,8 @@ export function ScoringAnalysis({
     compareStats,
     statSections
 }: ScoringAnalysisProps) {
+    const teamStatsTemplate = teamStats as TeamStatsTemplate;
+    
     if (teamStats.matchesPlayed === 0) {
         return (
             <Card>
@@ -57,6 +61,16 @@ export function ScoringAnalysis({
                     </Card>
                 ))}
             </div>
+
+            {/* Teleop Paths Visualization */}
+            <Card>
+                <CardContent>
+                    <TeleopPathsVisualization 
+                        matchResults={teamStatsTemplate.matchResults || []}
+                        alliance="blue"
+                    />
+                </CardContent>
+            </Card>
         </div>
     );
 }

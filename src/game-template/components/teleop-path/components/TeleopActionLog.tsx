@@ -19,6 +19,8 @@ import { actions as schemaActions } from '@/game-template/game-schema';
 
 export interface TeleopActionLogProps {
     actions: PathWaypoint[];
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 // =============================================================================
@@ -60,7 +62,7 @@ function getActionDisplay(action: PathWaypoint): { label: string; points: number
 // COMPONENT
 // =============================================================================
 
-export function TeleopActionLog({ actions }: TeleopActionLogProps) {
+export function TeleopActionLog({ actions, open, onOpenChange }: TeleopActionLogProps) {
     // Calculate total score from actions
     const totalScore = actions.reduce((sum, action) => {
         const display = getActionDisplay(action);
@@ -75,7 +77,7 @@ export function TeleopActionLog({ actions }: TeleopActionLogProps) {
     }, 0);
 
     return (
-        <Sheet>
+        <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-800">
                     <List className="h-4 w-4" />

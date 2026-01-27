@@ -121,8 +121,17 @@ export function PitDataDisplay({ teamNumber, selectedEvent }: PitDataDisplayProp
                             </div>
                             <div className="space-y-1">
                                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dimensions</span>
-                                {/* Dimensions not in base interface currently but common */}
-                                <div className="font-medium text-lg text-muted-foreground">-</div>
+                                <div className="font-medium text-lg">
+                                    {entry.gameData?.maxLength || entry.gameData?.maxWidth || entry.gameData?.maxHeight ? (
+                                        <div className="text-sm leading-tight">
+                                            {entry.gameData?.maxLength && <div>L: {entry.gameData.maxLength}"</div>}
+                                            {entry.gameData?.maxWidth && <div>W: {entry.gameData.maxWidth}"</div>}
+                                            {entry.gameData?.maxHeight && <div>H: {entry.gameData.maxHeight}"</div>}
+                                        </div>
+                                    ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </CardContent>
