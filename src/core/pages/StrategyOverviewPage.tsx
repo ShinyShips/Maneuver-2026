@@ -15,9 +15,13 @@ export default function StrategyOverviewPage() {
     const [selectedEvent, setSelectedEvent] = useState<string>("all");
     const [aggregationType, setAggregationType] = useState<AggregationType>("average");
     const [chartType, setChartType] = useState<"bar" | "scatter" | "box" | "stacked">("bar");
-    const [chartMetric, setChartMetric] = useState<string>(strategyConfig.columns[0]?.key || "totalPoints");
-    const [scatterXMetric, setScatterXMetric] = useState<string>(strategyConfig.columns[0]?.key || "teamNumber");
-    const [scatterYMetric, setScatterYMetric] = useState<string>(strategyConfig.columns[1]?.key || "totalPoints");
+    const [chartMetric, setChartMetric] = useState<string>(
+        strategyConfig.columns.find(col => col.numeric && col.key !== "matchCount")?.key || "rawValues.totalPoints"
+    );
+    const [scatterXMetric, setScatterXMetric] = useState<string>("teamNumber");
+    const [scatterYMetric, setScatterYMetric] = useState<string>(
+        strategyConfig.columns.find(col => col.numeric && col.key !== "matchCount")?.key || "rawValues.totalPoints"
+    );
 
     const [columnConfig, setColumnConfig] = useState(strategyConfig.columns);
     const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilter>>({});
