@@ -5,6 +5,7 @@ This guide covers all the React contexts provided by the maneuver-core framework
 ## Table of Contents
 
 - [GameContext](#gamecontext)
+- [ScoutContext](#scoutcontext)
 - [NotificationContext](#notificationcontext)
 - [SettingsContext](#settingscontext)
 - [DataSyncContext](#datasynccontext)
@@ -63,6 +64,90 @@ interface GameContextValue {
   ui: UIComponents;                      // Game-specific UI screens
 }
 ```
+
+---
+
+## ScoutContext
+
+Manages the current scout profile and scouts list across the application. Provides reactive state management for scout selection, eliminating the need for localStorage polling or page refreshes.
+
+### Setup
+
+Already set up in App.tsx - wraps the entire application:
+
+```tsx
+import { ScoutProvider } from '@/core/contexts/ScoutContext';
+
+function App() {
+  return (
+    <ScoutProvider>
+      <YourApp />
+    </ScoutProvider>
+  );
+}
+```
+
+### Usage
+
+```tsx
+import { useScout } from '@/core/contexts/ScoutContext';
+
+function MyComponent() {
+  const { currentScout, currentScoutStakes, scoutsList, addScout, removeScout } = useScout();
+  
+  // Display current scout
+  if (!currentScout) {
+    return <div>Please select a scout</div>;
+  }
+  
+  // Add a new scout
+  const handleAddScout = async () => {
+    await addScout('Riley Davis');
+  };
+  
+  return (
+    <div>
+      <p>Scouting as: {currentScout}</p>
+      <p>Stakes: {currentScoutStakes}</p>
+    </div>
+  );
+}
+```
+
+### Context Value
+
+```typescript
+interface ScoutContextType {
+  currentScout: string;                  // Current scout name
+  currentScoutStakes: number;            // Current scout's stakes
+  scoutsList: string[];                  // All available scouts
+  isLoading: boolean;                    // Initial loading state
+  setCurrentScout: (name: string) => Promise<void>;  // Set current scout
+  addScout: (name: string) => Promise<void>;         // Add new scout
+  removeScout: (name: string) => Promise<void>;      // Remove scout
+  refreshScout: () => Promise<void>;                 // Refresh scout data
+}
+```
+
+### Benefits
+
+- **Reactive Updates**: Scout changes propagate immediately to all components
+- **No Polling**: No need to check localStorage repeatedly
+- **Type Safety**: Full TypeScript support
+- **Offline First**: Works seamlessly offline, syncs with IndexedDB
+- **Event Driven**: Listens for `scoutChanged` and `scoutDataCleared` events
+
+### When to Use
+
+Use ScoutContext when you need to:
+- Display current scout name (e.g., in headers, forms)
+- Validate that a scout is selected before actions
+- Show scout stakes or achievements
+- Allow scout selection/switching
+
+**Don't use** ScoutContext for:
+- One-time scout reads during page load (still OK to use, but context adds overhead)
+- Components that never change based on scout
 
 ---
 

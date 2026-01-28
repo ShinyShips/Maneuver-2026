@@ -11,7 +11,7 @@ export function useScoutManagement() {
   const loadScouts = useCallback(async () => {
     // Load from localStorage - this is the source of truth for selectable scouts
     const savedScouts = localStorage.getItem("scoutsList")
-    const savedCurrentScout = localStorage.getItem("scoutName") || localStorage.getItem("currentScout")
+    const savedCurrentScout = localStorage.getItem("currentScout")
 
     let localStorageScouts: string[] = []
     if (savedScouts) {
@@ -77,7 +77,6 @@ export function useScoutManagement() {
     // Save to localStorage
     localStorage.setItem("scoutsList", JSON.stringify(updatedList))
     localStorage.setItem("currentScout", trimmedName)
-    localStorage.setItem("scoutName", trimmedName) // For backwards compatibility
 
     // Create/update scout in ScoutGameDB and get their stakes
     try {
@@ -132,10 +131,15 @@ export function useScoutManagement() {
       // Reload scouts to pick up any newly imported ones
       await loadScouts()
       // Also refresh current scout stakes in case they were updated
-      const savedCurrentScout = localStorage.getItem("currentScout") || localStorage.getItem("scoutName")
+      const savedCurrentScout = localStorage.getItem("currentScout")
       if (savedCurrentScout) {
         await updateCurrentScoutStakes(savedCurrentScout)
       }
+    }
+
+    // Listen for scout changed event (when scout is set programmatically)
+    const handleScoutChanged = async () => {
+      await loadScouts()
     }
 
     loadScouts()
@@ -143,11 +147,13 @@ export function useScoutManagement() {
     // Add event listeners
     window.addEventListener('scoutDataCleared', handleScoutDataCleared)
     window.addEventListener('scoutDataUpdated', handleScoutDataUpdated)
+    window.addEventListener('scoutChanged', handleScoutChanged)
 
     // Cleanup event listeners
     return () => {
       window.removeEventListener('scoutDataCleared', handleScoutDataCleared)
       window.removeEventListener('scoutDataUpdated', handleScoutDataUpdated)
+      window.removeEventListener('scoutChanged', handleScoutChanged)
     }
   }, [loadScouts])
 

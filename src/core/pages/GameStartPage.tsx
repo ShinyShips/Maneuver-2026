@@ -19,12 +19,19 @@ import { EventNameSelector } from "@/core/components/GameStartComponents/EventNa
 import { createMatchPrediction, getPredictionForMatch } from "@/core/lib/scoutGamificationUtils";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useWorkflowNavigation } from "@/core/hooks/useWorkflowNavigation";
+import { useScout } from "@/core/contexts/ScoutContext";
 
 const GameStartPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const states = location.state;
   const { getNextRoute, isConfigValid } = useWorkflowNavigation();
+  const { currentScout } = useScout();
+
+  // Debug log when currentScout changes
+  useEffect(() => {
+    console.log('📋 GameStartPage: currentScout =', currentScout);
+  }, [currentScout]);
 
   // Detect re-scout mode from location.state - use useMemo to recalculate when location.state changes
   const rescoutData = useMemo(() => states?.rescout, [states]);
@@ -107,7 +114,6 @@ const GameStartPage = () => {
   // Effect to load existing prediction when match/event changes
   useEffect(() => {
     const loadExistingPrediction = async () => {
-      const currentScout = getCurrentScout();
       if (currentScout && eventKey && matchNumber) {
         try {
           const existingPrediction = await getPredictionForMatch(currentScout, eventKey, matchNumber);
@@ -153,7 +159,6 @@ const GameStartPage = () => {
   const handlePredictionChange = async (newPrediction: "red" | "blue" | "none") => {
     setPredictedWinner(newPrediction);
 
-    const currentScout = getCurrentScout();
     if (newPrediction !== "none" && currentScout && eventKey && matchNumber) {
       try {
         await createMatchPrediction(currentScout, eventKey, matchNumber, newPrediction);
@@ -165,14 +170,6 @@ const GameStartPage = () => {
     }
   };
 
-  const getCurrentScout = () => {
-    return (
-      localStorage.getItem("currentScout") ||
-      localStorage.getItem("scoutName") ||
-      ""
-    );
-  };
-
   const validateInputs = () => {
     // Check workflow config is valid
     if (!isConfigValid) {
@@ -180,7 +177,6 @@ const GameStartPage = () => {
       return false;
     }
 
-    const currentScout = getCurrentScout();
     const inputs = {
       matchNumber,
       alliance,
@@ -209,8 +205,6 @@ const GameStartPage = () => {
 
   const handleStartScouting = async () => {
     if (!validateInputs()) return;
-
-    const currentScout = getCurrentScout();
 
     // Save prediction if one was made
     if (predictedWinner !== "none" && currentScout && eventKey && matchNumber) {
@@ -273,8 +267,6 @@ const GameStartPage = () => {
     }, 500);
     return () => clearTimeout(timeout);
   }, [matchNumber]);
-
-  const currentScout = getCurrentScout();
 
   return (
     <div className="min-h-screen pt-12 w-full flex flex-col items-center px-4 pb-24 2xl:pb-6">

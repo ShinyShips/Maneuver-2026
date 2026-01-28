@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/core/components/ui/dialog"
 import { ChevronsUpDown } from "lucide-react"
-import { useScoutManagement } from "@/core/hooks/useScoutManagement"
+import { useScout } from "@/core/contexts/ScoutContext"
 import { ScoutDisplay } from "./ScoutDisplay"
 import { ScoutSelectorContent } from "./ScoutSelectorContent"
 
@@ -29,9 +29,9 @@ export function NavUser() {
     currentScout,
     currentScoutStakes,
     scoutsList,
-    saveScout,
+    addScout,
     removeScout
-  } = useScoutManagement()
+  } = useScout()
 
   const handleClose = () => setOpen(false)
 
@@ -62,7 +62,7 @@ export function NavUser() {
                   <ScoutSelectorContent
                     currentScout={currentScout}
                     scoutsList={scoutsList}
-                    onScoutSelect={saveScout}
+                    onScoutSelect={addScout}
                     onScoutRemove={removeScout}
                     onClose={handleClose}
                   />
@@ -92,7 +92,7 @@ export function NavUser() {
               <ScoutSelectorContent
                 currentScout={currentScout}
                 scoutsList={scoutsList}
-                onScoutSelect={saveScout}
+                onScoutSelect={addScout}
                 onScoutRemove={removeScout}
                 onClose={handleClose}
               />

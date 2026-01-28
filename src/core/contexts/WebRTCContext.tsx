@@ -247,7 +247,7 @@ export function WebRTCProvider({ children }: { children: ReactNode }) {
 
   // Display name for signaling
   const displayName = mode === 'lead' ? 'Lead Scout' : (() => {
-    const scoutName = typeof window !== 'undefined' ? localStorage.getItem('scoutName') : null;
+    const scoutName = typeof window !== 'undefined' ? localStorage.getItem('currentScout') : null;
     const playerStation = typeof window !== 'undefined' ? localStorage.getItem('playerStation') : null;
     return scoutName && playerStation ? `${scoutName} (${playerStation})` : 'Scout';
   })();

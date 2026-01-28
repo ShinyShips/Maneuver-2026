@@ -10,7 +10,7 @@ export const useCurrentScout = () => {
   useEffect(() => {
     const loadCurrentScout = async () => {
       try {
-        const currentScoutName = localStorage.getItem('currentScout') || localStorage.getItem('scoutName');
+        const currentScoutName = localStorage.getItem('currentScout');
         if (currentScoutName) {
           const scout = await getOrCreateScoutByName(currentScoutName);
           setCurrentScout(scout);
