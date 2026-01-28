@@ -6,27 +6,61 @@ The Dev Utilities page provides development and testing tools for the applicatio
 
 ## Features
 
-### 1. Test Data Generation
+### 1. Full Demo Event Generator
 
-Generate random scouting data for testing purposes.
+Generate a complete realistic event for comprehensive testing.
+
+```typescript
+import { generateDemoEvent } from '@/core/lib/demoDataGenerator';
+import { generate2026GameData } from '@/game-template/demoDataGenerator2026';
+
+// Generate full event with 30 teams, 60 qual matches, playoffs
+const result = await generateDemoEvent({
+    eventKey: 'demo2026',
+    clearExisting: true,
+    gameDataGenerator: generate2026GameData,
+    includePlayoffs: true,
+});
+```
+
+**What it generates:**
+- **30 teams** with realistic skill distributions (elite, strong, average, developing)
+- **60 qualification matches** with balanced team scheduling
+- **Full playoff bracket:**
+  - Quarterfinals (4 matchups, 2 matches each)
+  - Semifinals (2 matchups, 2 matches each)
+  - Finals (3 matches)
+- **~360 scouting entries** with realistic scoring patterns based on team skill
+
+**Team Skill Profiles:**
+- Elite teams (10%): Consistent high performers
+- Strong teams (25%): Above-average performance
+- Average teams (40%): Mid-tier performance
+- Developing teams (25%): Learning and improving
+
+**Realistic Data:**
+- Scoring patterns match team skill levels
+- Playoff matches show increased intensity
+- Comments reflect team performance
+- Timestamps spread across event timeline
+
+### 2. Random Data Generation (Legacy)
+
+Generate random scouting data for quick testing.
 
 ```typescript
 import { generateRandomScoutingData } from '@/core/lib/testDataGenerator';
 
 // Generate 50 random entries for testing
-const testEntries = generateRandomScoutingData({
-    count: 50,
-    eventKey: '2025test',
-    teamRange: [1, 100]  // Team numbers 1-100
-});
+const testEntries = generateRandomScoutingData(50);
 ```
 
 Options:
 - **Count**: Number of entries to generate
-- **Event Key**: Event identifier for the data
-- **Team Range**: Range of team numbers
+- Uses random scoring values
+- Random team numbers and match assignments
 
-### 2. Database Operations
+### 3. Database Operations
 
 Quick access to database management:
 
@@ -37,7 +71,7 @@ Quick access to database management:
 | **Clear Scout Profiles** | Remove gamification data |
 | **Clear All Data** | Full database reset |
 
-### 3. Data Inspection
+### 4. Data Inspection
 
 View current database state:
 - Total entries count by type
@@ -54,49 +88,151 @@ View current database state:
             ┌────────────────────┼────────────────────┐
             ▼                    ▼                    ▼
 ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ Test Data        │  │ Database         │  │ Data Inspection  │
+│ Demo Event       │  │ Database         │  │ Data Inspection  │
 │ Generator        │  │ Operations       │  │ Panels           │
 │                  │  │                  │  │                  │
-│ - Random entries │  │ - Clear methods  │  │ - Entry counts   │
-│ - Config options │  │ - Backup/restore │  │ - Statistics     │
+│ - Full events    │  │ - Clear methods  │  │ - Entry counts   │
+│ - Skill profiles │  │ - Backup/restore │  │ - Statistics     │
+│ - Playoffs       │  │                  │  │                  │
 └──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
-## Test Data Generator
+## Demo Event Generator
 
-**Location:** `src/core/lib/testDataGenerator.ts`
+**Locations:**
+- Core: `src/core/lib/demoDataGenerator.ts` (game-agnostic framework)
+- 2026: `src/game-template/demoDataGenerator2026.ts` (2026 game-specific generator)
 
-### Schema-Compliant Generation
+### Game-Agnostic Architecture
 
-Test data is generated through the same transformation pipeline as real data to ensure schema compliance:
+The demo event generator follows framework design principles:
 
 ```typescript
-export function generateRandomGameData(): GameData {
-    // Generate raw action arrays (like real user input)
-    const rawAuto = generateRawActions('auto');
-    const rawTeleop = generateRawActions('teleop');
-    const rawEndgame = generateRawEndgame();
-    
-    // Transform through the same pipeline
-    return gameDataTransformation.transformActionsToCounters({
-        auto: rawAuto,
-        teleop: rawTeleop,
-        endgame: rawEndgame
-    });
+// Core framework provides scheduling and structure
+export type GameDataGenerator = (
+    profile: TeamSkillProfile,
+    matchKey: string
+) => Record<string, unknown>;
+
+// Game implementation provides realistic scoring
+const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
+    // Generate 2026 FUEL game data based on team skill
+    // Returns data in format expected by game transformation
+};
+```
+
+### Team Skill Profiles
+
+Each team is assigned a skill profile that affects performance:
+
+```typescript
+interface TeamSkillProfile {
+    teamNumber: number;
+    skillLevel: 'elite' | 'strong' | 'average' | 'developing';
+    autoAccuracy: number;      // 0-1, auto scoring success rate
+    teleopAccuracy: number;     // 0-1, teleop scoring success rate  
+    endgameSuccess: number;     // 0-1, endgame completion rate
+    consistency: number;        // 0-1, performance variance (1 = consistent)
 }
 ```
 
-### Random Data Fields
+**Distribution:**
+- Elite (10%): autoAccuracy 0.85-1.0, teleopAccuracy 0.80-1.0
+- Strong (25%): autoAccuracy 0.65-0.85, teleopAccuracy 0.65-0.85
+- Average (40%): autoAccuracy 0.40-0.70, teleopAccuracy 0.45-0.75
+- Developing (25%): autoAccuracy 0.20-0.50, teleopAccuracy 0.25-0.60
 
-| Field | Generation Method |
-|-------|-------------------|
-| Team Number | Random within configured range |
-| Match Number | Sequential or random |
-| Alliance | Random "red" or "blue" |
-| Scout Name | Random from common names list |
-| Actions | Random counts per action type |
-| Endgame | Random success/failure states |
-| Comments | Random from preset phrases |
+### Match Scheduling
+
+**Qualification Matches (60):**
+- Randomly distributed across 30 teams
+- Each team plays ~12 matches
+- Balanced alliance assignment
+
+**Playoff Bracket:**
+- Top 8 teams advance based on skill rankings
+- Quarterfinals: 4 matchups, 2 matches each (1v8, 2v7, 3v6, 4v5)
+- Semifinals: 2 matchups, 2 matches each
+- Finals: 3 matches
+
+### 2026 Game Data Generation
+
+The 2026 generator creates realistic FUEL game data:
+
+**Auto Phase (profile-based):**
+- Elite: 4-6 fuel scored
+- Strong: 2-4 fuel scored
+- Average: 1-3 fuel scored
+- Developing: 0-2 fuel scored
+
+**Teleop Phase:**
+- Elite: 12-18 fuel scored
+- Strong: 8-14 fuel scored
+- Average: 5-10 fuel scored
+- Developing: 2-6 fuel scored
+- 20% boost in playoff matches (teams push harder)
+
+**Endgame (TOWER climbing):**
+- Elite: 70% Level 3, 20% Level 2, 10% Level 1
+- Strong: 10% Level 3, 70% Level 2, 20% Level 1
+- Average/Developing: Level 1 most common
+
+**Variance:**
+- Consistency factor adds realistic match-to-match variation
+- Lower consistency = higher variance in performance
+
+### Usage Examples
+
+```typescript
+// Generate full demo event
+const result = await generateDemoEvent({
+    eventKey: 'demo2026',
+    clearExisting: true,
+    gameDataGenerator: generate2026GameData,
+    includePlayoffs: true,
+});
+
+console.log(result.stats);
+// {
+//   teamsGenerated: 30,
+//   qualMatches: 60,
+//   playoffMatches: 19,
+//   entriesGenerated: 474
+// }
+
+// Generate without playoffs (quals only)
+const qualsOnly = await generateDemoEvent({
+    eventKey: 'practice2026',
+    includePlayoffs: false,
+    gameDataGenerator: generate2026GameData,
+});
+```
+
+### Extending for Other Games
+
+To create demo data for a different game year:
+
+```typescript
+// src/game-template/demoDataGenerator2027.ts
+import type { GameDataGenerator } from '@/core/lib/demoDataGenerator';
+import { gameDataTransformation } from './transformation';
+
+export const generate2027GameData: GameDataGenerator = (profile, matchKey) => {
+    // 1. Generate raw actions based on profile
+    const actions = generateActions(profile);
+    
+    // 2. Transform to database format
+    return gameDataTransformation.transformActionsToCounters(actions);
+};
+
+// Then use in DevUtilitiesPage
+import { generate2027GameData } from '@/game-template/demoDataGenerator2027';
+
+await generateDemoEvent({
+    gameDataGenerator: generate2027GameData,
+    // ...other options
+});
+```
 
 ## Database Utility Functions
 

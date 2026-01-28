@@ -1,5 +1,5 @@
 /**
- * Match Strategy Page
+ * Match Strategy Page - Year-Agnostic
  * 
  * Main page for match strategy planning with:
  * - Field drawing on 3 phases (Autonomous, Teleop, Endgame)
@@ -10,8 +10,8 @@
  * 
  * Year-agnostic design using:
  * - Centralized calculations (useAllTeamStats)
- * - Configurable field image
- * - Config-driven stats display
+ * - Configurable field image (via props)
+ * - Config-driven stats display (via props)
  */
 
 import { useState } from "react";
@@ -20,9 +20,27 @@ import { FieldStrategy } from "@/core/components/MatchStrategy/FieldStrategy";
 import { TeamAnalysis } from "@/core/components/MatchStrategy/TeamAnalysis";
 import { clearAllStrategies, saveAllStrategyCanvases } from "@/core/lib/strategyCanvasUtils";
 import { useMatchStrategy } from "@/core/hooks/useMatchStrategy";
-import fieldImage from "@/game-template/assets/field.png";
+import defaultFieldImage from "@/game-template/assets/2026-field.png";
 
-const MatchStrategyPage = () => {
+// ============================================================================
+// PROPS & CONFIGURATION
+// ============================================================================
+
+interface MatchStrategyPageProps {
+    /**
+     * Optional: Field image to use for strategy drawing
+     * Defaults to 2026-field.png
+     */
+    fieldImage?: string;
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+const MatchStrategyPage = (props: MatchStrategyPageProps) => {
+    const fieldImage = props.fieldImage ?? defaultFieldImage;
+    
     const [activeTab, setActiveTab] = useState("autonomous");
     const [activeStatsTab, setActiveStatsTab] = useState("overall");
 

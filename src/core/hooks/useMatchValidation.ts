@@ -45,7 +45,7 @@ import { toast } from 'sonner';
 // Types
 // ============================================================================
 
-interface ValidationProgress {
+export interface ValidationProgress {
     current: number;
     total: number;
     currentMatch: string;

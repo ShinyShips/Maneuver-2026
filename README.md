@@ -1,23 +1,25 @@
-# maneuver-core
+# Maneuver-2026
 
-**A year-agnostic framework template for building FRC scouting apps**
+**FRC 2026 REBUILT Scouting Application**
 
-`maneuver-core` is the foundational framework that powers multi-year FRC scouting applications. It provides all the infrastructure you need—offline-first PWA capabilities, data transfer, match validation, and more—while remaining completely game-agnostic.
+Maneuver-2026 is a comprehensive scouting application built for the 2026 FRC game season: **REBUILT**. Built on the maneuver-core framework, it provides offline-first PWA capabilities, field-centric data collection, match validation, and advanced analytics—all optimized for the unique challenges of the 2026 game.
 
 ## 🔗 Related Repositories
 
 | Repository | Description | Status |
 |------------|-------------|--------|
-| **maneuver-core** | Framework template (this repo) | Template |
-| **Maneuver-2025** | 2025 Reefscape implementation (pre-creation of this template) | [Live App](https://github.com/ShinyShips/Maneuver-2025) |
+| **maneuver-core** | Framework template | [GitHub](https://github.com/ShinyShips/maneuver-core) |
+| **Maneuver-2025** | 2025 Reefscape implementation | [Live App](https://github.com/ShinyShips/Maneuver-2025) |
+| **Maneuver-2026** | 2026 REBUILT implementation (this repo) | Active Development |
 
-> **Note:** The `Maneuver` repo will be renamed to `maneuver-2025` to follow the year-based naming convention.
+## 🎯 About This App
 
-## 🎯 What is this?
+Maneuver-2026 is specifically designed for the 2026 FRC game **REBUILT**, featuring:
 
-Every year, FRC teams face the same problem: rebuilding their scouting app from scratch for the new game. `maneuver-core` solves this by separating the **framework** (year-agnostic) from the **game logic** (year-specific).
-
-**You build once, adapt annually.**
+- **Fuel-Based Scoring**: Track fuel collection, scoring, and passing throughout the match
+- **Tower Climbing**: Support for autonomous Level 1 climbing and endgame Level 1/2/3 climbing
+- **Field-Centric Interface**: Scoring screens mirror the actual game field with zones (Alliance, Neutral, Opponent)
+- **Trench/Bump Navigation**: Track robot capabilities for going under trenches vs. over bumps
 
 ## 💡 Design Philosophy
 
@@ -36,9 +38,9 @@ Maneuver is **not** just another scouting app with basic counters and text input
 ## 🏗️ Repository Structure
 
 ```
-maneuver-core/
+Maneuver-2026/
 ├── src/
-│   ├── core/                    # 📦 Framework (year-agnostic)
+│   ├── core/                    # 📦 Framework (from maneuver-core)
 │   │   ├── components/          # Reusable UI components
 │   │   ├── contexts/            # React contexts (Game, Theme, etc.)
 │   │   ├── db/                  # Dexie database setup
@@ -48,11 +50,19 @@ maneuver-core/
 │   │   ├── pages/               # Application pages/routes
 │   │   └── types/               # TypeScript type definitions
 │   │
-│   ├── game-template/           # 🎮 Example game implementation
-│   │   ├── components/          # Game scoring screen examples
+│   ├── game-template/           # 🎮 2026 REBUILT Implementation
+│   │   ├── components/          # Game-specific UI (field maps, scoring)
+│   │   │   ├── auto-path/       # Autonomous path tracking
+│   │   │   ├── field-map/       # Interactive field canvas
+│   │   │   ├── teleop-path/     # Teleop path tracking
+│   │   │   ├── scoring/         # Fuel scoring components
+│   │   │   ├── endgame/         # Climb selection
+│   │   │   └── pit-scouting/    # 2026-specific pit questions
+│   │   ├── contexts/            # Scoring & path contexts
 │   │   ├── gamification/        # Achievements system
-│   │   ├── game-schema.ts       # Single source of truth for game config
-│   │   ├── scoring.ts           # Point calculations
+│   │   ├── GAME_2026.md         # Complete game rules reference
+│   │   ├── game-schema.ts       # Single source of truth for 2026 config
+│   │   ├── scoring.ts           # Point calculations for fuel/climbing
 │   │   ├── transformation.ts    # Data transformation logic
 │   │   └── ...config files
 │   │
@@ -67,18 +77,25 @@ maneuver-core/
 
 | Directory | Purpose |
 |-----------|---------|
-| `src/core/` | Year-agnostic framework code — **do not add game-specific logic here** |
-| `src/game-template/` | Example implementation — **copy and customize for your game year** |
+| `src/core/` | Year-agnostic framework code (from maneuver-core) |
+| `src/game-template/` | 2026 REBUILT game implementation — **customize for your team's needs** |
 | `docs/` | Comprehensive documentation for framework features |
 
 ## ✨ Features
+### 2026 REBUILT Game-Specific
+- **Fuel Tracking**: Score, pass, and steal fuel with field-accurate positioning
+- **Autonomous Path Tracking**: Record robot movements and scoring actions with canvas drawing
+- **Teleop Role Analysis**: Track Active vs Inactive shift strategies (Cycler, Clean Up, Passer, Thief, Defense)
+- **Tower Climbing**: Auto Level 1 (15pts) and Endgame Level 1/2/3 (10/20/30pts)
+- **Trench/Bump Navigation**: Track field traversal capabilities
 
+### Core Framework Features
 - **Offline-First PWA**: Works without internet, installs like a native app
 - **Match Scouting**: Pre-match setup, auto, teleop, endgame screens
-- **Pit Scouting**: Robot specifications and capabilities
+- **Pit Scouting**: Robot specifications and 2026-specific capabilities
 - **Data Transfer**: QR codes (fountain codes), JSON import/export, and WiFi transfer using WebRTC
 - **Match Validation**: Compare scouted data against TBA official results
-- **Team Statistics**: Averages, totals, performance analysis
+- **Team Statistics**: Averages, totals, performance analysis for 2026 metrics
 - **Match Strategy**: Pre-match planning with field annotations
 - **Pick Lists**: Alliance selection with drag-and-drop ordering
 - **Scout Gamification**: Achievements, leaderboards, and profile tracking
@@ -87,25 +104,19 @@ maneuver-core/
 
 ## 🚀 Quick Start
 
-### Using this Template
-
-1. **Fork or clone** this repository
-2. **Rename** to `maneuver-YYYY` (e.g., `maneuver-2026`)
-3. **Customize** `src/game-template/` for your game year
-4. **Deploy** to Netlify/Vercel
-
-### Development
+### Using This App
 
 ```bash
-# Clone the template
-git clone https://github.com/ShinyShips/maneuver-core.git maneuver-2026
-cd maneuver-2026
+# Clone the repository
+git clone https://github.com/ShinyShips/Maneuver-2026.git
+cd Maneuver-2026
 
 # Install dependencies
 npm install
 
 # Create .env from example
 cp .env.example .env
+# Edit .env and add your TBA API key
 
 # Start development server
 npm run dev
@@ -114,29 +125,28 @@ npm run dev
 npm run build
 ```
 
-### Receiving Updates from maneuver-core
+### For Your Team
 
-If you want to pull bug fixes and enhancements from `maneuver-core` into your year-specific repo, you have two options:
+If you want to customize this for your team:
 
-#### Option 1: Fork (Recommended for external teams)
+1. **Fork** this repository to your organization
+2. **Customize** strategy configs in `src/game-template/` for your team's preferences
+3. **Modify** pick list criteria in `pick-list-config.ts`
+4. **Adjust** achievements in `gamification/achievements.ts`
+5. **Deploy** to Netlify/Vercel using your fork
 
-**fork** the repository instead of using it as a template. This maintains git history and makes pulling updates easy:
+### Receiving Framework Updates
+
+To pull bug fixes and framework enhancements from maneuver-core:
 
 ```bash
-# In your forked repo, pull upstream changes anytime
+# Add maneuver-core as upstream remote
+git remote add upstream https://github.com/ShinyShips/maneuver-core.git
+
+# Fetch and merge updates (resolve conflicts favoring YOUR game-template/)
 git fetch upstream
 git merge upstream/main
 ```
-
-#### Option 2: Add upstream remote (For template-based repos)
-
-If you used the template, manually add maneuver-core as an upstream remote:
-
-```bash
-# One-time setup: add maneuver-core as upstream
-git remote add upstream https://github.com/ShinyShips/maneuver-core.git
-
-# First merge requires --allow-unrelated-histories (template repos have no shared history)
 git fetch upstream
 git merge upstream/main --allow-unrelated-histories
 # Resolve conflicts: keep YOUR version for game-template/, keep UPSTREAM for core/
@@ -212,27 +222,38 @@ The `game-schema.ts` file is the **single source of truth** for your game config
 ```typescript
 // src/game-template/game-schema.ts
 export const gameSchema = {
-  year: 2025,
-  gameName: "Reefscape",
-  actions: {
-    // Define counters for scoring actions
-    autoCoralL4: { phase: "auto", points: 7 },
-    teleopAlgaeNet: { phase: "teleop", points: 4 },
-    // ...
-  },
-  toggles: {
-    // Define boolean states
-    leftStartingZone: { phase: "auto", points: 3 },
-    // ...
-  },
+  year2026 REBUILT Game Configuration
+
+The `game-schema.ts` file defines all 2026-specific game elements:
+
+```typescript
+// src/game-template/game-schema.ts
+export const actions = {
+  fuelScored: { label: "Fuel Scored", points: { auto: 1, teleop: 1 } },
+  autoClimb: { label: "Auto Climb L1", points: { auto: 15, teleop: 0 } },
+  climbL1: { label: "Climb Level 1", points: { auto: 0, teleop: 10 } },
+  climbL2: { label: "Climb Level 2", points: { auto: 0, teleop: 20 } },
+  climbL3: { label: "Climb Level 3", points: { auto: 0, teleop: 30 } },
+  // ...
+};
+
+export const zones = {
+  allianceZone: { label: "Alliance Zone", actions: ['score', 'pass'] },
+  neutralZone: { label: "Neutral Zone", actions: ['pass'] },
+  opponentZone: { label: "Opponent Zone", actions: ['defense'] },
 };
 ```
 
-From this schema, the framework derives:
-- Default data values
-- Point calculations
-- Strategy column configurations
-- Validation logic
+### Key 2026 Configurations
+
+| File | Purpose |
+|------|---------|
+| `game-schema.ts` | Actions, zones, workflow, constants |
+| `scoring.ts` | Point calculations for fuel, climbing, penalties |
+| `strategy-config.ts` | Team statistics columns and aggregations |
+| `pick-list-config.ts` | Alliance selection criteria |
+| `match-strategy-config.ts` | Pre-match field annotations |
+| `GAME_2026.md` | Complete game rules reference |
 
 ## 🛠️ Tech Stack
 
@@ -248,12 +269,12 @@ From this schema, the framework derives:
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions to improve the 2026 implementation are welcome! Please:
 
-1. Keep framework changes **game-agnostic** in `src/core/`
-2. Document any new interfaces or hooks
-3. Run `npm run build` to verify no type errors
-4. Test changes manually before submitting
+1. Test changes thoroughly with the 2026 game rules
+2. Keep framework changes in `src/core/` generic (consider contributing to maneuver-core)
+3. Document any new 2026-specific features
+4. Run `npm run build` to verify no type errors
 
 ## 📝 License
 
@@ -263,6 +284,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 Developed by **Andy Nguyen (ShinyShips) - FRC Team 3314 Alumni and Strategy Mentor** for the FRC community.
 
+Built on the **maneuver-core** framework.
+
 Special thanks to:
 - [The Blue Alliance](https://www.thebluealliance.com/) for their excellent API
 - [VScout](https://github.com/VihaanChhabria/VScout) by VihaanChhabria for initial inspiration
@@ -270,7 +293,8 @@ Special thanks to:
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/ShinyShips/maneuver-core/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ShinyShips/maneuver-core/discussions)
+- **Issues**: [GitHub Issues](https://github.com/ShinyShips/Maneuver-2026/issues)
+- **Framework Issues**: [maneuver-core Issues](https://github.com/ShinyShips/maneuver-core/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ShinyShips/Maneuver-2026/discussions)
 
 ---

@@ -9,11 +9,12 @@
  */
 
 export interface MatchStrategyStatConfig {
-    key: string;  // Path to stat in TeamStats object (e.g., "overall.avgGamePiece1")
+    key: string;  // Path to stat in TeamStats object (e.g., "rawValues.totalFuel")
     label: string;  // Display label
     color?: string;  // Tailwind color class (e.g., "text-orange-600")
     format?: 'number' | 'percent';  // How to display the value
     decimals?: number;  // Number of decimal places (default: 1)
+    aggregation?: 'average' | 'max' | 'p75' | 'sum';  // How to aggregate rawValues arrays (default: 'average')
 }
 
 export interface MatchStrategyPhaseConfig {
@@ -46,107 +47,131 @@ export const matchStrategyConfig: {
             gridCols: 3,
             stats: [
                 {
-                    key: 'overall.avgGamePiece1',
-                    label: 'Game Piece 1',  // Customize per year (e.g., "Coral", "Cargo", "Cones")
+                    key: 'avgTotalFuel',
+                    label: 'Avg Fuel Scored',
                     color: 'text-orange-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
                 },
                 {
-                    key: 'overall.avgGamePiece2',
-                    label: 'Game Piece 2',  // Customize per year (e.g., "Algae", "Hatch Panels", "Cubes")
+                    key: 'avgFuelPassed',
+                    label: 'Avg Fuel Passed',
                     color: 'text-green-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
                 },
                 {
-                    key: 'overall.avgTotalPoints',
+                    key: 'avgTotalPoints',
                     label: 'Avg Points',
                     color: 'text-blue-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
                 }
             ]
         },
         {
             id: 'auto',
             label: 'Auto',
-            gridCols: 2,
+            gridCols: 4,
             stats: [
                 {
-                    key: 'auto.avgGamePiece1',
-                    label: 'Game Piece 1',
+                    key: 'avgAutoFuel',
+                    label: 'Fuel Scored',
                     color: 'text-orange-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
                 },
                 {
-                    key: 'auto.avgGamePiece2',
-                    label: 'Game Piece 2',
+                    key: 'avgAutoFuelPassed',
+                    label: 'Fuel Passed',
                     color: 'text-green-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
+                },
+                {
+                    key: 'autoClimbAttempts',
+                    label: 'L1 Climbs',
+                    color: 'text-purple-600',
+                    format: 'number',
+                    decimals: 0
+                },
+                {
+                    key: 'autoClimbRate',
+                    label: 'L1 Success',
+                    color: 'text-blue-600',
+                    format: 'percent',
+                    decimals: 0
                 }
             ]
         },
         {
             id: 'teleop',
             label: 'Teleop',
-            gridCols: 2,
+            gridCols: 4,
             stats: [
                 {
-                    key: 'teleop.avgGamePiece1',
-                    label: 'Game Piece 1',
+                    key: 'avgTeleopFuel',
+                    label: 'Fuel Scored',
                     color: 'text-orange-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
                 },
                 {
-                    key: 'teleop.avgGamePiece2',
-                    label: 'Game Piece 2',
+                    key: 'avgTeleopFuelPassed',
+                    label: 'Fuel Passed',
                     color: 'text-green-600',
                     format: 'number',
-                    decimals: 1
+                    decimals: 1,
+                    aggregation: 'average'
+                },
+                {
+                    key: 'primaryActiveRole',
+                    label: 'Active Role',
+                    color: 'text-blue-600'
+                },
+                {
+                    key: 'primaryInactiveRole',
+                    label: 'Inactive Role',
+                    color: 'text-purple-600'
                 }
             ]
         },
         {
             id: 'endgame',
             label: 'Endgame',
-            gridCols: 5,
+            gridCols: 4,
             stats: [
                 {
-                    key: 'endgame.option1Rate',
-                    label: 'Option 1',  // Customize per year
+                    key: 'endgame.climbRate',
+                    label: 'Climb %',
                     color: 'text-purple-600',
                     format: 'percent',
                     decimals: 0
                 },
                 {
-                    key: 'endgame.option2Rate',
-                    label: 'Option 2',  // Customize per year
-                    color: 'text-gray-600',
+                    key: 'climbL1Rate',
+                    label: 'L1 (10pts)',
+                    color: 'text-green-600',
                     format: 'percent',
                     decimals: 0
                 },
                 {
-                    key: 'endgame.option3Rate',
-                    label: 'Option 3',  // Customize per year (or hide if not applicable)
+                    key: 'climbL2Rate',
+                    label: 'L2 (20pts)',
                     color: 'text-blue-600',
                     format: 'percent',
                     decimals: 0
                 },
                 {
-                    key: 'endgame.toggle1Rate',
-                    label: 'Toggle 1',  // Customize per year (or hide if not applicable)
-                    color: 'text-red-600',
-                    format: 'percent',
-                    decimals: 0
-                },
-                {
-                    key: 'endgame.toggle2Rate',
-                    label: 'Toggle 2',  // Customize per year (or hide if not applicable)
-                    color: 'text-red-600',
+                    key: 'climbL3Rate',
+                    label: 'L3 (30pts)',
+                    color: 'text-orange-600',
                     format: 'percent',
                     decimals: 0
                 }
@@ -164,10 +189,46 @@ export const matchStrategyConfig: {
 };
 
 /**
- * Helper function to get a stat value from TeamStats object using a key path
- * Example: getStatValue(stats, "overall.avgGamePiece1") => stats.overall.avgGamePiece1
+ * Aggregate an array of values based on the specified method
  */
-export function getStatValue(stats: any, keyPath: string): number | undefined {
+export function aggregateValues(
+    values: number[],
+    method: 'average' | 'max' | 'p75' | 'sum' = 'average'
+): number {
+    if (values.length === 0) return 0;
+
+    switch (method) {
+        case 'average': {
+            const sum = values.reduce((acc, val) => acc + val, 0);
+            return sum / values.length;
+        }
+        case 'max': {
+            return Math.max(...values);
+        }
+        case 'p75': {
+            const sorted = [...values].sort((a, b) => a - b);
+            const index = Math.ceil(sorted.length * 0.75) - 1;
+            return sorted[index] ?? 0;
+        }
+        case 'sum': {
+            return values.reduce((acc, val) => acc + val, 0);
+        }
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Helper function to get a stat value from TeamStats object using a key path
+ * Example: getStatValue(stats, "rawValues.totalFuel") => stats.rawValues.totalFuel
+ * 
+ * If the value is an array and aggregation is specified, it will aggregate the values.
+ */
+export function getStatValue(
+    stats: any,
+    keyPath: string,
+    aggregation?: 'average' | 'max' | 'p75' | 'sum'
+): number | string | undefined {
     const keys = keyPath.split('.');
     let value = stats;
 
@@ -176,18 +237,26 @@ export function getStatValue(stats: any, keyPath: string): number | undefined {
         value = value[key];
     }
 
-    return typeof value === 'number' ? value : undefined;
+    // If value is an array and aggregation is specified, aggregate it
+    if (Array.isArray(value) && aggregation) {
+        return aggregateValues(value, aggregation);
+    }
+
+    return (typeof value === 'number' || typeof value === 'string') ? value : undefined;
 }
 
 /**
  * Format a stat value for display
  */
 export function formatStatValue(
-    value: number | undefined,
+    value: number | string | undefined,
     format: 'number' | 'percent' = 'number',
     decimals: number = 1
 ): string {
     if (value === undefined || value === null) return '-';
+
+    // If it's a string, return as-is
+    if (typeof value === 'string') return value;
 
     const rounded = Number(value.toFixed(decimals));
 

@@ -126,10 +126,50 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const bumpStuckDurationTotal = sum(teamMatches, m => val(m.gameData?.teleop?.bumpStuckDuration));
 
     // ============================================================================
-    // RAW VALUES (for box plots and distribution charts)
+    // ROLE CALCULATIONS (Active & Inactive Shifts - 2026)
+    // ============================================================================
+
+    const roleActiveCyclerCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveCycler === true).length;
+    const roleActiveCleanUpCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveCleanUp === true).length;
+    const roleActivePasserCount = teamMatches.filter(m => m.gameData?.endgame?.roleActivePasser === true).length;
+    const roleActiveThiefCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveThief === true).length;
+    const roleActiveDefenseCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveDefense === true).length;
+
+    const roleInactiveCyclerCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveCycler === true).length;
+    const roleInactiveCleanUpCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveCleanUp === true).length;
+    const roleInactivePasserCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactivePasser === true).length;
+    const roleInactiveThiefCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveThief === true).length;
+    const roleInactiveDefenseCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveDefense === true).length;
+
+    // Calculate primary roles (most frequently played)
+    const activeRoles = [
+        { name: 'Cycler', count: roleActiveCyclerCount },
+        { name: 'Clean Up', count: roleActiveCleanUpCount },
+        { name: 'Passer', count: roleActivePasserCount },
+        { name: 'Thief', count: roleActiveThiefCount },
+        { name: 'Defense', count: roleActiveDefenseCount },
+    ];
+    const maxActiveCount = Math.max(...activeRoles.map(r => r.count));
+    const topActiveRoles = activeRoles.filter(r => r.count === maxActiveCount && r.count > 0);
+    const primaryActiveRole = topActiveRoles.length > 0 ? topActiveRoles.map(r => r.name).join(' / ') : 'None';
+
+    const inactiveRoles = [
+        { name: 'Cycler', count: roleInactiveCyclerCount },
+        { name: 'Clean Up', count: roleInactiveCleanUpCount },
+        { name: 'Passer', count: roleInactivePasserCount },
+        { name: 'Thief', count: roleInactiveThiefCount },
+        { name: 'Defense', count: roleInactiveDefenseCount },
+    ];
+    const maxInactiveCount = Math.max(...inactiveRoles.map(r => r.count));
+    const topInactiveRoles = inactiveRoles.filter(r => r.count === maxInactiveCount && r.count > 0);
+    const primaryInactiveRole = topInactiveRoles.length > 0 ? topInactiveRoles.map(r => r.name).join(' / ') : 'None';
+
+    // ============================================================================
+    // RAW VALUES (for UI aggregation: average, max, 75th percentile, etc.)
     // ============================================================================
 
     const rawValues = {
+        // Points (per match)
         totalPoints: teamMatches.map(m =>
             scoringCalculations.calculateTotalPoints({ gameData: m.gameData } as any)
         ),
@@ -141,6 +181,35 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         ),
         endgamePoints: teamMatches.map(m =>
             scoringCalculations.calculateEndgamePoints({ gameData: m.gameData } as any)
+        ),
+        
+        // Fuel (per match)
+        autoFuel: teamMatches.map(m => val(m.gameData?.auto?.fuelScoredCount)),
+        teleopFuel: teamMatches.map(m => val(m.gameData?.teleop?.fuelScoredCount)),
+        totalFuel: teamMatches.map(m => 
+            val(m.gameData?.auto?.fuelScoredCount) + val(m.gameData?.teleop?.fuelScoredCount)
+        ),
+        autoFuelPassed: teamMatches.map(m => val(m.gameData?.auto?.fuelPassedCount)),
+        teleopFuelPassed: teamMatches.map(m => val(m.gameData?.teleop?.fuelPassedCount)),
+        totalFuelPassed: teamMatches.map(m =>
+            val(m.gameData?.auto?.fuelPassedCount) + val(m.gameData?.teleop?.fuelPassedCount)
+        ),
+        
+        // Climb (boolean per match - 1 if climbed, 0 if not)
+        climbL1: teamMatches.map(m => m.gameData?.endgame?.climbL1 === true ? 1 : 0),
+        climbL2: teamMatches.map(m => m.gameData?.endgame?.climbL2 === true ? 1 : 0),
+        climbL3: teamMatches.map(m => m.gameData?.endgame?.climbL3 === true ? 1 : 0),
+        climbAny: teamMatches.map(m => 
+            (m.gameData?.endgame?.climbL1 || m.gameData?.endgame?.climbL2 || m.gameData?.endgame?.climbL3) ? 1 : 0
+        ),
+        autoClimb: teamMatches.map(m => m.gameData?.auto?.autoClimbL1 === true ? 1 : 0),
+        
+        // Defense & Steals (per match)
+        steals: teamMatches.map(m => val(m.gameData?.teleop?.stealCount)),
+        defenseActions: teamMatches.map(m =>
+            val(m.gameData?.teleop?.defenseAllianceCount) +
+            val(m.gameData?.teleop?.defenseNeutralCount) +
+            val(m.gameData?.teleop?.defenseOpponentCount)
         ),
     };
 
@@ -156,6 +225,28 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         autoPoints: round(totalAutoPoints / matchCount),
         teleopPoints: round(totalTeleopPoints / matchCount),
         endgamePoints: round(totalEndgamePoints / matchCount),
+
+        // Top-level convenience fields (for match-strategy-config.ts compatibility)
+        avgTotalPoints: round(totalPoints / matchCount),
+        avgAutoPoints: round(totalAutoPoints / matchCount),
+        avgTeleopPoints: round(totalTeleopPoints / matchCount),
+        avgEndgamePoints: round(totalEndgamePoints / matchCount),
+        avgAutoFuel: round(autoFuelTotal / matchCount),
+        avgTeleopFuel: round(teleopFuelTotal / matchCount),
+        avgAutoFuelPassed: round(autoFuelPassedTotal / matchCount),
+        avgTeleopFuelPassed: round(teleopFuelPassedTotal / matchCount),
+        avgFuelPassed: round(totalFuelPassed / matchCount),
+        avgTotalFuel: round(totalFuelScored / matchCount),
+        autoClimbRate: percent(autoClimbCount, matchCount),
+        autoClimbAttempts: autoClimbCount,
+        climbL1Rate: percent(climbL1Count, matchCount),
+        climbL2Rate: percent(climbL2Count, matchCount),
+        climbL3Rate: percent(climbL3Count, matchCount),
+        climbSuccessRate: percent(climbSuccessCount, matchCount),
+
+        // Role data
+        primaryActiveRole,
+        primaryInactiveRole,
 
         // Overall phase
         overall: {
@@ -248,8 +339,8 @@ function calculateStartPositions(
 
     // Convert to array with percentages
     const result: Array<{ position: string; percentage: number }> = [];
-    const posLabels = ['Left', 'Center', 'Right', 'Pos 3', 'Pos 4', 'Pos 5'];
-    for (let i = 0; i <= 5; i++) {
+    const posLabels = ['Left Trench', 'Left Bump', 'Hub', 'Right Bump', 'Right Trench'];
+    for (let i = 0; i <= 4; i++) {
         const count = positionCounts[i] || 0;
         const percentage = percent(count, matchCount);
         if (percentage > 0) {

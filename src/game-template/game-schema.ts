@@ -314,35 +314,31 @@ export const strategyColumns = {
         eventKey: { label: "Event", visible: true, numeric: false },
         matchCount: { label: "Matches", visible: true, numeric: true },
     },
-    // Point totals
+    // Point totals (use rawValues for user-selectable aggregation)
     points: {
-        totalPoints: { label: "Total Pts", visible: true, numeric: true },
-        autoPoints: { label: "Auto Pts", visible: true, numeric: true },
-        teleopPoints: { label: "Teleop Pts", visible: true, numeric: true },
-        endgamePoints: { label: "Endgame Pts", visible: true, numeric: true },
+        "rawValues.totalPoints": { label: "Total Points", visible: true, numeric: true },
+        "rawValues.autoPoints": { label: "Auto Points", visible: true, numeric: true },
+        "rawValues.teleopPoints": { label: "Teleop Points", visible: true, numeric: true },
+        "rawValues.endgamePoints": { label: "Endgame Points", visible: true, numeric: true },
     },
-    // Overall stats
+    // Overall stats (use rawValues for user-selectable aggregation)
     overall: {
-        "overall.avgFuelScored": { label: "Avg Fuel", visible: true, numeric: true },
-        "overall.avgFuelPassed": { label: "Avg Passed", visible: false, numeric: true },
-        "overall.totalPiecesScored": { label: "Total Fuel", visible: false, numeric: true },
+        "rawValues.totalFuel": { label: "Fuel Scored", visible: true, numeric: true },
+        "rawValues.totalFuelPassed": { label: "Fuel Passed", visible: false, numeric: true },
     },
-    // Auto stats
+    // Auto stats (use rawValues for user-selectable aggregation)
     auto: {
-        "auto.avgPoints": { label: "Auto Avg", visible: false, numeric: true },
-        "auto.avgFuelScored": { label: "Auto Fuel", visible: true, numeric: true },
-        "auto.autoClimbRate": { label: "Auto Climb %", visible: true, numeric: true, percentage: true },
+        "rawValues.autoFuel": { label: "Auto Fuel", visible: true, numeric: true },
+        "autoClimbRate": { label: "Auto Climb %", visible: true, numeric: true, percentage: true },
     },
-    // Teleop stats
+    // Teleop stats (use rawValues for user-selectable aggregation)
     teleop: {
-        "teleop.avgPoints": { label: "Teleop Avg", visible: false, numeric: true },
-        "teleop.avgFuelScored": { label: "Teleop Fuel", visible: true, numeric: true },
-        "teleop.avgFuelPassed": { label: "Teleop Passed", visible: false, numeric: true },
+        "rawValues.teleopFuel": { label: "Teleop Fuel", visible: true, numeric: true },
+        "rawValues.teleopFuelPassed": { label: "Teleop Passed", visible: false, numeric: true },
         "teleop.defenseRate": { label: "Defense %", visible: false, numeric: true, percentage: true },
     },
-    // Endgame stats
+    // Endgame stats (climb rates are percentages, keep as-is)
     endgame: {
-        "endgame.avgPoints": { label: "Endgame Avg", visible: false, numeric: true },
         "endgame.climbL1Rate": { label: "L1 Climb %", visible: false, numeric: true, percentage: true },
         "endgame.climbL2Rate": { label: "L2 Climb %", visible: true, numeric: true, percentage: true },
         "endgame.climbL3Rate": { label: "L3 Climb %", visible: true, numeric: true, percentage: true },
@@ -354,10 +350,10 @@ export const strategyColumns = {
  * Strategy presets for quick column selection
  */
 export const strategyPresets: Record<string, string[]> = {
-    essential: ["teamNumber", "matchCount", "totalPoints", "overall.avgFuelScored", "endgame.climbSuccessRate"],
-    auto: ["teamNumber", "matchCount", "autoPoints", "auto.avgFuelScored", "auto.autoClimbRate"],
-    teleop: ["teamNumber", "matchCount", "teleopPoints", "teleop.avgFuelScored", "teleop.avgFuelPassed"],
-    endgame: ["teamNumber", "matchCount", "endgamePoints", "endgame.climbL1Rate", "endgame.climbL2Rate", "endgame.climbL3Rate"],
+    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.totalFuel", "endgame.climbSuccessRate"],
+    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "autoClimbRate"],
+    teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.teleopFuelPassed"],
+    endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "endgame.climbL1Rate", "endgame.climbL2Rate", "endgame.climbL3Rate"],
     basic: ["teamNumber", "eventKey", "matchCount"],
 };
 

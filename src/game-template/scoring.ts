@@ -17,7 +17,6 @@ import {
     toggles,
     getActionKeys,
     getActionPoints,
-    getEndgamePoints,
     getAutoTogglePoints,
     type AutoToggleKey
 } from "./game-schema";
@@ -164,15 +163,16 @@ export const scoringCalculations: ScoringCalculations<ScoutingEntry> = {
         const gameData = entry.gameData as GameData;
         let points = 0;
 
-        // Tower climb - only count the highest level achieved
-        // (toggles are mutually exclusive in "climb" group)
-        Object.keys(toggles.endgame).forEach(key => {
-            const toggleKey = key as keyof typeof toggles.endgame;
-            const togglePoints = getEndgamePoints(toggleKey);
-            if (gameData?.endgame?.[key] === true) {
-                points += togglePoints;
-            }
-        });
+        // Tower climb - check each level and get points from actions
+        if (gameData?.endgame?.climbL1 === true) {
+            points += getActionPoints('climbL1', 'teleop'); // 10 pts
+        }
+        if (gameData?.endgame?.climbL2 === true) {
+            points += getActionPoints('climbL2', 'teleop'); // 20 pts
+        }
+        if (gameData?.endgame?.climbL3 === true) {
+            points += getActionPoints('climbL3', 'teleop'); // 30 pts
+        }
 
         return points;
     },

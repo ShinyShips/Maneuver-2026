@@ -60,11 +60,73 @@ import { scoringCalculations } from "@/game-template/scoring";
 import { gameDataTransformation } from "@/game-template/transformation";
 import { StatusToggles, GameSpecificQuestions } from "@/game-template/components";
 import logo from "../src/assets/Maneuver Wordmark Vertical.png";
+import { generateDemoEvent } from "@/core/lib/demoDataGenerator";
+import { generate2026GameData } from "@/game-template/demoDataGenerator2026";
+import { db, pitDB, gameDB } from "@/db";
 
 // Mock implementations for missing template parts
-const mockConfig = { year: 2025, gameName: "Template Game", scoring: { auto: {}, teleop: {}, endgame: {} } };
+const mockConfig = { year: 2026, gameName: "REBUILT", scoring: { auto: {}, teleop: {}, endgame: {} } };
 const mockValidation = { getDataCategories: () => [], calculateAllianceStats: () => ({}), calculateAllianceScore: () => ({ auto: 0, teleop: 0, endgame: 0, total: 0 }), validateMatch: async () => ({} as any), getDefaultConfig: () => ({} as any) };
 const mockUI = { GameStartScreen: () => null, AutoScoringScreen: () => null, TeleopScoringScreen: () => null };
+
+// Demo data handlers
+const DEMO_EVENT_KEY = 'demo2026';
+
+const loadDemoData = async () => {
+  console.log('🎲 Loading demo data...');
+  
+  // Generate comprehensive demo data
+  await generateDemoEvent({
+    eventKey: DEMO_EVENT_KEY,
+    clearExisting: true,
+    gameDataGenerator: generate2026GameData,
+    includePlayoffs: true,
+  });
+  
+  // Update local storage for demo event
+  localStorage.setItem('eventName', DEMO_EVENT_KEY);
+  
+  const eventsList = JSON.parse(localStorage.getItem('eventsList') || '[]');
+  if (!eventsList.includes(DEMO_EVENT_KEY)) {
+    eventsList.push(DEMO_EVENT_KEY);
+    localStorage.setItem('eventsList', JSON.stringify(eventsList));
+  }
+  
+  // Update scouts list
+  const scouts = await gameDB.scouts.toArray();
+  const scoutNames = scouts.map(s => s.name).sort();
+  localStorage.setItem('scoutsList', JSON.stringify(scoutNames));
+  
+  console.log('✅ Demo data loaded successfully!');
+};
+
+const clearDemoData = async () => {
+  console.log('🗑️ Clearing demo data...');
+  
+  // Clear all demo data from databases
+  await db.scoutingData.where('eventKey').equals(DEMO_EVENT_KEY).delete();
+  await pitDB.pitScoutingData.where('eventKey').equals(DEMO_EVENT_KEY).delete();
+  await gameDB.scouts.clear();
+  await gameDB.predictions.where('eventKey').equals(DEMO_EVENT_KEY).delete();
+  await gameDB.scoutAchievements.clear();
+  
+  // Clear from local storage
+  const eventsList = JSON.parse(localStorage.getItem('eventsList') || '[]');
+  const filtered = eventsList.filter((e: string) => e !== DEMO_EVENT_KEY);
+  localStorage.setItem('eventsList', JSON.stringify(filtered));
+  
+  if (localStorage.getItem('eventName') === DEMO_EVENT_KEY) {
+    localStorage.removeItem('eventName');
+  }
+  
+  console.log('✅ Demo data cleared successfully!');
+};
+
+const checkDemoData = async (): Promise<boolean> => {
+  const entryCount = await db.scoutingData.where('eventKey').equals(DEMO_EVENT_KEY).count();
+  const scoutCount = await gameDB.scouts.count();
+  return entryCount > 0 || scoutCount > 0;
+};
 
 function App() {
   const router = createBrowserRouter(
@@ -84,7 +146,21 @@ function App() {
           </GameProvider>
         }
       >
-        <Route index element={<HomePage logo={logo} />} />
+        <Route 
+          index 
+          element={
+            <HomePage 
+              logo={logo} 
+              appName="Maneuver 2026"
+              version="2026.0.1"
+              onLoadDemoData={loadDemoData}
+              onClearData={clearDemoData}
+              checkExistingData={checkDemoData}
+              demoDataDescription="Load sample data for 30 teams, 60 matches, 8 scouts with predictions, and pit scouting to explore all features"
+              demoDataStats="Demo data loaded! 30 teams, 60 matches, 8 scouts"
+            />
+          } 
+        />
         <Route path="/game-start" element={<GameStartPage />} />
         <Route path="/auto-start" element={<AutoStartPage />} />
         <Route path="/auto-scoring" element={<AutoScoringPage />} />

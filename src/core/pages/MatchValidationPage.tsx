@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useMatchValidation } from '@/core/hooks/useMatchValidation';
+import { useMatchValidationWithScaling } from '@/game-template/hooks/useMatchValidationWithScaling';
 import {
   ValidationSummaryCard,
   MatchValidationDetail,
@@ -47,10 +47,12 @@ export const MatchValidationPage: React.FC = () => {
     setFilters,
     validateEvent,
     refreshResults,
-  } = useMatchValidation({
+    scalingEnabled,
+  } = useMatchValidationWithScaling({
     eventKey: eventKey,
     autoLoad: true,
-    config: validationConfig, // Pass config to validation hook
+    config: validationConfig,
+    enableScaling: true, // 2026: Enable fuel scaling
   });
 
   // Sync selectedMatch with matchList to get updated validation results
@@ -85,6 +87,7 @@ export const MatchValidationPage: React.FC = () => {
             <h1 className="text-3xl font-bold">Match Validation</h1>
             <p className="text-muted-foreground">
               Verify scouting data against official TBA results
+              {scalingEnabled && <span className="text-green-600 dark:text-green-400"> • Fuel scaling enabled</span>}
             </p>
           </div>
           <div className="flex gap-2 flex-wrap z-50 relative">

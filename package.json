@@ -1,8 +1,8 @@
 {
-  "name": "maneuver-core",
+  "name": "maneuver-2026",
   "version": "1.0.0",
   "private": true,
-  "description": "Year-agnostic FRC scouting framework - fork this template to build your custom scouting app",
+  "description": "A offline-first, UX focused FRC strategy and scouting app for the 2026 FRC game, Rebuilt",
   "type": "module",
   "scripts": {
     "dev": "netlify dev",
@@ -29,12 +29,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ShinyShips/maneuver-core.git"
+    "url": "https://github.com/ShinyShips/maneuver-2026.git"
   },
   "bugs": {
-    "url": "https://github.com/ShinyShips/maneuver-core/issues"
+    "url": "https://github.com/ShinyShips/maneuver-2026/issues"
   },
-  "homepage": "https://github.com/ShinyShips/maneuver-core#readme",
+  "homepage": "https://github.com/ShinyShips/maneuver-2026#readme",
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",

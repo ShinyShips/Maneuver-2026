@@ -19,6 +19,8 @@ import {
     generateTBAAlignedScoutingData,
     resetEntireDatabase
 } from '@/core/lib/testDataGenerator';
+import { generateDemoEvent } from '@/core/lib/demoDataGenerator';
+import { generate2026GameData } from '@/game-template/demoDataGenerator2026';
 import { backfillAchievementsForAllScouts } from '@/core/lib/achievementUtils';
 import { getAllScouts } from '@/db';
 import { toast } from 'sonner';
@@ -76,6 +78,32 @@ const DevUtilitiesPage: React.FC = () => {
         } catch (error) {
             console.error('Error generating TBA-aligned data:', error);
             showMessage('❌ Failed to generate TBA-aligned data', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGenerateDemoEvent = async () => {
+        setLoading(true);
+        try {
+            const result = await generateDemoEvent({
+                eventKey: 'demo2026',
+                clearExisting: true,
+                gameDataGenerator: generate2026GameData,
+                includePlayoffs: true,
+            });
+            
+            if (result.success) {
+                showMessage(`✅ ${result.message}`, 'success');
+                toast.success(result.message, { duration: 5000 });
+            } else {
+                showMessage(`❌ ${result.message}`, 'error');
+                toast.error(result.message);
+            }
+        } catch (error) {
+            console.error('Error generating demo event:', error);
+            showMessage('❌ Failed to generate demo event', 'error');
+            toast.error('Failed to generate demo event');
         } finally {
             setLoading(false);
         }
@@ -209,6 +237,21 @@ const DevUtilitiesPage: React.FC = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Button
+                            onClick={handleGenerateDemoEvent}
+                            disabled={loading}
+                            className="w-full"
+                            size="lg"
+                        >
+                            <Database className="h-4 w-4 mr-2" />
+                            {loading ? 'Generating...' : 'Generate Full Demo Event'}
+                        </Button>
+                        <div className="text-xs text-muted-foreground text-center">
+                            30 teams • 60 qual matches • ~360 entries
+                        </div>
+
+                        <Separator />
+
+                        <Button
                             onClick={handleGenerateMatchData}
                             disabled={loading}
                             className="w-full"
@@ -216,7 +259,7 @@ const DevUtilitiesPage: React.FC = () => {
                             variant="secondary"
                         >
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            {loading ? 'Generating...' : 'Generate Schema Data'}
+                            {loading ? 'Generating...' : 'Generate Random Data (30)'}
                         </Button>
 
                         <Button
