@@ -48,6 +48,18 @@ const HomePage = ({
     };
 
     checkData();
+
+    const handleDataChanged = () => {
+      void checkData();
+    };
+
+    window.addEventListener('dataChanged', handleDataChanged);
+    window.addEventListener('allDataCleared', handleDataChanged);
+
+    return () => {
+      window.removeEventListener('dataChanged', handleDataChanged);
+      window.removeEventListener('allDataCleared', handleDataChanged);
+    };
   }, [checkExistingData]);
 
   const loadDemoData = async () => {

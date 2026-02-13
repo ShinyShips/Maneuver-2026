@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { clearAllScoutingData } from "@/core/db/database";
 import { clearGamificationData as clearGameData } from "@/game-template/gamification";
 import { clearAllPitScoutingData } from "@/core/lib/pitScoutingUtils";
+import { clearAllTBACache } from "@/core/lib/tbaCache";
 
 export const useDataCleaning = (
   refreshData: () => Promise<void>,
@@ -15,11 +16,13 @@ export const useDataCleaning = (
       localStorage.setItem("scoutingData", JSON.stringify({ data: [] }));
 
       await refreshData();
+      window.dispatchEvent(new Event('dataChanged'));
       toast.success("Cleared all scouting data");
     } catch (error) {
       console.error("Error clearing scouting data:", error);
       localStorage.setItem("scoutingData", JSON.stringify({ data: [] }));
       await refreshData();
+      window.dispatchEvent(new Event('dataChanged'));
       toast.success("Cleared all scouting data");
     }
   }, [refreshData]);
@@ -28,6 +31,7 @@ export const useDataCleaning = (
     try {
       await clearAllPitScoutingData();
       await refreshData();
+      window.dispatchEvent(new Event('dataChanged'));
       toast.success("Cleared all pit scouting data");
     } catch (error) {
       console.error("Error clearing pit scouting data:", error);
@@ -44,6 +48,7 @@ export const useDataCleaning = (
       localStorage.removeItem("scoutName");
 
       window.dispatchEvent(new CustomEvent('scoutDataCleared'));
+      window.dispatchEvent(new Event('dataChanged'));
 
       await refreshData();
       toast.success("Cleared all scout profile data");
@@ -54,15 +59,17 @@ export const useDataCleaning = (
     }
   }, [refreshData]);
 
-  const handleClearMatchData = useCallback(() => {
+  const handleClearMatchData = useCallback(async () => {
     localStorage.setItem("matchData", "");
+    await clearAllTBACache();
     if (updateMatchData) {
       updateMatchData(null);
     }
+    window.dispatchEvent(new Event('dataChanged'));
     toast.success("Cleared match schedule data");
   }, [updateMatchData]);
 
-  const handleClearApiData = useCallback(() => {
+  const handleClearApiData = useCallback(async () => {
     try {
       const allKeys = Object.keys(localStorage);
       const apiKeys = allKeys.filter(key =>
@@ -84,7 +91,10 @@ export const useDataCleaning = (
         localStorage.removeItem(key);
       });
 
-      refreshData();
+      await clearAllTBACache();
+
+      await refreshData();
+      window.dispatchEvent(new Event('dataChanged'));
       toast.success(`Cleared all API data (${apiKeys.length} items)`);
     } catch (error) {
       console.error("Error clearing API data:", error);
@@ -99,6 +109,7 @@ export const useDataCleaning = (
       await clearAllScoutingData();
       await clearAllPitScoutingData();
       await clearGameData();
+      await clearAllTBACache();
 
       localStorage.clear();
 
@@ -108,6 +119,7 @@ export const useDataCleaning = (
 
       window.dispatchEvent(new CustomEvent('scoutDataCleared'));
       window.dispatchEvent(new CustomEvent('allDataCleared'));
+      window.dispatchEvent(new Event('dataChanged'));
 
       toast.success("Cleared all data - complete clean slate", {
         description: "All stored data has been permanently removed from this device."
