@@ -152,7 +152,7 @@ export function PitDataDisplay({ teamNumber, selectedEvent }: PitDataDisplayProp
                     <CardHeader>
                         <CardTitle>Technical Analysis</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex-1 space-y-6">
+                    <CardContent className="flex-1 flex flex-col gap-6 min-h-0">
                         {/* Notes Section */}
                         <div>
                             <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
@@ -165,12 +165,12 @@ export function PitDataDisplay({ teamNumber, selectedEvent }: PitDataDisplayProp
                         </div>
 
                         {/* Game Specific Data Section */}
-                        <div>
+                        <div className="flex-1 flex flex-col min-h-0">
                             <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                                 Game Specific Data
                             </h4>
-                            <ScrollArea className="h-50 w-full rounded-md border p-4 bg-muted/10">
+                            <ScrollArea className="flex-1 min-h-0 w-full rounded-md border p-4 bg-muted/10">
                                 {entry.gameData && Object.keys(entry.gameData).length > 0 ? (
                                     <div className="space-y-2">
                                         {Object.entries(entry.gameData).map(([key, value]) => (

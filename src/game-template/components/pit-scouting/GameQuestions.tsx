@@ -36,6 +36,12 @@ export function GameSpecificQuestions({ gameData = {}, onGameDataChange }: GameS
     handleChange(key, updated);
   };
 
+  const getRank = (key: string, value: string) => {
+    const selected = (gameData[key] as string[]) || [];
+    const index = selected.indexOf(value);
+    return index >= 0 ? index + 1 : null;
+  };
+
   return (
     <div className="space-y-4">
       {/* Physical Specifications */}
@@ -137,62 +143,81 @@ export function GameSpecificQuestions({ gameData = {}, onGameDataChange }: GameS
           <CardTitle>Strategic Preferences</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">Click options in priority order. Click a selected option again to unrank it.</p>
           <div className="space-y-2">
-            <Label>Preferred Starting Position(s)</Label>
+            <Label>Preferred Starting Positions (ranked by click order)</Label>
             <div className="grid grid-cols-2 gap-2">
               {START_POSITIONS.map((position) => (
+                (() => {
+                  const rank = getRank('preferredStartPositions', position);
+                  const isSelected = rank !== null;
+                  return (
                 <Button
                   key={position}
                   type="button"
-                  variant={((gameData.preferredStartPositions as string[]) || []).includes(position) ? "default" : "outline"}
+                  variant={isSelected ? "default" : "outline"}
                   onClick={() => 
                     handleMultiSelectChange('preferredStartPositions', position, 
-                      !((gameData.preferredStartPositions as string[]) || []).includes(position))
+                      !isSelected)
                   }
                   className="h-auto py-3"
                 >
-                  {position}
+                  {isSelected ? `${rank}. ${position}` : position}
                 </Button>
+                  );
+                })()
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Preferred Role - Active Shift</Label>
+            <Label>Preferred Role - Active Shift (ranked by click order)</Label>
             <div className="grid grid-cols-2 gap-2">
               {ROLES.map((role) => (
+                (() => {
+                  const rank = getRank('preferredActiveRoles', role);
+                  const isSelected = rank !== null;
+                  return (
                 <Button
                   key={`active-${role}`}
                   type="button"
-                  variant={((gameData.preferredActiveRoles as string[]) || []).includes(role) ? "default" : "outline"}
+                  variant={isSelected ? "default" : "outline"}
                   onClick={() => 
                     handleMultiSelectChange('preferredActiveRoles', role, 
-                      !((gameData.preferredActiveRoles as string[]) || []).includes(role))
+                      !isSelected)
                   }
                   className="h-auto py-3"
                 >
-                  {role}
+                  {isSelected ? `${rank}. ${role}` : role}
                 </Button>
+                  );
+                })()
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Preferred Role - Inactive Shift</Label>
+            <Label>Preferred Role - Inactive Shift (ranked by click order)</Label>
             <div className="grid grid-cols-2 gap-2">
               {ROLES.map((role) => (
+                (() => {
+                  const rank = getRank('preferredInactiveRoles', role);
+                  const isSelected = rank !== null;
+                  return (
                 <Button
                   key={`inactive-${role}`}
                   type="button"
-                  variant={((gameData.preferredInactiveRoles as string[]) || []).includes(role) ? "default" : "outline"}
+                  variant={isSelected ? "default" : "outline"}
                   onClick={() => 
                     handleMultiSelectChange('preferredInactiveRoles', role, 
-                      !((gameData.preferredInactiveRoles as string[]) || []).includes(role))
+                      !isSelected)
                   }
                   className="h-auto py-3"
                 >
-                  {role}
+                  {isSelected ? `${rank}. ${role}` : role}
                 </Button>
+                  );
+                })()
               ))}
             </div>
           </div>
