@@ -44,6 +44,7 @@ export function StatusToggles({
     roleActive: 'Active Phase Role(s)',
     roleInactive: 'Inactive Phase Role(s)',
     passingZone: 'Passing Zones',
+    teleopTraversal: 'Teleop Traversal',
     accuracy: 'Shooting Accuracy',
     default: 'Status',
   };

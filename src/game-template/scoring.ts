@@ -95,8 +95,13 @@ export interface GameData {
         roleInactiveThief?: boolean;
         
         // Passing zones (multi-select)
-        passedToAlliance?: boolean;
+        passedToAllianceFromNeutral?: boolean;
+        passedToAllianceFromOpponent?: boolean;
         passedToNeutral?: boolean;
+
+        // Teleop traversal confirmation (post-match)
+        usedTrenchInTeleop?: boolean;
+        usedBumpInTeleop?: boolean;
         
         // Qualitative accuracy (mutually exclusive)
         accuracyAll?: boolean;

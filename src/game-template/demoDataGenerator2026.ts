@@ -21,6 +21,79 @@ const POSITIONS = {
     pass: { x: 0.50, y: 0.50 },
 } as const;
 
+type WeightedSpot = {
+    pos: { x: number; y: number };
+    spread: number;
+    weight: number;
+    lane?: 'upper' | 'lower' | 'center';
+    depth?: 'near' | 'far';
+};
+
+// Alliance scoring hotspots (clustered shooting lanes, all within alliance side)
+const ALLIANCE_SCORING_SPOTS: WeightedSpot[] = [
+    { pos: { x: 0.27, y: 0.50 }, spread: 0.05, weight: 0.34, lane: 'center', depth: 'near' },
+    { pos: { x: 0.25, y: 0.35 }, spread: 0.05, weight: 0.20, lane: 'upper', depth: 'near' },
+    { pos: { x: 0.25, y: 0.65 }, spread: 0.05, weight: 0.20, lane: 'lower', depth: 'near' },
+    { pos: { x: 0.19, y: 0.28 }, spread: 0.06, weight: 0.13, lane: 'upper', depth: 'far' },
+    { pos: { x: 0.19, y: 0.72 }, spread: 0.06, weight: 0.13, lane: 'lower', depth: 'far' },
+];
+
+// Neutral-zone passing origins (distributed across midfield, away from hub-front lanes)
+const NEUTRAL_PASS_SPOTS: WeightedSpot[] = [
+    { pos: { x: 0.52, y: 0.22 }, spread: 0.05, weight: 0.22, lane: 'upper', depth: 'near' },
+    { pos: { x: 0.56, y: 0.34 }, spread: 0.05, weight: 0.18, lane: 'upper', depth: 'near' },
+    { pos: { x: 0.52, y: 0.78 }, spread: 0.05, weight: 0.22, lane: 'lower', depth: 'near' },
+    { pos: { x: 0.56, y: 0.66 }, spread: 0.05, weight: 0.18, lane: 'lower', depth: 'near' },
+    { pos: { x: 0.62, y: 0.26 }, spread: 0.06, weight: 0.10, lane: 'upper', depth: 'far' },
+    { pos: { x: 0.62, y: 0.74 }, spread: 0.06, weight: 0.10, lane: 'lower', depth: 'far' },
+];
+
+// Opponent-zone passing origins (fuel theft/collection returns, avoid directly in front of hub)
+const OPPONENT_PASS_SPOTS: WeightedSpot[] = [
+    { pos: { x: 0.80, y: 0.22 }, spread: 0.05, weight: 0.24, lane: 'upper', depth: 'near' },
+    { pos: { x: 0.80, y: 0.78 }, spread: 0.05, weight: 0.24, lane: 'lower', depth: 'near' },
+    { pos: { x: 0.86, y: 0.34 }, spread: 0.05, weight: 0.18, lane: 'upper', depth: 'near' },
+    { pos: { x: 0.86, y: 0.66 }, spread: 0.05, weight: 0.18, lane: 'lower', depth: 'near' },
+    { pos: { x: 0.92, y: 0.28 }, spread: 0.06, weight: 0.08, lane: 'upper', depth: 'far' },
+    { pos: { x: 0.92, y: 0.72 }, spread: 0.06, weight: 0.08, lane: 'lower', depth: 'far' },
+];
+
+function pickWeightedSpot(
+    spots: WeightedSpot[],
+    bias?: {
+        preferredLane?: 'upper' | 'lower';
+        preferredDepth?: 'near' | 'far';
+        profile?: 'auto' | 'teleop';
+    }
+): WeightedSpot {
+    const lanePreferredMultiplier = bias?.profile === 'auto' ? 1.8 : 1.15;
+    const laneOtherMultiplier = bias?.profile === 'auto' ? 0.55 : 0.92;
+    const depthPreferredMultiplier = bias?.profile === 'auto' ? 1.35 : 1.08;
+    const depthOtherMultiplier = bias?.profile === 'auto' ? 0.75 : 0.95;
+
+    const weightedSpots = spots.map(spot => {
+        let adjustedWeight = spot.weight;
+        if (bias?.preferredLane) {
+            if (spot.lane === bias.preferredLane) adjustedWeight *= lanePreferredMultiplier;
+            else if (spot.lane && spot.lane !== 'center') adjustedWeight *= laneOtherMultiplier;
+        }
+        if (bias?.preferredDepth) {
+            if (spot.depth === bias.preferredDepth) adjustedWeight *= depthPreferredMultiplier;
+            else if (spot.depth && spot.depth !== bias.preferredDepth) adjustedWeight *= depthOtherMultiplier;
+        }
+        return { spot, adjustedWeight };
+    });
+
+    const totalWeight = weightedSpots.reduce((sum, item) => sum + item.adjustedWeight, 0);
+    const roll = Math.random() * totalWeight;
+    let cumulative = 0;
+    for (const item of weightedSpots) {
+        cumulative += item.adjustedWeight;
+        if (roll <= cumulative) return item.spot;
+    }
+    return weightedSpots[weightedSpots.length - 1]!.spot;
+}
+
 /** Add small random jitter to a position (stays within 0-1 range) */
 function jitter(pos: { x: number; y: number }, spread = 0.05): { x: number; y: number } {
     return {
@@ -29,11 +102,17 @@ function jitter(pos: { x: number; y: number }, spread = 0.05): { x: number; y: n
     };
 }
 
+function randomInt(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 /**
  * Generate realistic 2026 game data based on team skill profile
  */
 export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     const isPlayoff = matchKey.includes('qf') || matchKey.includes('sf') || matchKey.includes('f');
+    const preferredLane: 'upper' | 'lower' = Math.random() < 0.5 ? 'upper' : 'lower';
+    const preferredDepth: 'near' | 'far' = Math.random() < 0.6 ? 'near' : 'far';
 
     // =========================================================================
     // Auto Phase - Generate PathWaypoint-style actions
@@ -69,15 +148,32 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     autoFuelCount = Math.max(0, Math.floor(autoFuelCount * (1 + (Math.random() - 0.5) * variance)));
     autoFuelCount = Math.floor(autoFuelCount * profile.autoAccuracy);
 
-    // Add fuel scored waypoints (near hub with jitter)
-    for (let i = 0; i < autoFuelCount; i++) {
+    // Add auto fuel scored waypoints as bursts (multi-ball per action)
+    let remainingAutoFuel = autoFuelCount;
+    let autoScoreTimestamp = Date.now();
+    while (remainingAutoFuel > 0) {
+        const autoBurstMaxBySkill = {
+            elite: 8,
+            strong: 6,
+            average: 5,
+            developing: 4,
+        } as const;
+        const burst = Math.min(remainingAutoFuel, randomInt(2, autoBurstMaxBySkill[profile.skillLevel] ?? 5));
+        const autoScoreSpot = pickWeightedSpot(ALLIANCE_SCORING_SPOTS, {
+            preferredLane,
+            preferredDepth,
+            profile: 'auto',
+        });
         autoActions.push({
             type: 'score',
             action: 'fuelScored',
-            timestamp: Date.now() + i * 1000,
-            position: jitter(POSITIONS.hub, 0.08),
-            fuelDelta: -1,
+            timestamp: autoScoreTimestamp,
+            position: jitter(autoScoreSpot.pos, autoScoreSpot.spread),
+            fuelDelta: -burst,
+            amountLabel: `${burst}`,
         });
+        remainingAutoFuel -= burst;
+        autoScoreTimestamp += randomInt(700, 1400);
     }
 
     // Some robots collect from depot/outpost
@@ -101,6 +197,22 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
 
     // Determine robot role - some robots are passers
     const isPasser = Math.random() < 0.25; // 25% chance to be a passer
+    const playedDefense = Math.random() < 0.2;
+
+    // Traversal archetype influences hopper size and cycle tempo
+    // - bump-primary: larger hopper, fewer/bigger dumps
+    // - trench-primary: smaller hopper, more frequent cleanup/cycles
+    const bumpPrimaryChanceBySkill = {
+        elite: 0.58,
+        strong: 0.48,
+        average: 0.34,
+        developing: 0.25,
+    } as const;
+    let bumpPrimaryChance: number = bumpPrimaryChanceBySkill[profile.skillLevel] ?? 0.4;
+    if (isPasser) bumpPrimaryChance -= 0.1;
+    if (playedDefense) bumpPrimaryChance += 0.08;
+    bumpPrimaryChance = Math.max(0.1, Math.min(0.9, bumpPrimaryChance));
+    const traversalArchetype: 'bump' | 'trench' = Math.random() < bumpPrimaryChance ? 'bump' : 'trench';
 
     // Teleop fuel activity - Best robots ~400-500 total
     // Elite: 250-400, Strong: 180-280, Average: 100-200, Developing: 50-120
@@ -138,26 +250,88 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
         teleopPassCount = Math.floor(teleopFuelActivity * 0.15);
     }
 
-    // Add fuel scored waypoints (near hub with jitter)
-    for (let i = 0; i < teleopFuelCount; i++) {
+    // Add teleop scored waypoints as bursts (multi-ball per action)
+    let remainingTeleopFuel = teleopFuelCount;
+    let teleopScoreTimestamp = Date.now();
+    while (remainingTeleopFuel > 0) {
+        const scoreBurstRangeByArchetype = {
+            bump: {
+                elite: { min: 8, max: 80 },
+                strong: { min: 7, max: 65 },
+                average: { min: 6, max: 50 },
+                developing: { min: 5, max: 40 },
+            },
+            trench: {
+                elite: { min: 4, max: 50 },
+                strong: { min: 4, max: 42 },
+                average: { min: 3, max: 34 },
+                developing: { min: 3, max: 26 },
+            },
+        } as const;
+        const scoreBurstRange = scoreBurstRangeByArchetype[traversalArchetype][profile.skillLevel];
+        const burst = Math.min(remainingTeleopFuel, randomInt(scoreBurstRange.min, scoreBurstRange.max));
+        const useTeleopBias = Math.random() < 0.6;
+        const teleopScoreSpot = pickWeightedSpot(
+            ALLIANCE_SCORING_SPOTS,
+            useTeleopBias
+                ? { preferredLane, preferredDepth, profile: 'teleop' }
+                : undefined
+        );
         teleopActions.push({
             type: 'score',
             action: 'fuelScored',
-            timestamp: Date.now() + i * 500,
-            position: jitter(POSITIONS.hub, 0.08),
-            fuelDelta: -1,
+            timestamp: teleopScoreTimestamp,
+            position: jitter(teleopScoreSpot.pos, teleopScoreSpot.spread * 1.1),
+            fuelDelta: -burst,
+            amountLabel: `${burst}`,
         });
+        remainingTeleopFuel -= burst;
+        teleopScoreTimestamp += traversalArchetype === 'bump'
+            ? randomInt(700, 1600)
+            : randomInt(350, 900);
     }
 
-    // Add fuel passed waypoints (near pass zone)
-    for (let i = 0; i < teleopPassCount; i++) {
+    // Add fuel passed waypoints as bursts (distributed across neutral/opponent origin points)
+    const opponentOriginChance = isPasser ? 0.55 : playedDefense ? 0.45 : 0.2;
+    let remainingTeleopPasses = teleopPassCount;
+    let teleopPassTimestamp = Date.now();
+    while (remainingTeleopPasses > 0) {
+        const passBurstRangeByArchetype = {
+            bump: {
+                elite: { min: 6, max: 55 },
+                strong: { min: 5, max: 45 },
+                average: { min: 4, max: 35 },
+                developing: { min: 3, max: 28 },
+            },
+            trench: {
+                elite: { min: 3, max: 35 },
+                strong: { min: 3, max: 30 },
+                average: { min: 2, max: 24 },
+                developing: { min: 2, max: 18 },
+            },
+        } as const;
+        const passBurstRange = passBurstRangeByArchetype[traversalArchetype][profile.skillLevel];
+        const burst = Math.min(remainingTeleopPasses, randomInt(passBurstRange.min, passBurstRange.max));
+        const passFromOpponentZone = Math.random() < opponentOriginChance;
+        const usePassBias = Math.random() < 0.55;
+        const passSpot = pickWeightedSpot(
+            passFromOpponentZone ? OPPONENT_PASS_SPOTS : NEUTRAL_PASS_SPOTS,
+            usePassBias
+                ? { preferredLane, preferredDepth, profile: 'teleop' }
+                : undefined
+        );
         teleopActions.push({
             type: 'pass',
             action: 'fuelPassed',
-            timestamp: Date.now() + i * 800,
-            position: jitter(POSITIONS.pass, 0.06),
-            fuelDelta: -1,
+            timestamp: teleopPassTimestamp,
+            position: jitter(passSpot.pos, passSpot.spread),
+            fuelDelta: -burst,
+            amountLabel: `${burst}`,
         });
+        remainingTeleopPasses -= burst;
+        teleopPassTimestamp += traversalArchetype === 'bump'
+            ? randomInt(650, 1400)
+            : randomInt(420, 1000);
     }
 
     // =========================================================================
@@ -170,7 +344,7 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
 
     const teleopRobotStatus: Record<string, boolean> = {
         // Defense play
-        playedDefense: Math.random() < 0.2,
+        playedDefense,
     };
 
     // =========================================================================
@@ -228,12 +402,85 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
         endgameRobotStatus[selectedInactiveRole] = true;
     }
 
-    // Passing zones (multi-select) - passers more likely to have these
-    if (isPasser || Math.random() < 0.3) {
-        endgameRobotStatus.passedToAlliance = true;
+    const isDefenseRole = selectedActiveRole === 'roleActiveDefense' || teleopRobotStatus.playedDefense;
+    const isCyclerRole = selectedActiveRole === 'roleActiveCycler' || selectedActiveRole === 'roleActiveCleanUp';
+    const skillFactorByLevel = {
+        elite: 1.2,
+        strong: 1.1,
+        average: 1.0,
+        developing: 0.9,
+    } as const;
+    const skillFactor = skillFactorByLevel[profile.skillLevel] ?? 1.0;
+    const adjustedChance = (baseChance: number, maxChance = 0.95) => Math.max(0, Math.min(maxChance, baseChance * skillFactor));
+
+    // Simulated breakdowns (rare) - primary source of non-traversal
+    const breakdownChanceBySkill = {
+        elite: 0.004,
+        strong: 0.008,
+        average: 0.015,
+        developing: 0.03,
+    } as const;
+    const simulatedBreakdown = Math.random() < (breakdownChanceBySkill[profile.skillLevel] ?? 0.01);
+
+    if (simulatedBreakdown) {
+        const breakdownTimestamp = Date.now() + 45000;
+        const breakdownDuration = 10000 + Math.floor(Math.random() * 50000);
+        teleopActions.push({
+            type: 'broken-down',
+            action: 'broken-down',
+            timestamp: breakdownTimestamp,
+            position: jitter(POSITIONS.pass, 0.1),
+            duration: breakdownDuration,
+        });
     }
-    if (isPasser && Math.random() < 0.6) {
+
+    // Passing zones (multi-select) tuned by likely playstyle
+    const neutralToAllianceChance = adjustedChance(isPasser ? 0.8 : isCyclerRole ? 0.45 : isDefenseRole ? 0.2 : 0.3);
+    const opponentToAllianceChance = adjustedChance(isPasser ? 0.5 : isCyclerRole ? 0.25 : isDefenseRole ? 0.15 : 0.2);
+    const opponentToNeutralChance = adjustedChance(isPasser ? 0.7 : isCyclerRole ? 0.35 : isDefenseRole ? 0.2 : 0.25);
+
+    if (Math.random() < neutralToAllianceChance) {
+        endgameRobotStatus.passedToAllianceFromNeutral = true;
+    }
+    if (Math.random() < opponentToAllianceChance) {
+        endgameRobotStatus.passedToAllianceFromOpponent = true;
+    }
+    if (Math.random() < opponentToNeutralChance) {
         endgameRobotStatus.passedToNeutral = true;
+    }
+
+    // Teleop traversal usage (post-match confirmation toggles)
+    // Model as: did they traverse at all? if yes, pick one primary route (trench OR bump)
+    // This keeps trench+bump near 100% among traversing teams, with a small non-traversal group.
+    const isEliteCleanupSupport =
+        profile.skillLevel === 'elite' &&
+        selectedActiveRole === 'roleActiveCleanUp' &&
+        !isPasser &&
+        Math.random() < 0.08;
+
+    let traversedFieldChance = isPasser ? 0.995 : isCyclerRole ? 0.99 : isDefenseRole ? 0.985 : 0.99;
+    if (isEliteCleanupSupport) {
+        traversedFieldChance = Math.min(traversedFieldChance, 0.7);
+    }
+    if (simulatedBreakdown) {
+        traversedFieldChance = Math.min(traversedFieldChance, 0.05);
+    }
+    let trenchPreference = traversalArchetype === 'trench' ? 0.82 : 0.22;
+    if (isPasser) trenchPreference += 0.06;
+    if (isCyclerRole) trenchPreference += 0.04;
+    if (isDefenseRole) trenchPreference -= 0.1;
+    trenchPreference = Math.max(0.05, Math.min(0.95, trenchPreference));
+    const usedTraversalRoute = Math.random() < traversedFieldChance;
+
+    endgameRobotStatus.usedTrenchInTeleop = false;
+    endgameRobotStatus.usedBumpInTeleop = false;
+
+    if (usedTraversalRoute) {
+        if (Math.random() < trenchPreference) {
+            endgameRobotStatus.usedTrenchInTeleop = true;
+        } else {
+            endgameRobotStatus.usedBumpInTeleop = true;
+        }
     }
 
     // Accuracy (mutually exclusive)

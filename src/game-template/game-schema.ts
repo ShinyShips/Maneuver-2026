@@ -252,15 +252,32 @@ export const toggles = {
         },
 
         // Passing zones (multi-select, group: "passingZone")
-        passedToAlliance: {
-            label: "Alliance Zone",
-            description: "Passed fuel to alliance zone",
+        passedToAllianceFromNeutral: {
+            label: "Neutral → Alliance",
+            description: "Passed fuel from neutral zone to alliance zone",
+            group: "passingZone",
+        },
+        passedToAllianceFromOpponent: {
+            label: "Opponent → Alliance",
+            description: "Passed fuel from opponent zone to alliance zone",
             group: "passingZone",
         },
         passedToNeutral: {
-            label: "Neutral Zone",
-            description: "Passed fuel to neutral zone",
+            label: "Opponent → Neutral Zone",
+            description: "Passed fuel from opponent zone to neutral zone",
             group: "passingZone",
+        },
+
+        // Teleop traversal confirmation (post-match)
+        usedTrenchInTeleop: {
+            label: "Used Trench in Teleop",
+            description: "Robot used the trench during teleop",
+            group: "teleopTraversal",
+        },
+        usedBumpInTeleop: {
+            label: "Used Bump in Teleop",
+            description: "Robot used the bump during teleop",
+            group: "teleopTraversal",
         },
 
         // Qualitative accuracy (mutually exclusive, group: "accuracy")
@@ -347,6 +364,11 @@ export const strategyColumns = {
         "endgame.climbL2Rate": { label: "L2 Climb %", visible: true, numeric: true, percentage: true },
         "endgame.climbL3Rate": { label: "L3 Climb %", visible: true, numeric: true, percentage: true },
         "endgame.climbSuccessRate": { label: "Climb Success %", visible: true, numeric: true, percentage: true },
+        "endgame.usedTrenchInTeleopRate": { label: "Used Trench %", visible: false, numeric: true, percentage: true },
+        "endgame.usedBumpInTeleopRate": { label: "Used Bump %", visible: false, numeric: true, percentage: true },
+        "endgame.passedToAllianceFromNeutralRate": { label: "Neutral → Alliance %", visible: false, numeric: true, percentage: true },
+        "endgame.passedToAllianceFromOpponentRate": { label: "Opponent → Alliance %", visible: false, numeric: true, percentage: true },
+        "endgame.passedToNeutralRate": { label: "Opponent → Neutral %", visible: false, numeric: true, percentage: true },
     },
 } as const;
 

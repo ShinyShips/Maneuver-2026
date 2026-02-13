@@ -104,6 +104,11 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const climbL3Count = teamMatches.filter(m => m.gameData?.endgame?.climbL3 === true).length;
     const climbFailedCount = teamMatches.filter(m => m.gameData?.endgame?.climbFailed === true).length;
     const climbSuccessCount = climbL1Count + climbL2Count + climbL3Count;
+    const usedTrenchInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedTrenchInTeleop === true).length;
+    const usedBumpInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedBumpInTeleop === true).length;
+    const passedToAllianceFromNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromNeutral === true).length;
+    const passedToAllianceFromOpponentCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromOpponent === true).length;
+    const passedToNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToNeutral === true).length;
 
     // ============================================================================
     // TELEOP STATS
@@ -320,6 +325,11 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
             option5Rate: 0,
             toggle1Rate: percent(climbFailedCount, matchCount),
             toggle2Rate: 0, // Removed noClimb - can be inferred
+            usedTrenchInTeleopRate: percent(usedTrenchInTeleopCount, matchCount),
+            usedBumpInTeleopRate: percent(usedBumpInTeleopCount, matchCount),
+            passedToAllianceFromNeutralRate: percent(passedToAllianceFromNeutralCount, matchCount),
+            passedToAllianceFromOpponentRate: percent(passedToAllianceFromOpponentCount, matchCount),
+            passedToNeutralRate: percent(passedToNeutralCount, matchCount),
         },
 
         // Raw values for charts

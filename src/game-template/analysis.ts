@@ -76,6 +76,11 @@ export interface TeamStatsTemplate extends TeamStats {
     trenchStuckRate: number;
     bumpStuckRate: number;
     brokeDownRate: number;
+    usedTrenchInTeleopRate: number;
+    usedBumpInTeleopRate: number;
+    passedToAllianceFromNeutralRate: number;
+    passedToAllianceFromOpponentRate: number;
+    passedToNeutralRate: number;
 
     // Start position percentages
     startPositions: Record<string, number>;
@@ -170,6 +175,11 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 trenchStuckRate: 0,
                 bumpStuckRate: 0,
                 brokeDownRate: 0,
+                usedTrenchInTeleopRate: 0,
+                usedBumpInTeleopRate: 0,
+                passedToAllianceFromNeutralRate: 0,
+                passedToAllianceFromOpponentRate: 0,
+                passedToNeutralRate: 0,
                 startPositions: {},
                 matchResults: [],
                 primaryActiveRole: 'None',
@@ -210,6 +220,11 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             acc.trenchStuck += (gameData?.auto?.trenchStuckCount || 0) > 0 || (gameData?.teleop?.trenchStuckCount || 0) > 0 ? 1 : 0;
             acc.bumpStuck += (gameData?.auto?.bumpStuckCount || 0) > 0 || (gameData?.teleop?.bumpStuckCount || 0) > 0 ? 1 : 0;
             acc.brokeDown += (gameData?.auto?.brokenDownCount || 0) > 0 || (gameData?.teleop?.brokenDownCount || 0) > 0 ? 1 : 0;
+            acc.usedTrenchInTeleop += gameData?.endgame?.usedTrenchInTeleop ? 1 : 0;
+            acc.usedBumpInTeleop += gameData?.endgame?.usedBumpInTeleop ? 1 : 0;
+            acc.passedToAllianceFromNeutral += gameData?.endgame?.passedToAllianceFromNeutral ? 1 : 0;
+            acc.passedToAllianceFromOpponent += gameData?.endgame?.passedToAllianceFromOpponent ? 1 : 0;
+            acc.passedToNeutral += gameData?.endgame?.passedToNeutral ? 1 : 0;
 
             // Active shift roles (stored in endgame section)
             acc.roleActiveCleanUp += gameData?.endgame?.roleActiveCleanUp ? 1 : 0;
@@ -247,6 +262,11 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             trenchStuck: 0,
             bumpStuck: 0,
             brokeDown: 0,
+            usedTrenchInTeleop: 0,
+            usedBumpInTeleop: 0,
+            passedToAllianceFromNeutral: 0,
+            passedToAllianceFromOpponent: 0,
+            passedToNeutral: 0,
             startPositionCounts: {} as Record<number, number>,
             roleActiveCleanUp: 0,
             roleActivePasser: 0,
@@ -400,6 +420,11 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             trenchStuckRate: Math.round((totals.trenchStuck / matchCount) * 100),
             bumpStuckRate: Math.round((totals.bumpStuck / matchCount) * 100),
             brokeDownRate: Math.round((totals.brokeDown / matchCount) * 100),
+            usedTrenchInTeleopRate: Math.round((totals.usedTrenchInTeleop / matchCount) * 100),
+            usedBumpInTeleopRate: Math.round((totals.usedBumpInTeleop / matchCount) * 100),
+            passedToAllianceFromNeutralRate: Math.round((totals.passedToAllianceFromNeutral / matchCount) * 100),
+            passedToAllianceFromOpponentRate: Math.round((totals.passedToAllianceFromOpponent / matchCount) * 100),
+            passedToNeutralRate: Math.round((totals.passedToNeutral / matchCount) * 100),
             startPositions,
             matchResults: matchResults.sort((a, b) => parseInt(a.matchNumber) - parseInt(b.matchNumber)),
             // Role statistics
@@ -566,6 +591,11 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                     { key: 'brokeDownRate', label: 'Broke Down' },
                     { key: 'trenchStuckRate', label: 'Got Stuck in Trench' },
                     { key: 'bumpStuckRate', label: 'Got Stuck on Bump' },
+                    { key: 'usedTrenchInTeleopRate', label: 'Used Trench in Teleop' },
+                    { key: 'usedBumpInTeleopRate', label: 'Used Bump in Teleop' },
+                    { key: 'passedToAllianceFromNeutralRate', label: 'Passed to Alliance Zone from Neutral Zone' },
+                    { key: 'passedToAllianceFromOpponentRate', label: 'Passed to Alliance Zone from Opponent Zone' },
+                    { key: 'passedToNeutralRate', label: 'Passed to Neutral Zone from Opponent Zone' },
                 ],
             },
         ];
