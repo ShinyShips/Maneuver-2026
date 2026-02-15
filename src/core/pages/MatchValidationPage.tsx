@@ -18,7 +18,7 @@ import { DEFAULT_VALIDATION_CONFIG } from '@/core/lib/matchValidationTypes';
 import { formatMatchLabel } from '@/core/lib/matchValidationUtils';
 import { getCachedTBAEventMatches } from '@/core/lib/tbaCache';
 import { getEntriesByEvent } from '@/core/db/scoutingDatabase';
-import { calculateFuelOPR } from '@/game-template/fuelOpr';
+import { calculateFuelOPRHybrid } from '@/game-template/fuelOpr';
 
 const VALIDATION_CONFIG_KEY = 'validationConfig';
 
@@ -154,10 +154,26 @@ export const MatchValidationPage: React.FC = () => {
 
         if (cancelled) return;
 
-        const opr = calculateFuelOPR(cachedMatches, {
-          ridgeLambda: 0.75,
+        const hybrid = calculateFuelOPRHybrid(cachedMatches, {
           includePlayoffs: false,
         });
+
+        const opr = hybrid.opr;
+
+        if (import.meta.env.DEV && eventKey.startsWith('demo')) {
+          console.log(`[Fuel OPR] Hybrid lambda for ${eventKey}: ${hybrid.selectedLambda.toFixed(3)} (${hybrid.mode})`);
+
+          const latestSweep = hybrid.latestSweep;
+          if (latestSweep && latestSweep.rows.length > 0) {
+            console.log(`[Fuel OPR] Latest sweep (train ${latestSweep.trainMatchCount}, holdout ${latestSweep.holdoutMatchCount})`);
+            console.table(
+              latestSweep.rows.map(row => ({
+                lambda: row.lambda,
+                holdoutRmse: Math.round(row.holdoutRmse * 100) / 100,
+              }))
+            );
+          }
+        }
 
         const scaledByTeam = new Map<number, {
           matches: number;
@@ -218,7 +234,7 @@ export const MatchValidationPage: React.FC = () => {
 
         if (!cancelled) {
           setFuelOprRows(rows);
-          setFuelOprLambda(opr.lambda);
+          setFuelOprLambda(hybrid.selectedLambda);
         }
       } catch (error) {
         console.error('Failed to load Fuel OPR data:', error);

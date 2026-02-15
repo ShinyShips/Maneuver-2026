@@ -47,6 +47,11 @@ export interface TBATeam {
   country?: string;
 }
 
+interface LocalScheduleMatch {
+  redAlliance?: number[];
+  blueAlliance?: number[];
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -89,22 +94,75 @@ export const getMatchResult = (match: TBAMatch): {
  * Get teams for an event
  */
 export const getEventTeams = async (eventKey: string, apiKey: string): Promise<TBATeam[]> => {
+  if (isDemoEventKey(eventKey)) {
+    const localTeams = getLocalScheduleTeams();
+    if (localTeams.length > 0) {
+      return localTeams;
+    }
+  }
+
   const teamKeys = await proxyGetJson<string[]>(
     'tba',
     `/event/${eventKey}/teams/keys`,
     { apiKeyOverride: apiKey || undefined }
   );
-  // Convert team keys (e.g., "frc1234") to team objects
-  return teamKeys.map(key => {
-    const teamNumber = parseInt(key.replace('frc', ''));
-    return {
-      key,
-      team_number: teamNumber,
-      nickname: `Team ${teamNumber}`,
-      name: `Team ${teamNumber}`,
-    };
-  }).sort((a, b) => a.team_number - b.team_number);
+
+  return teamKeys
+    .map(key => {
+      const teamNumber = parseInt(key.replace('frc', ''), 10);
+      return {
+        key,
+        team_number: teamNumber,
+        nickname: `Team ${teamNumber}`,
+        name: `Team ${teamNumber}`,
+      };
+    })
+    .sort((a, b) => a.team_number - b.team_number);
 };
+
+function isDemoEventKey(eventKey: string): boolean {
+  return /^demo/i.test(eventKey);
+}
+
+function getLocalScheduleTeams(): TBATeam[] {
+  try {
+    const raw = localStorage.getItem('matchData');
+    if (!raw) {
+      return [];
+    }
+
+    const schedule = JSON.parse(raw) as LocalScheduleMatch[];
+    if (!Array.isArray(schedule)) {
+      return [];
+    }
+
+    const teamSet = new Set<number>();
+    for (const match of schedule) {
+      for (const team of match.redAlliance ?? []) {
+        if (Number.isFinite(team)) {
+          teamSet.add(team);
+        }
+      }
+      for (const team of match.blueAlliance ?? []) {
+        if (Number.isFinite(team)) {
+          teamSet.add(team);
+        }
+      }
+    }
+
+    return [...teamSet]
+      .sort((a, b) => a - b)
+      .map(teamNumber => ({
+        key: `frc${teamNumber}`,
+        team_number: teamNumber,
+        nickname: `Team ${teamNumber}`,
+        name: `Team ${teamNumber}`,
+      }));
+  } catch (error) {
+    console.warn('Failed to derive teams from local demo schedule:', error);
+    return [];
+  }
+}
 
 // ============================================================================
 // Local Storage Utilities

@@ -130,6 +130,8 @@ export function useTBAMatchData(): UseTBAMatchDataReturn {
     setError(null);
 
     try {
+      const isDemoEvent = /^demo/i.test(eventKey);
+
       // Check cache first (always, even if expired - offline-first)
       const cached = await getCachedTBAEventMatches(eventKey, true); // true = include expired
       
@@ -166,6 +168,21 @@ export function useTBAMatchData(): UseTBAMatchDataReturn {
         
         toast.success(`Loaded ${cached.length} matches from cache`);
         return cached;
+      }
+
+      // Demo events are local-only and should never call TBA/proxy
+      if (isDemoEvent) {
+        if (cached.length > 0) {
+          console.log(`Using cached local demo data for event ${eventKey}`);
+          setMatches(cached);
+          const meta = await getCacheMetadata(eventKey);
+          setCacheMetadata(meta);
+          setCacheExpired(expiration.isExpired);
+          toast.success(`Loaded ${cached.length} demo matches from local cache`);
+          return cached;
+        }
+
+        throw new Error('No local demo match cache found. Load Demo Data from Home page first.');
       }
       
       // If we're online, try to fetch fresh data

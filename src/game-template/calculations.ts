@@ -200,6 +200,33 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         totalFuelPassed: teamMatches.map(m =>
             val(m.gameData?.auto?.fuelPassedCount) + val(m.gameData?.teleop?.fuelPassedCount)
         ),
+        scaledAutoFuel: teamMatches.map(m => {
+            const scaledMetrics = m.gameData?.scaledMetrics as { scaledAutoFuel?: number } | undefined;
+            return typeof scaledMetrics?.scaledAutoFuel === 'number'
+                ? scaledMetrics.scaledAutoFuel
+                : val(m.gameData?.auto?.fuelScoredCount);
+        }),
+        scaledTeleopFuel: teamMatches.map(m => {
+            const scaledMetrics = m.gameData?.scaledMetrics as { scaledTeleopFuel?: number } | undefined;
+            return typeof scaledMetrics?.scaledTeleopFuel === 'number'
+                ? scaledMetrics.scaledTeleopFuel
+                : val(m.gameData?.teleop?.fuelScoredCount);
+        }),
+        scaledTotalFuel: teamMatches.map(m => {
+            const scaledMetrics = m.gameData?.scaledMetrics as {
+                scaledAutoFuel?: number;
+                scaledTeleopFuel?: number;
+            } | undefined;
+
+            const scaledAuto = typeof scaledMetrics?.scaledAutoFuel === 'number'
+                ? scaledMetrics.scaledAutoFuel
+                : val(m.gameData?.auto?.fuelScoredCount);
+            const scaledTeleop = typeof scaledMetrics?.scaledTeleopFuel === 'number'
+                ? scaledMetrics.scaledTeleopFuel
+                : val(m.gameData?.teleop?.fuelScoredCount);
+
+            return scaledAuto + scaledTeleop;
+        }),
 
         // Climb (boolean per match - 1 if climbed, 0 if not)
         climbL1: teamMatches.map(m => m.gameData?.endgame?.climbL1 === true ? 1 : 0),
@@ -257,6 +284,42 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         avgTeleopFuelPassed: round(teleopFuelPassedTotal / matchCount),
         avgFuelPassed: round(totalFuelPassed / matchCount),
         avgTotalFuel: round(totalFuelScored / matchCount),
+        avgScaledAutoFuel: round(
+            sum(teamMatches, m => {
+                const scaledMetrics = m.gameData?.scaledMetrics as { scaledAutoFuel?: number } | undefined;
+                return typeof scaledMetrics?.scaledAutoFuel === 'number'
+                    ? scaledMetrics.scaledAutoFuel
+                    : val(m.gameData?.auto?.fuelScoredCount);
+            }) / matchCount
+        ),
+        avgScaledTeleopFuel: round(
+            sum(teamMatches, m => {
+                const scaledMetrics = m.gameData?.scaledMetrics as { scaledTeleopFuel?: number } | undefined;
+                return typeof scaledMetrics?.scaledTeleopFuel === 'number'
+                    ? scaledMetrics.scaledTeleopFuel
+                    : val(m.gameData?.teleop?.fuelScoredCount);
+            }) / matchCount
+        ),
+        avgScaledTotalFuel: round(
+            sum(teamMatches, m => {
+                const scaledMetrics = m.gameData?.scaledMetrics as {
+                    scaledAutoFuel?: number;
+                    scaledTeleopFuel?: number;
+                } | undefined;
+
+                const scaledAuto = typeof scaledMetrics?.scaledAutoFuel === 'number'
+                    ? scaledMetrics.scaledAutoFuel
+                    : val(m.gameData?.auto?.fuelScoredCount);
+                const scaledTeleop = typeof scaledMetrics?.scaledTeleopFuel === 'number'
+                    ? scaledMetrics.scaledTeleopFuel
+                    : val(m.gameData?.teleop?.fuelScoredCount);
+
+                return scaledAuto + scaledTeleop;
+            }) / matchCount
+        ),
+        fuelAutoOPR: 0,
+        fuelTeleopOPR: 0,
+        fuelTotalOPR: 0,
         autoClimbRate: percent(autoClimbCount, matchCount),
         autoClimbAttempts: autoClimbCount,
         climbL1Rate: percent(climbL1Count, matchCount),
@@ -416,8 +479,17 @@ function getEmptyStats(): Omit<TeamStats, 'teamNumber' | 'eventKey'> {
             autoPoints: [],
             teleopPoints: [],
             endgamePoints: [],
+            scaledAutoFuel: [],
+            scaledTeleopFuel: [],
+            scaledTotalFuel: [],
             autoClimbStartTimeSec: [],
             endgameClimbStartTimeSec: [],
         },
+        avgScaledAutoFuel: 0,
+        avgScaledTeleopFuel: 0,
+        avgScaledTotalFuel: 0,
+        fuelAutoOPR: 0,
+        fuelTeleopOPR: 0,
+        fuelTotalOPR: 0,
     };
 }

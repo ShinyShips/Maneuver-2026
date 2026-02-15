@@ -337,6 +337,8 @@ export const strategyColumns = {
         "rawValues.autoPoints": { label: "Auto Points", visible: true, numeric: true },
         "rawValues.teleopPoints": { label: "Teleop Points", visible: true, numeric: true },
         "rawValues.endgamePoints": { label: "Endgame Points", visible: true, numeric: true },
+        "rawValues.scaledTotalFuel": { label: "Scaled Fuel (Total)", visible: true, numeric: true },
+        "fuelTotalOPR": { label: "Fuel OPR (Total)", visible: true, numeric: true },
     },
     // Overall stats (use rawValues for user-selectable aggregation)
     overall: {
@@ -346,6 +348,8 @@ export const strategyColumns = {
     // Auto stats (use rawValues for user-selectable aggregation)
     auto: {
         "rawValues.autoFuel": { label: "Auto Fuel", visible: true, numeric: true },
+        "rawValues.scaledAutoFuel": { label: "Scaled Auto Fuel", visible: true, numeric: true },
+        "fuelAutoOPR": { label: "Fuel OPR (Auto)", visible: true, numeric: true },
         "autoClimbRate": { label: "Auto Climb %", visible: true, numeric: true, percentage: true },
         "rawValues.autoClimbStartTimeSec": { label: "Auto Climb Start (s)", visible: true, numeric: true },
         "rawValues.autoTrenchStuckDuration": { label: "Auto Trench Stuck", visible: false, numeric: true },
@@ -354,6 +358,8 @@ export const strategyColumns = {
     // Teleop stats (use rawValues for user-selectable aggregation)
     teleop: {
         "rawValues.teleopFuel": { label: "Teleop Fuel", visible: true, numeric: true },
+        "rawValues.scaledTeleopFuel": { label: "Scaled Teleop Fuel", visible: true, numeric: true },
+        "fuelTeleopOPR": { label: "Fuel OPR (Teleop)", visible: true, numeric: true },
         "rawValues.teleopFuelPassed": { label: "Teleop Passed", visible: false, numeric: true },
         "teleop.defenseRate": { label: "Defense %", visible: false, numeric: true, percentage: true },
         "endgame.usedTrenchInTeleopRate": { label: "Used Trench %", visible: false, numeric: true, percentage: true },
@@ -378,9 +384,9 @@ export const strategyColumns = {
  * Strategy presets for quick column selection
  */
 export const strategyPresets: Record<string, string[]> = {
-    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.totalFuel", "endgame.climbSuccessRate"],
-    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "autoClimbRate", "rawValues.autoClimbStartTimeSec"],
-    teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.teleopFuelPassed", "endgame.usedTrenchInTeleopRate", "endgame.usedBumpInTeleopRate", "endgame.passedToAllianceFromNeutralRate", "endgame.passedToAllianceFromOpponentRate", "endgame.passedToNeutralRate"],
+    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.scaledTotalFuel", "fuelTotalOPR", "endgame.climbSuccessRate"],
+    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "rawValues.scaledAutoFuel", "fuelAutoOPR", "autoClimbRate", "rawValues.autoClimbStartTimeSec"],
+    teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.scaledTeleopFuel", "fuelTeleopOPR", "rawValues.teleopFuelPassed", "endgame.usedTrenchInTeleopRate", "endgame.usedBumpInTeleopRate", "endgame.passedToAllianceFromNeutralRate", "endgame.passedToAllianceFromOpponentRate", "endgame.passedToNeutralRate"],
     endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "rawValues.endgameClimbStartTimeSec", "endgame.climbL1Rate", "endgame.climbL2Rate", "endgame.climbL3Rate"],
     basic: ["teamNumber", "eventKey", "matchCount"],
 };
