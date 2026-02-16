@@ -7,6 +7,9 @@ This directory contains **game-specific components** that teams customize for th
 ```
 components/
 ├── index.ts                  # Main export file (import from here)
+├── game-start/               # Components for GameStartPage
+│   ├── index.ts
+│   └── ScoutOptions.tsx      # Game-specific scouting options shown in side sheet
 ├── auto-start/               # Components for AutoStartPage
 │   ├── index.ts
 │   └── FieldSelector.tsx     # Starting position selector (uses shared components)
@@ -69,6 +72,21 @@ The field selector uses a **unified configuration** from `analysis.ts`:
 3. Add your field images to `src/game-template/assets/`
 
 **Example:** See `getStartPositionConfig()` in `analysis.ts`
+
+### Game Start Components (`game-start/`)
+
+**Used by:** `GameStartPage` (`src/core/pages/GameStartPage.tsx`)
+
+**Purpose:** Define game-specific scouting options in the Scout Options side sheet.
+
+**Current Component:**
+- `ScoutOptions.tsx` - placeholder toggles only (replace in your yearly repo)
+
+**How to Customize:**
+1. Open `game-start/ScoutOptions.tsx`
+2. Add or replace option toggles for your game workflow
+3. Read option values in game-specific pages/components using `localStorage.getItem("scoutOptions")`
+4. Use option keys to simplify or hide game-specific scouting interactions
 
 ### 2. Pit Scouting Components (`pit-scouting/`)
 

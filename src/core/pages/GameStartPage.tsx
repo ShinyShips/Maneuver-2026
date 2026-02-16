@@ -16,15 +16,29 @@ import {
 import { toast } from "sonner";
 import GameStartSelectTeam from "@/core/components/GameStartComponents/GameStartSelectTeam";
 import { EventNameSelector } from "@/core/components/GameStartComponents/EventNameSelector";
+import {
+  CORE_SCOUT_OPTION_KEYS,
+  ScoutOptionsSheet,
+} from "@/core/components/GameStartComponents/ScoutOptionsSheet";
 import { createMatchPrediction, getPredictionForMatch } from "@/core/lib/scoutGamificationUtils";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useWorkflowNavigation } from "@/core/hooks/useWorkflowNavigation";
 import { useScout } from "@/core/contexts/ScoutContext";
+import { useGame } from "@/core/contexts/GameContext";
+import type { ScoutOptionsState } from "@/types";
+
+const SCOUT_OPTIONS_STORAGE_KEY = "scoutOptions";
+
+const DEFAULT_SCOUT_OPTIONS: ScoutOptionsState = {
+  [CORE_SCOUT_OPTION_KEYS.placeholderOptionA]: false,
+  [CORE_SCOUT_OPTION_KEYS.placeholderOptionB]: false,
+};
 
 const GameStartPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const states = location.state;
+  const { ui } = useGame();
   const { getNextRoute, isConfigValid } = useWorkflowNavigation();
   const { currentScout } = useScout();
 
@@ -95,6 +109,20 @@ const GameStartPage = () => {
     states?.inputs?.eventKey || localStorage.getItem("eventKey") || ""
   );
   const [predictedWinner, setPredictedWinner] = useState<"red" | "blue" | "none">("none");
+  const [scoutOptions, setScoutOptions] = useState<ScoutOptionsState>(() => {
+    const stored = localStorage.getItem(SCOUT_OPTIONS_STORAGE_KEY);
+    if (!stored) return DEFAULT_SCOUT_OPTIONS;
+
+    try {
+      const parsed = JSON.parse(stored) as ScoutOptionsState;
+      return {
+        ...DEFAULT_SCOUT_OPTIONS,
+        ...parsed,
+      };
+    } catch {
+      return DEFAULT_SCOUT_OPTIONS;
+    }
+  });
 
   // Debounce matchNumber for team selection
   useEffect(() => {
@@ -130,7 +158,11 @@ const GameStartPage = () => {
     };
 
     loadExistingPrediction();
-  }, [matchNumber, eventKey]);
+  }, [matchNumber, eventKey, currentScout]);
+
+  useEffect(() => {
+    localStorage.setItem(SCOUT_OPTIONS_STORAGE_KEY, JSON.stringify(scoutOptions));
+  }, [scoutOptions]);
 
   // Effect to pre-fill fields when in re-scout mode
   useEffect(() => {
@@ -168,6 +200,13 @@ const GameStartPage = () => {
         toast.error("Failed to save prediction");
       }
     }
+  };
+
+  const handleScoutOptionChange = (key: string, value: boolean) => {
+    setScoutOptions((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
   const validateInputs = () => {
@@ -221,6 +260,7 @@ const GameStartPage = () => {
     localStorage.setItem("matchNumber", matchNumber);
     localStorage.setItem("selectTeam", selectTeam);
     localStorage.setItem("alliance", alliance);
+    localStorage.setItem(SCOUT_OPTIONS_STORAGE_KEY, JSON.stringify(scoutOptions));
 
     localStorage.setItem("autoStateStack", JSON.stringify([]));
     localStorage.setItem("teleopStateStack", JSON.stringify([]));
@@ -235,6 +275,7 @@ const GameStartPage = () => {
           scoutName: currentScout,
           selectTeam,
           eventKey,
+          scoutOptions,
         },
         ...(isRescoutMode && {
           rescout: {
@@ -308,13 +349,23 @@ const GameStartPage = () => {
         {/* Main Form Card */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-xl">Match Information</CardTitle>
-            {currentScout && (
-              <p className="text-sm text-muted-foreground">
-                Scouting as:{" "}
-                <span className="font-medium">{currentScout}</span>
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle className="text-xl">Match Information</CardTitle>
+                {currentScout && (
+                  <p className="text-sm text-muted-foreground">
+                    Scouting as:{" "}
+                    <span className="font-medium">{currentScout}</span>
+                  </p>
+                )}
+              </div>
+
+              <ScoutOptionsSheet
+                options={scoutOptions}
+                onOptionChange={handleScoutOptionChange}
+                customContent={ui.ScoutOptionsContent}
+              />
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
 

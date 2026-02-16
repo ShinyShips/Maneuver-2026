@@ -390,6 +390,14 @@ export interface PredictionSystem {
   }>>;
 }
 
+export type ScoutOptionValue = boolean;
+export type ScoutOptionsState = Record<string, ScoutOptionValue>;
+
+export interface ScoutOptionsContentProps {
+  options: ScoutOptionsState;
+  onOptionChange: (key: string, value: ScoutOptionValue) => void;
+}
+
 export interface UIComponents<T extends ScoutingEntryBase> {
   GameStartScreen: React.ComponentType<GameStartScreenProps>;
   AutoStartScreen?: React.ComponentType<AutoStartScreenProps>; // OPTIONAL - not all teams scout starting position
@@ -402,6 +410,7 @@ export interface UIComponents<T extends ScoutingEntryBase> {
     onStatusUpdate: (updates: any) => void;
   }>;
   PitScoutingQuestions?: React.ComponentType<PitScoutingQuestionsProps>; // OPTIONAL - game-specific pit scouting questions
+  ScoutOptionsContent?: React.ComponentType<ScoutOptionsContentProps>; // OPTIONAL - game-specific scouting options shown on Game Start
 }
 
 /**

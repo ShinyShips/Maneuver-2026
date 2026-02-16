@@ -13,6 +13,9 @@
 // Auto Start Page Components
 export { AutoStartFieldSelector } from './auto-start';
 
+// Game Start Page Components
+export { GameSpecificScoutOptions } from './game-start';
+
 // Pit Scouting Page Components
 export { GameSpecificQuestions } from './pit-scouting';
 
