@@ -36,7 +36,7 @@ export const FieldStrategy = ({
 }: FieldStrategyProps) => {
     return (
         <Card className="w-full py-0">
-            <CardContent className="p-4 h-[500px]">
+            <CardContent className="p-4 h-125">
                 <Tabs value={activeTab} onValueChange={onTabChange} className="w-full h-full flex flex-col" enableSwipe={true}>
                     <TabsList className="grid w-full grid-cols-3 mb-4 shrink-0">
                         <TabsTrigger value="autonomous">Autonomous</TabsTrigger>
