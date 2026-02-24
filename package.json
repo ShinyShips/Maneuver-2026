@@ -1,6 +1,6 @@
 {
   "name": "maneuver-2026",
-  "version": "2026.0.7",
+  "version": "2026.0.8",
   "private": true,
   "description": "An offline-first, UX focused FRC strategy and scouting app for the 2026 FRC game, Rebuilt",
   "type": "module",
