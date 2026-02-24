@@ -41,6 +41,7 @@ export function TeamStatsDialog({
         return (
             <Button variant={variant} size={size} className={className} disabled>
                 <Eye className="w-3 h-3" />
+                <span>View Stats</span>
             </Button>
         );
     }
@@ -57,6 +58,7 @@ export function TeamStatsDialog({
             <DialogTrigger asChild>
                 <Button variant={variant} size={size} className={className}>
                     <Eye className="w-3 h-3" />
+                    <span>View Stats</span>
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl w-[calc(100vw-2rem)] h-[min(600px,90vh)] flex flex-col p-6">

@@ -32,6 +32,32 @@ export const sortOptions = [
 export type PickListSortOption = string;
 
 /**
+ * Team filter option configuration.
+ * Each game year can define its own predicates and labels.
+ */
+export interface PickListFilterOption {
+    id: string;
+    label: string;
+    description?: string;
+    group?: string;
+    predicate: (team: TeamStats) => boolean;
+}
+
+export type PickListFilterGroupSelectionMode = "single" | "multi";
+
+/**
+ * Optional group behavior overrides for filter selection mode.
+ * Groups default to multi-select unless marked as single-select.
+ */
+export const filterGroupSelectionModes: Record<string, PickListFilterGroupSelectionMode> = {};
+
+/**
+ * Year-specific team filters for the Available Teams list.
+ * Default is empty in core template; implement in yearly repo.
+ */
+export const filterOptions: PickListFilterOption[] = [];
+
+/**
  * Gets the sort value for a team based on the selected sort option.
  * Uses nested path access to get values from TeamStats.
  * 

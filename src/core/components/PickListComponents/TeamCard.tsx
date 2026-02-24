@@ -109,7 +109,7 @@ export const TeamCard = ({ team, pickLists, alliances, onAddTeamToList, onAddTea
 
     return (
         <Card className="p-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2">
                 <div className="flex-1">
                     <div className="font-medium">Team {team.teamNumber}</div>
                     <TeamCardStats team={team} />
@@ -120,11 +120,11 @@ export const TeamCard = ({ team, pickLists, alliances, onAddTeamToList, onAddTea
                     )}
                 </div>
 
-                <div className="flex gap-1">
+                <div className="flex w-full items-center gap-1 self-start">
                     <TeamStatsDialog
                         teamNumber={team.teamNumber}
                         teamStats={team}
-                        className="h-auto"
+                        className="h-10"
                     />
 
                     <GenericSelector
@@ -134,7 +134,7 @@ export const TeamCard = ({ team, pickLists, alliances, onAddTeamToList, onAddTea
                         onValueChange={handleSelection}
                         placeholder="Add to..."
                         displayFormat={displayFormat}
-                        className="w-20"
+                        className="min-w-0 flex-1 sm:flex-none sm:w-40"
                     />
                 </div>
             </div>

@@ -25,9 +25,11 @@ interface DesktopPickListLayoutProps {
     newListDescription: string;
     searchFilter: string;
     sortBy: PickListSortOption;
+    activeFilterIds: string[];
     canDeleteAll?: boolean;
     onSearchChange: (search: string) => void;
     onSortChange: (sort: PickListSortOption) => void;
+    onFilterChange: (filters: string[]) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
@@ -51,9 +53,11 @@ export const DesktopPickListLayout = ({
     newListDescription,
     searchFilter,
     sortBy,
+    activeFilterIds,
     canDeleteAll = true,
     onSearchChange,
     onSortChange,
+    onFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance,
     onUpdateAlliances,
@@ -72,12 +76,15 @@ export const DesktopPickListLayout = ({
                 {/* Available Teams Panel */}
                 <AvailableTeamsPanel
                     teams={filteredAndSortedTeams}
+                    totalTeams={availableTeams.length}
                     pickLists={pickLists}
                     alliances={alliances}
                     searchFilter={searchFilter}
                     sortBy={sortBy}
+                    activeFilterIds={activeFilterIds}
                     onSearchChange={onSearchChange}
                     onSortChange={onSortChange}
+                    onFilterChange={onFilterChange}
                     onAddTeamToList={onAddTeamToList}
                     onAddTeamToAlliance={onAddTeamToAlliance}
                 />

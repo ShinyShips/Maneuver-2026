@@ -20,6 +20,7 @@ const PickListPage = () => {
         newListDescription,
         searchFilter,
         sortBy,
+        activeFilterIds,
         activeTab,
         showAllianceSelection,
         filteredAndSortedTeams,
@@ -29,6 +30,7 @@ const PickListPage = () => {
         setNewListDescription,
         setSearchFilter,
         setSortBy,
+        setActiveFilterIds,
         setActiveTab,
         setAlliances,
         setBackups,
@@ -74,9 +76,11 @@ const PickListPage = () => {
                     newListDescription={newListDescription}
                     searchFilter={searchFilter}
                     sortBy={sortBy}
+                    activeFilterIds={activeFilterIds}
                     onTabChange={setActiveTab}
                     onSearchChange={setSearchFilter}
                     onSortChange={setSortBy}
+                    onFilterChange={setActiveFilterIds}
                     onAddTeamToList={addTeamToList}
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}
@@ -105,8 +109,10 @@ const PickListPage = () => {
                     newListDescription={newListDescription}
                     searchFilter={searchFilter}
                     sortBy={sortBy}
+                    activeFilterIds={activeFilterIds}
                     onSearchChange={setSearchFilter}
                     onSortChange={setSortBy}
+                    onFilterChange={setActiveFilterIds}
                     onAddTeamToList={addTeamToList}
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}

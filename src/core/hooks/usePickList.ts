@@ -16,7 +16,12 @@ import {
     createDefaultPickList
 } from "@/core/lib/pickListUtils";
 import type { PickList, PickListItem } from "@/core/types/pickListTypes";
-import { getSortValue, isAscendingSort, type PickListSortOption } from "@/game-template/pick-list-config";
+import {
+    filterOptions,
+    getSortValue,
+    isAscendingSort,
+    type PickListSortOption,
+} from "@/game-template/pick-list-config";
 import type { Alliance, BackupTeam } from "@/core/lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
 
@@ -34,6 +39,7 @@ export interface UsePickListResult {
     newListDescription: string;
     searchFilter: string;
     sortBy: PickListSortOption;
+    activeFilterIds: string[];
     activeTab: string;
     showAllianceSelection: boolean;
 
@@ -42,6 +48,7 @@ export interface UsePickListResult {
     setNewListDescription: (desc: string) => void;
     setSearchFilter: (filter: string) => void;
     setSortBy: (sort: PickListSortOption) => void;
+    setActiveFilterIds: (filters: string[]) => void;
     setActiveTab: (tab: string) => void;
     setAlliances: (alliances: Alliance[]) => void;
     setBackups: (backups: BackupTeam[]) => void;
@@ -70,6 +77,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
     const [newListDescription, setNewListDescription] = useState("");
     const [searchFilter, setSearchFilter] = useState("");
     const [sortBy, setSortBy] = useState<PickListSortOption>("teamNumber");
+    const [activeFilterIds, setActiveFilterIds] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState("teams");
     const [showAllianceSelection, setShowAllianceSelection] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -173,10 +181,20 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
     // Filtered and sorted teams
     const filteredAndSortedTeams = useMemo(() => {
         const filtered = filterTeams(teamStats, searchFilter)
+            .filter((team) => {
+                if (activeFilterIds.length === 0) {
+                    return true;
+                }
+
+                return activeFilterIds.every((filterId) => {
+                    const option = filterOptions.find((candidate) => candidate.id === filterId);
+                    return option ? option.predicate(team) : true;
+                });
+            })
             .filter((team) => !allianceAssignedTeams.has(team.teamNumber));
 
         return sortTeams(filtered, sortBy);
-    }, [teamStats, searchFilter, sortBy, sortTeams, allianceAssignedTeams]);
+    }, [teamStats, searchFilter, activeFilterIds, sortBy, sortTeams, allianceAssignedTeams]);
 
     // Add team to a pick list
     const addTeamToList = useCallback((team: TeamStats, listId: number) => {
@@ -395,6 +413,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         newListDescription,
         searchFilter,
         sortBy,
+        activeFilterIds,
         activeTab,
         showAllianceSelection,
 
@@ -403,6 +422,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         setNewListDescription,
         setSearchFilter,
         setSortBy,
+        setActiveFilterIds,
         setActiveTab,
         setAlliances,
         setBackups,

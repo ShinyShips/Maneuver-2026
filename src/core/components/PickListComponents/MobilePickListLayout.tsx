@@ -28,10 +28,12 @@ interface MobilePickListLayoutProps {
     newListDescription: string;
     searchFilter: string;
     sortBy: PickListSortOption;
+    activeFilterIds: string[];
     canDeleteAll?: boolean;
     onTabChange: (tab: string) => void;
     onSearchChange: (search: string) => void;
     onSortChange: (sort: PickListSortOption) => void;
+    onFilterChange: (filters: string[]) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
@@ -60,10 +62,12 @@ export const MobilePickListLayout = ({
     newListDescription,
     searchFilter,
     sortBy,
+    activeFilterIds,
     canDeleteAll = true,
     onTabChange,
     onSearchChange,
     onSortChange,
+    onFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance,
     onUpdateAlliances,
@@ -99,12 +103,15 @@ export const MobilePickListLayout = ({
                 <TabsContent value="teams">
                     <AvailableTeamsPanel
                         teams={filteredAndSortedTeams}
+                        totalTeams={availableTeams.length}
                         pickLists={pickLists}
                         alliances={alliances}
                         searchFilter={searchFilter}
                         sortBy={sortBy}
+                        activeFilterIds={activeFilterIds}
                         onSearchChange={onSearchChange}
                         onSortChange={onSortChange}
+                        onFilterChange={onFilterChange}
                         onAddTeamToList={onAddTeamToList}
                         onAddTeamToAlliance={onAddTeamToAlliance}
                     />

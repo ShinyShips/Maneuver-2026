@@ -55,8 +55,10 @@ export const TeamCardStats = ({ team }: TeamCardStatsProps) => {
     return (
         <>
             <div className="text-xs text-muted-foreground">
-                {autoStats && <>Auto: {autoStats} | </>}
-                {teleopStats && <>Teleop: {teleopStats}</>}
+                Auto: {autoStats || '—'}
+            </div>
+            <div className="text-xs text-muted-foreground">
+                Teleop: {teleopStats || '—'}
             </div>
             <div className="text-xs text-muted-foreground">
                 {endgame?.climbRate || 0}% climb • {team.matchCount || 0} matches
