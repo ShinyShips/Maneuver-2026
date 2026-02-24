@@ -10,7 +10,7 @@
 
 import { createContext, useContext, useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { useScoring, ScoringProvider, type ScoringProviderProps } from './ScoringContext';
-import type { ZoneType, ClimbLevel, ClimbResult } from '../components/field-map';
+import type { ZoneType, ClimbLevel, ClimbResult, ClimbLocation } from '../components/field-map';
 
 // =============================================================================
 // TYPES
@@ -24,6 +24,8 @@ export interface TeleopPathContextValue {
     // Climb with level selection
     climbLevel: ClimbLevel | undefined;
     setClimbLevel: (level: ClimbLevel | undefined) => void;
+    climbLocation: ClimbLocation | undefined;
+    setClimbLocation: (location: ClimbLocation | undefined) => void;
     climbResult: ClimbResult;
     setClimbResult: (result: ClimbResult) => void;
     showPostClimbProceed: boolean;
@@ -116,6 +118,7 @@ function TeleopPathProviderInner({
 
     // Climb with level
     const [climbLevel, setClimbLevel] = useState<ClimbLevel | undefined>(undefined);
+    const [climbLocation, setClimbLocation] = useState<ClimbLocation | undefined>(undefined);
     const [climbResult, setClimbResult] = useState<ClimbResult>('success');
     const [showPostClimbProceed, setShowPostClimbProceed] = useState(false);
 
@@ -155,6 +158,8 @@ function TeleopPathProviderInner({
         setActiveZone,
         climbLevel,
         setClimbLevel,
+        climbLocation,
+        setClimbLocation,
         climbResult,
         setClimbResult,
         showPostClimbProceed,
@@ -172,6 +177,7 @@ function TeleopPathProviderInner({
     }), [
         activeZone,
         climbLevel,
+        climbLocation,
         climbResult,
         showPostClimbProceed,
         robotStatus,

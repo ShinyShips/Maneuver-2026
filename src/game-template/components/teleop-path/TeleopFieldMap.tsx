@@ -146,6 +146,8 @@ function TeleopFieldMapContent() {
         setActiveZone,
         climbLevel,
         setClimbLevel,
+        climbLocation,
+        setClimbLocation,
         climbResult,
         setClimbResult,
         showPostClimbProceed,
@@ -459,6 +461,7 @@ function TeleopFieldMapContent() {
                     zone: 'allianceZone',
                 });
                 setClimbLevel(undefined);
+                setClimbLocation(undefined);
                 setClimbResult('success');
                 break;
             case 'defense_alliance':
@@ -526,6 +529,7 @@ function TeleopFieldMapContent() {
     const handleClimbCancel = () => {
         setPendingWaypoint(null);
         setClimbLevel(undefined);
+        setClimbLocation(undefined);
     };
 
     // Undo wrapper that also clears active broken down state
@@ -770,19 +774,23 @@ function TeleopFieldMapContent() {
                             climbWithLevels={true}
                             climbLevel={climbLevel}
                             onClimbLevelSelect={(level) => setClimbLevel(level)}
+                            climbLocation={climbLocation}
+                            onClimbLocationSelect={(location) => setClimbLocation(location)}
                             onConfirm={pendingWaypoint.type === 'climb' ? (selectedClimbStartTimeSecRemaining) => {
-                                if (climbLevel && climbResult) {
+                                if (climbLevel && climbLocation && climbResult) {
                                     const waypoint: PathWaypoint = {
                                         ...pendingWaypoint,
                                         action: `climbL${climbLevel}`,
-                                        amountLabel: `L${climbLevel} ${climbResult === 'success' ? '✓' : '✗'}`,
+                                        amountLabel: `${climbLocation === 'side' ? 'Side' : 'Middle'} L${climbLevel} ${climbResult === 'success' ? '✓' : '✗'}`,
                                         climbLevel,
+                                        climbLocation,
                                         climbResult: climbResult,
                                         climbStartTimeSecRemaining: selectedClimbStartTimeSecRemaining ?? null,
                                     };
                                     onAddAction(waypoint);
                                     setPendingWaypoint(null);
                                     setClimbLevel(undefined);
+                                    setClimbLocation(undefined);
                                     setClimbResult('success');
                                     // Show proceed dialog
                                     setShowPostClimbProceed(true);

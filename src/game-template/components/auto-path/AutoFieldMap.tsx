@@ -204,6 +204,8 @@ function AutoFieldMapContent({
         setShowPostClimbProceed,
         climbResult,
         setClimbResult,
+        climbLocation,
+        setClimbLocation,
         canvasDimensions,
         containerRef,
         isSelectingScore,
@@ -606,6 +608,7 @@ function AutoFieldMapContent({
                 };
                 setPendingWaypoint(waypoint);
                 setClimbResult('success');
+                setClimbLocation(undefined);
                 break;
             }
             case 'trench1':
@@ -1108,6 +1111,9 @@ function AutoFieldMapContent({
                             setFuelHistory(prev => prev.slice(0, -1));
                         }}
                         onClimbResultSelect={setClimbResult}
+                        climbWithLocation={true}
+                        climbLocation={climbLocation}
+                        onClimbLocationSelect={setClimbLocation}
                         allowClimbFail={!recordingMode}
                         skipClimbOutcomeSelection={recordingMode}
                         onConfirm={(selectedClimbStartTimeSecRemaining) => {
@@ -1117,7 +1123,12 @@ function AutoFieldMapContent({
 
                             if (pendingWaypoint.type === 'climb') {
                                 action = climbResult === 'success' ? 'climb-success' : 'climb-fail';
-                                label = climbResult === 'success' ? 'Succeeded' : 'Failed';
+                                const locationLabel = climbLocation === 'side'
+                                    ? 'Side'
+                                    : climbLocation === 'middle'
+                                        ? 'Middle'
+                                        : '';
+                                label = `${locationLabel} ${climbResult === 'success' ? 'Succeeded' : 'Failed'}`.trim();
                             } else {
                                 delta = pendingWaypoint.type === 'score' || pendingWaypoint.type === 'pass' ? -accumulatedFuel : 0;
                                 label = pendingWaypoint.type === 'score' ? `+${accumulatedFuel}` : `Pass (${accumulatedFuel})`;
@@ -1128,6 +1139,7 @@ function AutoFieldMapContent({
                                 fuelDelta: delta,
                                 amountLabel: label,
                                 action: action,
+                                climbLocation: pendingWaypoint.type === 'climb' ? climbLocation : undefined,
                                 climbStartTimeSecRemaining: pendingWaypoint.type === 'climb'
                                     ? selectedClimbStartTimeSecRemaining ?? null
                                     : undefined,
@@ -1137,6 +1149,7 @@ function AutoFieldMapContent({
                             setAccumulatedFuel(0);
                             setFuelHistory([]);
                             setClimbResult(null);
+                            setClimbLocation(undefined);
 
                             // Show transition popup after climb
                             if (finalized.type === 'climb' && onProceed) {
@@ -1148,6 +1161,7 @@ function AutoFieldMapContent({
                             resetDrawing();
                             setAccumulatedFuel(0);
                             setFuelHistory([]);
+                            setClimbLocation(undefined);
                         }}
                     />
                 )}

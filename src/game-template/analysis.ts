@@ -70,14 +70,21 @@ export interface TeamStatsTemplate extends TeamStats {
     // Rate metrics (0-100%)
     mobilityRate: number;
     autoClimbRate: number;
+    autoClimbFromSideRate: number;
+    autoClimbFromMiddleRate: number;
     autoClimbAttempts: number;
     climbL1Rate: number;
     climbL1Count: number;
+    climbL1Attempts: number;
     climbL2Rate: number;
     climbL2Count: number;
+    climbL2Attempts: number;
     climbL3Rate: number;
     climbL3Count: number;
+    climbL3Attempts: number;
     climbSuccessRate: number;
+    climbFromSideRate: number;
+    climbFromMiddleRate: number;
     defenseRate: number;
     autoShotOnTheMoveRate: number;
     autoShotStationaryRate: number;
@@ -187,14 +194,21 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 maxTotalFuel: 0,
                 mobilityRate: 0,
                 autoClimbRate: 0,
+                autoClimbFromSideRate: 0,
+                autoClimbFromMiddleRate: 0,
                 autoClimbAttempts: 0,
                 climbL1Rate: 0,
                 climbL1Count: 0,
+                climbL1Attempts: 0,
                 climbL2Rate: 0,
                 climbL2Count: 0,
+                climbL2Attempts: 0,
                 climbL3Rate: 0,
                 climbL3Count: 0,
+                climbL3Attempts: 0,
                 climbSuccessRate: 0,
+                climbFromSideRate: 0,
+                climbFromMiddleRate: 0,
                 defenseRate: 0,
                 autoShotOnTheMoveRate: 0,
                 autoShotStationaryRate: 0,
@@ -256,9 +270,14 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             // Toggles
             acc.mobility += gameData?.auto?.leftStartZone ? 1 : 0;
             acc.autoClimb += gameData?.auto?.autoClimbL1 ? 1 : 0;
+            acc.autoClimbFromSide += gameData?.auto?.autoClimbFromSide ? 1 : 0;
+            acc.autoClimbFromMiddle += gameData?.auto?.autoClimbFromMiddle ? 1 : 0;
             acc.climbL1 += gameData?.endgame?.climbL1 ? 1 : 0;
             acc.climbL2 += gameData?.endgame?.climbL2 ? 1 : 0;
             acc.climbL3 += gameData?.endgame?.climbL3 ? 1 : 0;
+            acc.climbFailed += gameData?.endgame?.climbFailed ? 1 : 0;
+            acc.climbFromSide += gameData?.endgame?.climbFromSide ? 1 : 0;
+            acc.climbFromMiddle += gameData?.endgame?.climbFromMiddle ? 1 : 0;
             acc.defense += gameData?.teleop?.playedDefense ? 1 : 0;
             acc.autoShotOnTheMove += Number(gameData?.auto?.shotOnTheMoveCount ?? 0);
             acc.autoShotStationary += Number(gameData?.auto?.shotStationaryCount ?? 0);
@@ -312,9 +331,14 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             fuelPassed: 0,
             mobility: 0,
             autoClimb: 0,
+            autoClimbFromSide: 0,
+            autoClimbFromMiddle: 0,
             climbL1: 0,
             climbL2: 0,
             climbL3: 0,
+            climbFailed: 0,
+            climbFromSide: 0,
+            climbFromMiddle: 0,
             defense: 0,
             autoShotOnTheMove: 0,
             autoShotStationary: 0,
@@ -407,6 +431,30 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
         const avgTeleopPoints = matchResults.reduce((sum, m) => sum + m.teleopPoints, 0) / matchCount;
         const avgEndgamePoints = matchResults.reduce((sum, m) => sum + m.endgamePoints, 0) / matchCount;
         const climbSuccessCount = totals.climbL1 + totals.climbL2 + totals.climbL3;
+        const autoClimbLocationAttemptCount = totals.autoClimbFromSide + totals.autoClimbFromMiddle;
+        const autoClimbAttemptCount = Math.max(totals.autoClimb, autoClimbLocationAttemptCount);
+        const endgameClimbLocationAttemptCount = totals.climbFromSide + totals.climbFromMiddle;
+        const hasAttemptAtLevel = (entry: ScoutingEntryTemplate, level: 1 | 2 | 3): boolean => {
+            const endgame = entry.gameData?.endgame as Record<string, unknown> | undefined;
+            if (endgame?.[`climbAttemptL${level}`] === true) return true;
+            if (endgame?.[`climbL${level}`] === true) return true;
+
+            const teleopPath = entry.gameData?.teleop?.teleopPath;
+            if (Array.isArray(teleopPath)) {
+                return teleopPath.some((waypoint) => {
+                    if (!waypoint || typeof waypoint !== 'object') return false;
+                    const record = waypoint as Record<string, unknown>;
+                    return record.type === 'climb' && record.climbLevel === level;
+                });
+            }
+
+            return false;
+        };
+        const climbAttemptL1Count = entries.filter(entry => hasAttemptAtLevel(entry, 1)).length;
+        const climbAttemptL2Count = entries.filter(entry => hasAttemptAtLevel(entry, 2)).length;
+        const climbAttemptL3Count = entries.filter(entry => hasAttemptAtLevel(entry, 3)).length;
+        const levelAttemptCount = climbAttemptL1Count + climbAttemptL2Count + climbAttemptL3Count;
+        const teleopClimbAttemptCount = Math.max(levelAttemptCount, climbSuccessCount + totals.climbFailed, endgameClimbLocationAttemptCount);
 
         const autoClimbStartTimes = entries
             .map(entry => entry.gameData?.auto?.autoClimbStartTimeSecRemaining)
@@ -485,7 +533,9 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             },
             endgame: {
                 avgPoints: Math.round(avgEndgamePoints * 10) / 10,
-                climbRate: Math.round((climbSuccessCount / matchCount) * 100),
+                climbRate: teleopClimbAttemptCount > 0
+                    ? Math.round((climbSuccessCount / teleopClimbAttemptCount) * 100)
+                    : 0,
                 parkRate: 0,
             },
             // Template-specific fields
@@ -515,15 +565,40 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             maxFuelPassed: Math.max(...matchResults.map(m => (m.autoFuelPassed || 0) + (m.teleopFuelPassed || 0))),
             maxTotalFuel: Math.max(...matchResults.map(m => (m.autoFuel || 0) + (m.teleopFuel || 0))),
             mobilityRate: Math.round((totals.mobility / matchCount) * 100),
-            autoClimbRate: Math.round((totals.autoClimb / matchCount) * 100),
-            autoClimbAttempts: totals.autoClimb,
-            climbL1Rate: Math.round((totals.climbL1 / matchCount) * 100),
+            autoClimbRate: autoClimbAttemptCount > 0
+                ? Math.round((totals.autoClimb / autoClimbAttemptCount) * 100)
+                : 0,
+            autoClimbFromSideRate: autoClimbLocationAttemptCount > 0
+                ? Math.round((totals.autoClimbFromSide / autoClimbLocationAttemptCount) * 100)
+                : 0,
+            autoClimbFromMiddleRate: autoClimbLocationAttemptCount > 0
+                ? Math.round((totals.autoClimbFromMiddle / autoClimbLocationAttemptCount) * 100)
+                : 0,
+            autoClimbAttempts: autoClimbAttemptCount,
+            climbL1Rate: climbAttemptL1Count > 0
+                ? Math.round((totals.climbL1 / climbAttemptL1Count) * 100)
+                : 0,
             climbL1Count: totals.climbL1,
-            climbL2Rate: Math.round((totals.climbL2 / matchCount) * 100),
+            climbL1Attempts: climbAttemptL1Count,
+            climbL2Rate: climbAttemptL2Count > 0
+                ? Math.round((totals.climbL2 / climbAttemptL2Count) * 100)
+                : 0,
             climbL2Count: totals.climbL2,
-            climbL3Rate: Math.round((totals.climbL3 / matchCount) * 100),
+            climbL2Attempts: climbAttemptL2Count,
+            climbL3Rate: climbAttemptL3Count > 0
+                ? Math.round((totals.climbL3 / climbAttemptL3Count) * 100)
+                : 0,
             climbL3Count: totals.climbL3,
-            climbSuccessRate: Math.round((climbSuccessCount / matchCount) * 100),
+            climbL3Attempts: climbAttemptL3Count,
+            climbSuccessRate: teleopClimbAttemptCount > 0
+                ? Math.round((climbSuccessCount / teleopClimbAttemptCount) * 100)
+                : 0,
+            climbFromSideRate: endgameClimbLocationAttemptCount > 0
+                ? Math.round((totals.climbFromSide / endgameClimbLocationAttemptCount) * 100)
+                : 0,
+            climbFromMiddleRate: endgameClimbLocationAttemptCount > 0
+                ? Math.round((totals.climbFromMiddle / endgameClimbLocationAttemptCount) * 100)
+                : 0,
             defenseRate: Math.round((totals.defense / matchCount) * 100),
             autoShotOnTheMoveRate: autoShotTypeTotal > 0 ? Math.round((totals.autoShotOnTheMove / autoShotTypeTotal) * 100) : 0,
             autoShotStationaryRate: autoShotTypeTotal > 0 ? Math.round((totals.autoShotStationary / autoShotTypeTotal) * 100) : 0,
@@ -652,6 +727,8 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 stats: [
                     { key: 'autoClimbRate', label: 'Success Rate', type: 'percentage', color: 'blue' },
                     { key: 'autoClimbAttempts', label: 'Total Attempts', type: 'number', color: 'slate' },
+                                        { key: 'autoClimbFromSideRate', label: 'From Side %', type: 'percentage', color: 'green' },
+                    { key: 'autoClimbFromMiddleRate', label: 'From Middle %', type: 'percentage', color: 'purple' },
                     { key: 'coprAutoTowerPoints', label: 'TBA COPR', type: 'number', color: 'green', subtitle: 'Auto Tower Points' },
                     { key: 'avgAutoClimbStartTimeSec', label: 'Avg Start Time', type: 'number', color: 'orange', subtitle: 'seconds remaining' },
                 ],
@@ -663,11 +740,13 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 columns: 2,
                 stats: [
                     { key: 'climbL1Rate', label: 'Level 1 Success Rate', type: 'percentage', color: 'green' },
-                    { key: 'climbL1Count', label: 'Level 1 Climbs', type: 'number', color: 'slate' },
+                    { key: 'climbL1Attempts', label: 'Level 1 Attempts', type: 'number', color: 'slate' },
                     { key: 'climbL2Rate', label: 'Level 2 Success Rate', type: 'percentage', color: 'blue' },
-                    { key: 'climbL2Count', label: 'Level 2 Climbs', type: 'number', color: 'slate' },
+                    { key: 'climbL2Attempts', label: 'Level 2 Attempts', type: 'number', color: 'slate' },
                     { key: 'climbL3Rate', label: 'Level 3 Success Rate', type: 'percentage', color: 'purple' },
-                    { key: 'climbL3Count', label: 'Level 3 Climbs', type: 'number', color: 'slate' },
+                    { key: 'climbL3Attempts', label: 'Level 3 Attempts', type: 'number', color: 'slate' },
+                    { key: 'climbFromSideRate', label: 'From Side %', type: 'percentage', color: 'green' },
+                    { key: 'climbFromMiddleRate', label: 'From Middle %', type: 'percentage', color: 'purple' },
                     { key: 'coprEndgameTowerPoints', label: 'TBA COPR', type: 'number', color: 'orange', subtitle: 'Endgame Tower Points' },
                     { key: 'avgTeleopClimbStartTimeSec', label: 'Avg Start Time', type: 'number', color: 'orange', subtitle: 'seconds remaining' },
                 ],

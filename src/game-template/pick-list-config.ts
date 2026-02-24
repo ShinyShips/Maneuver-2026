@@ -148,6 +148,34 @@ export const filterOptions: PickListFilterOption[] = [
         group: "Climb",
         predicate: (team) => typeof team.autoClimbRate === "number" && team.autoClimbRate > 0,
     },
+    {
+        id: "auto-climb-from-side",
+        label: "Auto climb from side",
+        description: "Includes teams with non-zero auto climb-from-side rate.",
+        group: "Climb",
+        predicate: (team) => getTeamNumber(team, "autoClimbFromSideRate") > 0,
+    },
+    {
+        id: "auto-climb-from-middle",
+        label: "Auto climb from middle",
+        description: "Includes teams with non-zero auto climb-from-middle rate.",
+        group: "Climb",
+        predicate: (team) => getTeamNumber(team, "autoClimbFromMiddleRate") > 0,
+    },
+    {
+        id: "endgame-climb-from-side",
+        label: "Endgame climb from side",
+        description: "Includes teams with non-zero endgame climb-from-side rate.",
+        group: "Climb",
+        predicate: (team) => getEndgameNumber(team, "climbFromSideRate") > 0,
+    },
+    {
+        id: "endgame-climb-from-middle",
+        label: "Endgame climb from middle",
+        description: "Includes teams with non-zero endgame climb-from-middle rate.",
+        group: "Climb",
+        predicate: (team) => getEndgameNumber(team, "climbFromMiddleRate") > 0,
+    },
 
     {
         id: "has-trench-auto",

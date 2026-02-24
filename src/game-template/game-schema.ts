@@ -372,6 +372,9 @@ export const strategyColumns = {
         "autoShotOnTheMoveRate": { label: "Auto Shot On Move %", visible: true, numeric: true, percentage: true },
         "autoShotStationaryRate": { label: "Auto Shot Stationary %", visible: true, numeric: true, percentage: true },
         "autoClimbRate": { label: "Auto Climb %", visible: true, numeric: true, percentage: true },
+        "autoClimbAttempts": { label: "Auto Climb Attempts", visible: true, numeric: true },
+        "autoClimbFromSideRate": { label: "Auto Climb From Side %", visible: true, numeric: true, percentage: true },
+        "autoClimbFromMiddleRate": { label: "Auto Climb From Middle %", visible: true, numeric: true, percentage: true },
         "rawValues.autoClimbStartTimeSec": { label: "Auto Climb Start (s)", visible: true, numeric: true },
         "rawValues.autoTrenchStuckDuration": { label: "Auto Trench Stuck", visible: false, numeric: true },
         "rawValues.autoBumpStuckDuration": { label: "Auto Bump Stuck", visible: false, numeric: true },
@@ -399,8 +402,14 @@ export const strategyColumns = {
         "rawValues.endgameClimbStartTimeSec": { label: "Endgame Climb Start (s)", visible: true, numeric: true },
         "coprEndgameTowerPoints": { label: "TBA COPR (Endgame Tower)", visible: false, numeric: true },
         "endgame.climbL1Rate": { label: "L1 Climb %", visible: false, numeric: true, percentage: true },
+        "endgame.climbL1Attempts": { label: "L1 Climb Attempts", visible: true, numeric: true },
         "endgame.climbL2Rate": { label: "L2 Climb %", visible: true, numeric: true, percentage: true },
+        "endgame.climbL2Attempts": { label: "L2 Climb Attempts", visible: true, numeric: true },
         "endgame.climbL3Rate": { label: "L3 Climb %", visible: true, numeric: true, percentage: true },
+        "endgame.climbL3Attempts": { label: "L3 Climb Attempts", visible: true, numeric: true },
+        "endgame.climbAttempts": { label: "Total Climb Attempts", visible: true, numeric: true },
+        "endgame.climbFromSideRate": { label: "Endgame Climb From Side %", visible: true, numeric: true, percentage: true },
+        "endgame.climbFromMiddleRate": { label: "Endgame Climb From Middle %", visible: true, numeric: true, percentage: true },
         "endgame.climbSuccessRate": { label: "Climb Success %", visible: true, numeric: true, percentage: true },
     },
 } as const;
@@ -410,9 +419,9 @@ export const strategyColumns = {
  */
 export const strategyPresets: Record<string, string[]> = {
     essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.scaledTotalFuel", "fuelTotalOPR", "endgame.climbSuccessRate"],
-    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "rawValues.scaledAutoFuel", "fuelAutoOPR", "autoShotOnTheMoveRate", "autoShotStationaryRate", "autoClimbRate", "rawValues.autoClimbStartTimeSec"],
+    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "rawValues.scaledAutoFuel", "fuelAutoOPR", "autoShotOnTheMoveRate", "autoShotStationaryRate", "autoClimbRate", "autoClimbAttempts", "autoClimbFromSideRate", "autoClimbFromMiddleRate", "rawValues.autoClimbStartTimeSec"],
     teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.scaledTeleopFuel", "fuelTeleopOPR", "teleopShotOnTheMoveRate", "teleopShotStationaryRate", "rawValues.teleopFuelPassed", "endgame.usedTrenchInTeleopRate", "endgame.usedBumpInTeleopRate", "endgame.passedToAllianceFromNeutralRate", "endgame.passedToAllianceFromOpponentRate", "endgame.passedToNeutralRate"],
-    endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "rawValues.endgameClimbStartTimeSec", "endgame.climbL1Rate", "endgame.climbL2Rate", "endgame.climbL3Rate"],
+    endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "rawValues.endgameClimbStartTimeSec", "endgame.climbAttempts", "endgame.climbL1Rate", "endgame.climbL1Attempts", "endgame.climbL2Rate", "endgame.climbL2Attempts", "endgame.climbL3Rate", "endgame.climbL3Attempts", "endgame.climbFromSideRate", "endgame.climbFromMiddleRate"],
     basic: ["teamNumber", "eventKey", "matchCount"],
 };
 

@@ -12,7 +12,7 @@ import { Badge } from '@/core/components/ui/badge';
 import { Input } from '@/core/components/ui/input';
 import { ArrowLeft, Check, X, Undo2 } from 'lucide-react';
 import { cn } from '@/core/lib/utils';
-import type { PathWaypoint, ClimbLevel, ClimbResult } from './types';
+import type { PathWaypoint, ClimbLevel, ClimbResult, ClimbLocation } from './types';
 import { getFuelOptions, CLIMB_LEVELS } from './constants';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -39,9 +39,12 @@ export interface PendingWaypointPopupProps {
     skipClimbOutcomeSelection?: boolean;
 
     // Teleop climb level (optional - only Teleop uses this)
+    climbWithLocation?: boolean;
     climbWithLevels?: boolean;
     climbLevel?: ClimbLevel;
-    onClimbLevelSelect?: (level: ClimbLevel) => void;
+    onClimbLevelSelect?: (level: ClimbLevel | undefined) => void;
+    climbLocation?: ClimbLocation;
+    onClimbLocationSelect?: (location: ClimbLocation | undefined) => void;
 
     // Actions
     onConfirm: (climbStartTimeSecRemaining?: number | null) => void;
@@ -65,13 +68,17 @@ export function PendingWaypointPopup({
     onClimbResultSelect,
     allowClimbFail = true,
     skipClimbOutcomeSelection = false,
+    climbWithLocation = false,
     climbWithLevels = false,
     climbLevel,
     onClimbLevelSelect,
+    climbLocation,
+    onClimbLocationSelect,
     onConfirm,
     onCancel,
 }: PendingWaypointPopupProps) {
     const isClimb = pendingWaypoint.type === 'climb';
+    const requiresClimbLocation = climbWithLocation || climbWithLevels;
     const fuelOptions = getFuelOptions(robotCapacity);
     const [climbStartTimeSecRemaining, setClimbStartTimeSecRemaining] = useState<number | null>(
         pendingWaypoint.climbStartTimeSecRemaining ?? null
@@ -101,12 +108,18 @@ export function PendingWaypointPopup({
     }, [isClimb, pendingWaypoint.id]);
 
     // Determine if confirm is enabled
+    const hasRequiredClimbSelection = climbWithLevels
+        ? climbLocation !== undefined && climbLevel !== undefined && climbResult !== null
+        : (requiresClimbLocation
+            ? climbLocation !== undefined && climbResult !== null
+            : climbResult !== null);
+
     const canConfirm = isClimb
         ? (isSelectingClimbTime
             ? climbStartTimeSecRemaining !== null
             : (skipClimbOutcomeSelection
                 ? climbStartTimeSecRemaining !== null
-                : (climbStartTimeSecRemaining !== null && (climbWithLevels ? climbLevel !== undefined && climbResult !== null : climbResult !== null))))
+                : (climbStartTimeSecRemaining !== null && hasRequiredClimbSelection)))
         : accumulatedFuel > 0;
 
     return (
@@ -135,8 +148,12 @@ export function PendingWaypointPopup({
                                 ? (isSelectingClimbTime
                                     ? 'Select Climb Start Time'
                                     : (climbWithLevels
-                                        ? (climbLevel ? `L${climbLevel} - Select Outcome` : 'Select Level')
-                                        : 'Climb Outcome'))
+                                        ? (!climbLocation
+                                            ? 'Select Climb Location'
+                                            : (climbLevel ? `L${climbLevel} - Select Outcome` : 'Select Level'))
+                                        : (requiresClimbLocation
+                                            ? (!climbLocation ? 'Select Climb Location' : 'Climb Outcome')
+                                            : 'Climb Outcome')))
                                 : (accumulatedFuel > 0 ? `Total: +${accumulatedFuel}` : 'Select Amount')}
                         </CardTitle>
                     </div>
@@ -191,6 +208,24 @@ export function PendingWaypointPopup({
                                     />
                                 </div>
 
+                            </div>
+                        ) : requiresClimbLocation && !climbLocation ? (
+                            // Teleop: Location selection first
+                            <div className="grid grid-cols-2 gap-3 p-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => onClimbLocationSelect?.('side')}
+                                    className="h-16 flex flex-col gap-1 items-center justify-center border-2 transition-all rounded-xl hover:bg-blue-500/20 hover:border-blue-400"
+                                >
+                                    <span className="font-bold text-lg">Side</span>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => onClimbLocationSelect?.('middle')}
+                                    className="h-16 flex flex-col gap-1 items-center justify-center border-2 transition-all rounded-xl hover:bg-blue-500/20 hover:border-blue-400"
+                                >
+                                    <span className="font-bold text-lg">Middle</span>
+                                </Button>
                             </div>
                         ) : climbWithLevels && !climbLevel ? (
                             // Teleop: Level selection first
@@ -279,7 +314,19 @@ export function PendingWaypointPopup({
                                 variant="secondary"
                                 size="icon"
                                 className="h-12 w-12 rounded-full border-2"
-                                onClick={() => setIsSelectingClimbTime(true)}
+                                onClick={() => {
+                                    if (climbWithLevels) {
+                                        if (climbLevel) {
+                                            onClimbLevelSelect?.(undefined);
+                                            return;
+                                        }
+                                    }
+                                    if (requiresClimbLocation && climbLocation) {
+                                        onClimbLocationSelect?.(undefined);
+                                        return;
+                                    }
+                                    setIsSelectingClimbTime(true);
+                                }}
                             >
                                 <ArrowLeft className="h-6 w-6" />
                             </Button>

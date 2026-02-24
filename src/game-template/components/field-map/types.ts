@@ -25,6 +25,7 @@ export type ZoneType = 'allianceZone' | 'neutralZone' | 'opponentZone';
 
 export type ClimbLevel = 1 | 2 | 3;
 export type ClimbResult = 'success' | 'fail';
+export type ClimbLocation = 'side' | 'middle';
 export type ShotType = 'onTheMove' | 'stationary';
 
 // =============================================================================
@@ -44,6 +45,7 @@ export interface PathWaypoint {
     zone?: ZoneType;
     climbLevel?: ClimbLevel;
     climbResult?: ClimbResult;
+    climbLocation?: ClimbLocation;
     shotType?: ShotType;
     climbStartTimeSecRemaining?: number | null;
     duration?: number; // For stuck events (ms)

@@ -197,6 +197,11 @@ export const gameDataTransformation: DataTransformation = {
             if (typeof wp.climbStartTimeSecRemaining === 'number') {
               result.auto.autoClimbStartTimeSecRemaining = wp.climbStartTimeSecRemaining;
             }
+            if (wp.climbLocation === 'side') {
+              result.auto.autoClimbFromSide = true;
+            } else if (wp.climbLocation === 'middle') {
+              result.auto.autoClimbFromMiddle = true;
+            }
             if (wp.action === 'climb-success') {
               result.auto.autoClimbL1 = true;
             }
@@ -240,11 +245,16 @@ export const gameDataTransformation: DataTransformation = {
             result.teleop.fuelPassedCount = (result.teleop.fuelPassedCount || 0) + Math.abs(wp.fuelDelta || 0);
             break;
           case 'climb': {
-            // Track climb level and outcome in endgame section
+            // Track climb level, location, and outcome in endgame section
             if (typeof wp.climbStartTimeSecRemaining === 'number') {
               result.teleop.teleopClimbStartTimeSecRemaining = wp.climbStartTimeSecRemaining;
             }
             const level = [1, 2, 3].includes(wp.climbLevel) ? wp.climbLevel : 1;
+            if (wp.climbLocation === 'side') {
+              result.endgame.climbFromSide = true;
+            } else if (wp.climbLocation === 'middle') {
+              result.endgame.climbFromMiddle = true;
+            }
             if (wp.climbResult === 'success') {
               result.endgame[`climbL${level}`] = true;
             } else if (wp.climbResult === 'fail') {

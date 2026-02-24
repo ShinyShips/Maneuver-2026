@@ -52,6 +52,8 @@ export interface GameData {
         foulCommittedCount?: number;
         // Auto toggles
         autoClimbL1?: boolean;
+        autoClimbFromSide?: boolean;
+        autoClimbFromMiddle?: boolean;
         // Climb timing
         autoClimbStartTimeSecRemaining?: number | null;
         [key: string]: unknown;
@@ -81,6 +83,8 @@ export interface GameData {
         climbL1?: boolean;
         climbL2?: boolean;
         climbL3?: boolean;
+        climbFromSide?: boolean;
+        climbFromMiddle?: boolean;
         // Status
         climbFailed?: boolean;
         

@@ -106,6 +106,86 @@ function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+}
+
+function chooseClimbLocation(skillLevel: string, phase: 'auto' | 'teleop'): 'side' | 'middle' {
+    const sideChanceBySkill = phase === 'auto'
+        ? { elite: 0.72, strong: 0.64, average: 0.55, developing: 0.48 }
+        : { elite: 0.78, strong: 0.7, average: 0.6, developing: 0.52 };
+    const sideChance = sideChanceBySkill[skillLevel as keyof typeof sideChanceBySkill] ?? 0.55;
+    return Math.random() < sideChance ? 'side' : 'middle';
+}
+
+function sampleAutoClimbStartSec(skillLevel: string): number {
+    const baseBySkill = { elite: 4, strong: 6, average: 8, developing: 9 };
+    const rushedChanceBySkill = { elite: 0.1, strong: 0.14, average: 0.2, developing: 0.28 };
+    const cautiousChanceBySkill = { elite: 0.16, strong: 0.18, average: 0.2, developing: 0.25 };
+
+    const base = baseBySkill[skillLevel as keyof typeof baseBySkill] ?? 8;
+    let startSec = base + randomInt(-2, 2);
+
+    if (Math.random() < (rushedChanceBySkill[skillLevel as keyof typeof rushedChanceBySkill] ?? 0.2)) {
+        startSec -= randomInt(2, 4);
+    }
+    if (Math.random() < (cautiousChanceBySkill[skillLevel as keyof typeof cautiousChanceBySkill] ?? 0.2)) {
+        startSec += randomInt(1, 3);
+    }
+
+    return clamp(startSec, 0, 20);
+}
+
+function maxTeleopClimbLevelForTime(startSec: number): 0 | 1 | 2 | 3 {
+    if (startSec >= 26) return 3;
+    if (startSec >= 14) return 2;
+    if (startSec >= 8) return 1;
+    return 0;
+}
+
+type TeleopClimbBuildStyle = 'l1-only' | 'l3-focused';
+
+function chooseTeleopClimbBuildStyle(skillLevel: string): TeleopClimbBuildStyle {
+    const l3FocusChanceBySkill = {
+        elite: 0.82,
+        strong: 0.64,
+        average: 0.3,
+        developing: 0.14,
+    } as const;
+
+    const l3FocusChance = l3FocusChanceBySkill[skillLevel as keyof typeof l3FocusChanceBySkill] ?? 0.35;
+    return Math.random() < l3FocusChance ? 'l3-focused' : 'l1-only';
+}
+
+function sampleTeleopClimbStartSecForStyle(skillLevel: string, style: TeleopClimbBuildStyle): number {
+    const baseBySkillAndStyle = {
+        'l1-only': { elite: 14, strong: 18, average: 23, developing: 29 },
+        'l3-focused': { elite: 23, strong: 31, average: 40, developing: 48 },
+    } as const;
+
+    const rushedChanceBySkill = { elite: 0.08, strong: 0.12, average: 0.18, developing: 0.26 };
+    const cautiousChanceBySkill = style === 'l3-focused'
+        ? { elite: 0.26, strong: 0.3, average: 0.34, developing: 0.36 }
+        : { elite: 0.14, strong: 0.16, average: 0.2, developing: 0.24 };
+
+    const base = baseBySkillAndStyle[style][skillLevel as keyof (typeof baseBySkillAndStyle)[TeleopClimbBuildStyle]]
+        ?? (style === 'l3-focused' ? 38 : 24);
+    let startSec = base + randomInt(-6, 6);
+
+    if (style === 'l3-focused' && skillLevel === 'elite' && Math.random() < 0.35) {
+        startSec -= randomInt(5, 11);
+    }
+
+    if (Math.random() < (rushedChanceBySkill[skillLevel as keyof typeof rushedChanceBySkill] ?? 0.16)) {
+        startSec -= randomInt(4, 10);
+    }
+    if (Math.random() < (cautiousChanceBySkill[skillLevel as keyof typeof cautiousChanceBySkill] ?? 0.22)) {
+        startSec += randomInt(3, 10);
+    }
+
+    return clamp(startSec, 0, 135);
+}
+
 function pickShotType(phase: 'auto' | 'teleop', skillLevel: string): 'onTheMove' | 'stationary' {
     if (phase === 'auto') {
         const movingChanceBySkill: Record<string, number> = {
@@ -359,12 +439,55 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     }
 
     // =========================================================================
-    // Robot Status (Toggles)
+    // Climbing Simulation (start time + location + outcome)
     // =========================================================================
+
     const autoRobotStatus: Record<string, boolean> = {
-        // Auto climb L1 (15 pts) - elite teams sometimes do this
-        autoClimbL1: profile.skillLevel === 'elite' && Math.random() < 0.2,
+        autoClimbL1: false,
     };
+
+    const autoClimbAttemptChanceBySkill = {
+        elite: 0.38,
+        strong: 0.26,
+        average: 0.16,
+        developing: 0.09,
+    } as const;
+    const autoClimbSuccessBaseBySkill = {
+        elite: 0.9,
+        strong: 0.76,
+        average: 0.58,
+        developing: 0.42,
+    } as const;
+
+    let autoAttemptChance: number = autoClimbAttemptChanceBySkill[profile.skillLevel] ?? 0.15;
+    if (isPlayoff) autoAttemptChance = Math.min(0.55, autoAttemptChance + 0.05);
+
+    if (Math.random() < autoAttemptChance) {
+        const startSec = sampleAutoClimbStartSec(profile.skillLevel);
+        const climbLocation = chooseClimbLocation(profile.skillLevel, 'auto');
+        let successChance: number = autoClimbSuccessBaseBySkill[profile.skillLevel] ?? 0.6;
+
+        if (startSec <= 2) successChance -= 0.35;
+        else if (startSec <= 4) successChance -= 0.2;
+        else if (startSec <= 6) successChance -= 0.08;
+        else if (startSec >= 10) successChance += 0.05;
+
+        successChance = clamp(successChance * (0.9 + profile.consistency * 0.2), 0.1, 0.98);
+        const autoClimbSuccess = Math.random() < successChance;
+
+        autoActions.push({
+            type: 'climb',
+            action: autoClimbSuccess ? 'climb-success' : 'climb-fail',
+            timestamp: Date.now() + randomInt(12000, 19500),
+            position: jitter(POSITIONS.tower, 0.02),
+            climbResult: autoClimbSuccess ? 'success' : 'fail',
+            climbLocation,
+            climbStartTimeSecRemaining: startSec,
+            amountLabel: `${climbLocation === 'side' ? 'Side' : 'Middle'} ${autoClimbSuccess ? 'Succeeded' : 'Failed'}`,
+        });
+
+        autoRobotStatus.autoClimbL1 = autoClimbSuccess;
+    }
 
     const teleopRobotStatus: Record<string, boolean> = {
         // Defense play
@@ -382,24 +505,73 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
         climbFailed: false,
     };
 
-    // Determine climb level based on skill and endgame success
-    const endgameRoll = Math.random();
+    const teleopClimbAttemptChanceBySkill = {
+        elite: 0.97,
+        strong: 0.9,
+        average: 0.78,
+        developing: 0.62,
+    } as const;
 
-    if (endgameRoll < profile.endgameSuccess) {
-        // Successful climb - pick level based on skill
-        if (profile.skillLevel === 'elite' && Math.random() < 0.7) {
-            // Elite teams often go for level 3
-            endgameRobotStatus.climbL3 = true;
-        } else if (profile.skillLevel === 'strong' || (profile.skillLevel === 'elite' && Math.random() < 0.9)) {
-            // Strong teams usually level 2
-            endgameRobotStatus.climbL2 = true;
+    let teleopAttemptChance: number = teleopClimbAttemptChanceBySkill[profile.skillLevel] ?? 0.75;
+    if (isPlayoff) teleopAttemptChance = Math.min(0.99, teleopAttemptChance + 0.03);
+
+    if (Math.random() < teleopAttemptChance) {
+        const buildStyle = chooseTeleopClimbBuildStyle(profile.skillLevel);
+        const climbStartTimeSecRemaining = sampleTeleopClimbStartSecForStyle(profile.skillLevel, buildStyle);
+        const climbLocation = chooseClimbLocation(profile.skillLevel, 'teleop');
+        const desiredLevel: 1 | 3 = buildStyle === 'l3-focused' ? 3 : 1;
+        const maxLevelByTime = maxTeleopClimbLevelForTime(climbStartTimeSecRemaining);
+        let achievedLevel: 1 | 2 | 3 = desiredLevel;
+        let overreachingLevel = false;
+
+        if (buildStyle === 'l1-only') {
+            achievedLevel = 1;
         } else {
-            // Average/developing teams go for level 1
-            endgameRobotStatus.climbL1 = true;
+            if (maxLevelByTime >= 3) {
+                achievedLevel = 3;
+            } else if (maxLevelByTime === 2) {
+                // Rarely settle for L2; most L3-focused teams still attempt L3 and risk failure
+                if (Math.random() < 0.14) {
+                    achievedLevel = 2;
+                } else {
+                    achievedLevel = 3;
+                    overreachingLevel = true;
+                }
+            } else {
+                achievedLevel = 3;
+                overreachingLevel = true;
+            }
         }
-    } else {
-        // Failed climb
-        endgameRobotStatus.climbFailed = true;
+
+        let successChance = profile.endgameSuccess;
+        successChance += buildStyle === 'l1-only' ? 0.08 : -0.03;
+        successChance -= (achievedLevel - 1) * 0.07;
+        if (overreachingLevel) successChance -= 0.18;
+        if (climbStartTimeSecRemaining <= 5) successChance -= 0.28;
+        else if (climbStartTimeSecRemaining <= 8) successChance -= 0.16;
+        else if (climbStartTimeSecRemaining <= 12) successChance -= 0.08;
+        successChance = clamp(successChance * (0.9 + profile.consistency * 0.2), 0.05, 0.98);
+
+        const canAttemptAtAll = maxLevelByTime > 0;
+        const climbSuccess = canAttemptAtAll && Math.random() < successChance;
+
+        teleopActions.push({
+            type: 'climb',
+            action: climbSuccess ? `climbL${achievedLevel}` : 'climb-fail',
+            timestamp: Date.now() + randomInt(85000, 130000),
+            position: jitter(POSITIONS.tower, 0.02),
+            climbLevel: achievedLevel,
+            climbResult: climbSuccess ? 'success' : 'fail',
+            climbLocation,
+            climbStartTimeSecRemaining,
+            amountLabel: `${climbLocation === 'side' ? 'Side' : 'Middle'} L${achievedLevel} ${climbSuccess ? '✓' : '✗'}`,
+        });
+
+        if (climbSuccess) {
+            endgameRobotStatus[`climbL${achievedLevel}`] = true;
+        } else {
+            endgameRobotStatus.climbFailed = true;
+        }
     }
 
     // Active phase roles (multi-select) - favor passer role if isPasser

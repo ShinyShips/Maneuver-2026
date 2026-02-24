@@ -25,6 +25,11 @@ const percent = (count: number, total: number): number =>
 
 const val = (n: number | unknown): number => (typeof n === 'number' ? n : 0);
 
+const avg = (values: number[]): number => {
+    if (values.length === 0) return 0;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
 const START_POSITION_LABELS = ['Left Trench', 'Left Bump', 'Hub', 'Right Bump', 'Right Trench'];
 
 const getStartPositionIndex = (positionLabel?: string): number => {
@@ -100,6 +105,11 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
 
     // Auto climb (new for 2026!)
     const autoClimbCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbL1 === true).length;
+    const autoClimbFromSideCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbFromSide === true).length;
+    const autoClimbFromMiddleCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbFromMiddle === true).length;
+    const autoClimbStartTimes = teamMatches
+        .map(m => m.gameData?.auto?.autoClimbStartTimeSecRemaining)
+        .filter((time): time is number => typeof time === 'number');
 
     // Starting positions
     const startPositions = calculateStartPositions(teamMatches, matchCount);
@@ -159,13 +169,40 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const climbL1Count = teamMatches.filter(m => m.gameData?.endgame?.climbL1 === true).length;
     const climbL2Count = teamMatches.filter(m => m.gameData?.endgame?.climbL2 === true).length;
     const climbL3Count = teamMatches.filter(m => m.gameData?.endgame?.climbL3 === true).length;
+    const hasAttemptAtLevel = (match: ScoutingEntry, level: 1 | 2 | 3): boolean => {
+        const endgame = match.gameData?.endgame as Record<string, unknown> | undefined;
+        if (endgame?.[`climbAttemptL${level}`] === true) return true;
+        if (endgame?.[`climbL${level}`] === true) return true;
+
+        const teleopPath = match.gameData?.teleop?.teleopPath;
+        if (Array.isArray(teleopPath)) {
+            return teleopPath.some((waypoint) => {
+                if (!waypoint || typeof waypoint !== 'object') return false;
+                const record = waypoint as Record<string, unknown>;
+                return record.type === 'climb' && record.climbLevel === level;
+            });
+        }
+
+        return false;
+    };
+    const climbAttemptL1Count = teamMatches.filter(m => hasAttemptAtLevel(m, 1)).length;
+    const climbAttemptL2Count = teamMatches.filter(m => hasAttemptAtLevel(m, 2)).length;
+    const climbAttemptL3Count = teamMatches.filter(m => hasAttemptAtLevel(m, 3)).length;
+    const climbFromSideCount = teamMatches.filter(m => m.gameData?.endgame?.climbFromSide === true).length;
+    const climbFromMiddleCount = teamMatches.filter(m => m.gameData?.endgame?.climbFromMiddle === true).length;
+    const endgameClimbLocationAttemptCount = climbFromSideCount + climbFromMiddleCount;
     const climbFailedCount = teamMatches.filter(m => m.gameData?.endgame?.climbFailed === true).length;
     const climbSuccessCount = climbL1Count + climbL2Count + climbL3Count;
+    const levelAttemptCount = climbAttemptL1Count + climbAttemptL2Count + climbAttemptL3Count;
+    const teleopClimbAttemptCount = Math.max(levelAttemptCount, climbSuccessCount + climbFailedCount, endgameClimbLocationAttemptCount);
     const usedTrenchInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedTrenchInTeleop === true).length;
     const usedBumpInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedBumpInTeleop === true).length;
     const passedToAllianceFromNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromNeutral === true).length;
     const passedToAllianceFromOpponentCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromOpponent === true).length;
     const passedToNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToNeutral === true).length;
+    const teleopClimbStartTimes = teamMatches
+        .map(m => m.gameData?.teleop?.teleopClimbStartTimeSecRemaining)
+        .filter((time): time is number => typeof time === 'number');
     const brokeDownCount = teamMatches.filter(m =>
         val(m.gameData?.auto?.brokenDownCount) > 0 || val(m.gameData?.teleop?.brokenDownCount) > 0
     ).length;
@@ -249,6 +286,9 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const maxInactiveCount = Math.max(...inactiveRoles.map(r => r.count));
     const topInactiveRoles = inactiveRoles.filter(r => r.count === maxInactiveCount && r.count > 0);
     const primaryInactiveRole = topInactiveRoles.length > 0 ? topInactiveRoles.map(r => r.name).join(' / ') : 'None';
+
+    const autoClimbLocationAttemptCount = autoClimbFromSideCount + autoClimbFromMiddleCount;
+    const autoClimbAttemptCount = Math.max(autoClimbCount, autoClimbLocationAttemptCount);
 
     // ============================================================================
     // RAW VALUES (for UI aggregation: average, max, 75th percentile, etc.)
@@ -400,16 +440,26 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         fuelAutoOPR: 0,
         fuelTeleopOPR: 0,
         fuelTotalOPR: 0,
+        avgAutoClimbStartTimeSec: round(avg(autoClimbStartTimes)),
+        avgTeleopClimbStartTimeSec: round(avg(teleopClimbStartTimes)),
         autoShotOnTheMoveRate: percent(autoShotOnTheMoveTotal, autoShotTypeTotal),
         autoShotStationaryRate: percent(autoShotStationaryTotal, autoShotTypeTotal),
         teleopShotOnTheMoveRate: percent(teleopShotOnTheMoveTotal, teleopShotTypeTotal),
         teleopShotStationaryRate: percent(teleopShotStationaryTotal, teleopShotTypeTotal),
-        autoClimbRate: percent(autoClimbCount, matchCount),
-        autoClimbAttempts: autoClimbCount,
-        climbL1Rate: percent(climbL1Count, matchCount),
-        climbL2Rate: percent(climbL2Count, matchCount),
-        climbL3Rate: percent(climbL3Count, matchCount),
-        climbSuccessRate: percent(climbSuccessCount, matchCount),
+        autoClimbRate: percent(autoClimbCount, autoClimbAttemptCount),
+        autoClimbFromSideRate: percent(autoClimbFromSideCount, autoClimbLocationAttemptCount),
+        autoClimbFromMiddleRate: percent(autoClimbFromMiddleCount, autoClimbLocationAttemptCount),
+        autoClimbAttempts: autoClimbAttemptCount,
+        climbAttempts: teleopClimbAttemptCount,
+        climbL1Rate: percent(climbL1Count, climbAttemptL1Count),
+        climbL1Attempts: climbAttemptL1Count,
+        climbL2Rate: percent(climbL2Count, climbAttemptL2Count),
+        climbL2Attempts: climbAttemptL2Count,
+        climbL3Rate: percent(climbL3Count, climbAttemptL3Count),
+        climbL3Attempts: climbAttemptL3Count,
+        climbFromSideRate: percent(climbFromSideCount, endgameClimbLocationAttemptCount),
+        climbFromMiddleRate: percent(climbFromMiddleCount, endgameClimbLocationAttemptCount),
+        climbSuccessRate: percent(climbSuccessCount, teleopClimbAttemptCount),
         brokeDownCount,
         noShowCount,
         accuracyAllRate: percent(accuracyAllCount, matchCount),
@@ -453,6 +503,8 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
             avgGamePiece2: round(autoFuelPassedTotal / matchCount), // Auto passed
             mobilityRate: 0, // Not applicable in 2026
             autoClimbRate: percent(autoClimbCount, matchCount),
+            autoClimbFromSideRate: percent(autoClimbFromSideCount, matchCount),
+            autoClimbFromMiddleRate: percent(autoClimbFromMiddleCount, matchCount),
             avgFuelScored: round(autoFuelTotal / matchCount),
             shotOnTheMoveRate: percent(autoShotOnTheMoveTotal, autoShotTypeTotal),
             shotStationaryRate: percent(autoShotStationaryTotal, autoShotTypeTotal),
@@ -487,22 +539,28 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         endgame: {
             avgPoints: round(totalEndgamePoints / matchCount),
             // Climb rates
-            climbL1Rate: percent(climbL1Count, matchCount),
-            climbL2Rate: percent(climbL2Count, matchCount),
-            climbL3Rate: percent(climbL3Count, matchCount),
-            climbSuccessRate: percent(climbSuccessCount, matchCount),
-            climbFailedRate: percent(climbFailedCount, matchCount),
+            climbL1Rate: percent(climbL1Count, climbAttemptL1Count),
+            climbL2Rate: percent(climbL2Count, climbAttemptL2Count),
+            climbL3Rate: percent(climbL3Count, climbAttemptL3Count),
+            climbAttempts: teleopClimbAttemptCount,
+            climbL1Attempts: climbAttemptL1Count,
+            climbL2Attempts: climbAttemptL2Count,
+            climbL3Attempts: climbAttemptL3Count,
+            climbFromSideRate: percent(climbFromSideCount, endgameClimbLocationAttemptCount),
+            climbFromMiddleRate: percent(climbFromMiddleCount, endgameClimbLocationAttemptCount),
+            climbSuccessRate: percent(climbSuccessCount, teleopClimbAttemptCount),
+            climbFailedRate: percent(climbFailedCount, teleopClimbAttemptCount),
             // Legacy compatibility aliases
-            climbRate: percent(climbSuccessCount, matchCount),
+            climbRate: percent(climbSuccessCount, teleopClimbAttemptCount),
             parkRate: 0, // Not applicable in 2026
-            shallowClimbRate: percent(climbL1Count, matchCount),
-            deepClimbRate: percent(climbL3Count, matchCount),
-            option1Rate: percent(climbL1Count, matchCount),
-            option2Rate: percent(climbL2Count, matchCount),
-            option3Rate: percent(climbL3Count, matchCount),
+            shallowClimbRate: percent(climbL1Count, climbAttemptL1Count),
+            deepClimbRate: percent(climbL3Count, climbAttemptL3Count),
+            option1Rate: percent(climbL1Count, climbAttemptL1Count),
+            option2Rate: percent(climbL2Count, climbAttemptL2Count),
+            option3Rate: percent(climbL3Count, climbAttemptL3Count),
             option4Rate: 0,
             option5Rate: 0,
-            toggle1Rate: percent(climbFailedCount, matchCount),
+            toggle1Rate: percent(climbFailedCount, teleopClimbAttemptCount),
             toggle2Rate: 0, // Removed noClimb - can be inferred
             usedTrenchInTeleopRate: percent(usedTrenchInTeleopCount, matchCount),
             usedBumpInTeleopRate: percent(usedBumpInTeleopCount, matchCount),
@@ -568,6 +626,9 @@ function getEmptyStats(): Omit<TeamStats, 'teamNumber' | 'eventKey'> {
             avgGamePiece1: 0,
             avgGamePiece2: 0,
             mobilityRate: 0,
+            autoClimbRate: 0,
+            autoClimbFromSideRate: 0,
+            autoClimbFromMiddleRate: 0,
             startPositions: [],
         },
         teleop: {
@@ -581,6 +642,8 @@ function getEmptyStats(): Omit<TeamStats, 'teamNumber' | 'eventKey'> {
             parkRate: 0,
             shallowClimbRate: 0,
             deepClimbRate: 0,
+            climbFromSideRate: 0,
+            climbFromMiddleRate: 0,
         },
         rawValues: {
             totalPoints: [],
@@ -599,6 +662,13 @@ function getEmptyStats(): Omit<TeamStats, 'teamNumber' | 'eventKey'> {
         fuelAutoOPR: 0,
         fuelTeleopOPR: 0,
         fuelTotalOPR: 0,
+        avgAutoClimbStartTimeSec: 0,
+        avgTeleopClimbStartTimeSec: 0,
+        autoClimbAttempts: 0,
+        climbAttempts: 0,
+        climbL1Attempts: 0,
+        climbL2Attempts: 0,
+        climbL3Attempts: 0,
         autoShotOnTheMoveRate: 0,
         autoShotStationaryRate: 0,
         teleopShotOnTheMoveRate: 0,
