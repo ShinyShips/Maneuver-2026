@@ -10,7 +10,10 @@ import { Button } from "@/core/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/core/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/animate-ui/radix/tabs";
 import { Eye } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { ConfiguredStatsSections } from "@/core/components/team-stats";
 import type { TeamStats } from '@/core/types/team-stats';
+import { strategyAnalysis } from "@/game-template/analysis";
 
 interface TeamStatsDialogProps {
     teamNumber: string | number;
@@ -32,7 +35,7 @@ export function TeamStatsDialog({
     className = ""
 }: TeamStatsDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState("overall");
+    const [activeTab, setActiveTab] = useState("overview");
 
     if (!teamStats) {
         return (
@@ -42,10 +45,12 @@ export function TeamStatsDialog({
         );
     }
 
-    const auto = teamStats.auto;
-    const teleop = teamStats.teleop;
-    const endgame = teamStats.endgame;
-    const overall = teamStats.overall;
+    const statSections = strategyAnalysis.getStatSections();
+    const rateSections = strategyAnalysis.getRateSections();
+    const overviewStatSections = statSections.filter((section) => section.tab === 'overview');
+    const scoringStatSections = statSections.filter((section) => section.tab === 'scoring');
+    const overviewRateSections = rateSections.filter((section) => section.tab === 'overview');
+    const performanceRateSections = rateSections.filter((section) => section.tab === 'performance');
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -67,136 +72,70 @@ export function TeamStatsDialog({
                 >
                     <Tabs value={activeTab} onValueChange={setActiveTab} enableSwipe className="w-full h-full flex flex-col">
                         <TabsList className="grid w-full grid-cols-4 shrink-0">
-                            <TabsTrigger value="overall">Overall</TabsTrigger>
+                            <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="scoring">Scoring</TabsTrigger>
+                            <TabsTrigger value="performance">Performance</TabsTrigger>
                             <TabsTrigger value="auto">Auto</TabsTrigger>
-                            <TabsTrigger value="teleop">Teleop</TabsTrigger>
-                            <TabsTrigger value="endgame">Endgame</TabsTrigger>
                         </TabsList>
 
                         <div className="flex-1 overflow-y-auto px-0 mt-4">
-                            <TabsContent value="overall" className="space-y-4 h-full mt-0">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <h4 className="font-semibold mb-3">Scoring Summary</h4>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between">
-                                                <span>Avg Total Points:</span>
-                                                <span className="font-bold text-blue-600">{overall?.avgTotalPoints || 0}</span>
-                                            </div>
-                                            {/* Dynamically render action averages from overall stats */}
-                                            {overall && Object.entries(overall as Record<string, unknown>)
-                                                .filter(([key]) => key.startsWith('avg') && key !== 'avgTotalPoints' && key !== 'avgGamePiece1' && key !== 'avgGamePiece2')
-                                                .map(([key, value]) => (
-                                                    <div key={key} className="flex justify-between">
-                                                        <span>{key.replace('avg', 'Avg ').replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                                        <span className="font-bold">{typeof value === 'number' ? value : 0}</span>
-                                                    </div>
-                                                ))
-                                            }
-                                            <div className="flex justify-between pt-2 border-t">
-                                                <span className="font-semibold">Matches Played:</span>
-                                                <span className="font-bold text-orange-600">{teamStats.matchCount}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold mb-3">Performance Rates</h4>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between">
-                                                <span>Climb Rate:</span>
-                                                <span className="font-bold text-purple-600">{endgame?.climbRate || 0}%</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Mobility Rate:</span>
-                                                <span className="font-bold text-blue-600">{auto?.mobilityRate || 0}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <TabsContent value="overview" className="space-y-4 h-full mt-0">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <Card>
+                                        <CardContent className="pt-4">
+                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Matches Played</div>
+                                            <div className="text-2xl font-semibold text-orange-600">{teamStats.matchCount || 0}</div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardContent className="pt-4">
+                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Avg Total Points</div>
+                                            <div className="text-2xl font-semibold text-blue-600">{teamStats.overall?.avgTotalPoints ?? 0}</div>
+                                        </CardContent>
+                                    </Card>
                                 </div>
+                                <ConfiguredStatsSections
+                                    teamStats={teamStats}
+                                    statSections={overviewStatSections}
+                                    rateSections={overviewRateSections}
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="scoring" className="space-y-4 h-full mt-0">
+                                <ConfiguredStatsSections
+                                    teamStats={teamStats}
+                                    statSections={scoringStatSections}
+                                    emptyMessage="No detailed stats available for scoring."
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="performance" className="space-y-4 h-full mt-0">
+                                <ConfiguredStatsSections
+                                    teamStats={teamStats}
+                                    rateSections={performanceRateSections}
+                                    emptyMessage="No rate metrics available for performance."
+                                />
                             </TabsContent>
 
                             <TabsContent value="auto" className="space-y-4 h-full mt-0">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <h4 className="font-semibold mb-3">Auto Scoring</h4>
+                                <Card>
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="text-base">Starting Positions</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
                                         <div className="space-y-2">
-                                            <div className="flex justify-between">
-                                                <span>Avg Points:</span>
-                                                <span className="font-bold text-blue-600">{auto?.avgPoints || 0}</span>
-                                            </div>
-                                            {/* Dynamically render action averages */}
-                                            {auto && Object.entries(auto as Record<string, unknown>)
-                                                .filter(([key]) => key.startsWith('avg') && key !== 'avgPoints' && key !== 'avgGamePiece1' && key !== 'avgGamePiece2')
-                                                .map(([key, value]) => (
-                                                    <div key={key} className="flex justify-between">
-                                                        <span>{key.replace('avg', 'Avg ').replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                                        <span className="font-bold">{typeof value === 'number' ? value : 0}</span>
-                                                    </div>
-                                                ))
-                                            }
-                                            <div className="flex justify-between pt-2 border-t">
-                                                <span>Mobility Rate:</span>
-                                                <span className="font-bold text-green-600">{auto?.mobilityRate || 0}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold mb-3">Starting Positions</h4>
-                                        <div className="space-y-2">
-                                            {auto?.startPositions?.map(pos => (
-                                                <div key={pos.position} className="flex justify-between">
-                                                    <span>{pos.position}:</span>
-                                                    <span className="font-bold">{pos.percentage}%</span>
+                                            {teamStats.auto?.startPositions?.map((pos) => (
+                                                <div key={pos.position} className="flex justify-between rounded border p-2">
+                                                    <span>{pos.position}</span>
+                                                    <span className="font-semibold">{pos.percentage}%</span>
                                                 </div>
                                             ))}
-                                            {(!auto?.startPositions || auto.startPositions.length === 0) && (
-                                                <div className="text-muted-foreground">No position data</div>
+                                            {(!teamStats.auto?.startPositions || teamStats.auto.startPositions.length === 0) && (
+                                                <div className="text-muted-foreground text-sm">No position data available.</div>
                                             )}
                                         </div>
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="teleop" className="space-y-4 h-full mt-0">
-                                <div>
-                                    <h4 className="font-semibold mb-3">Teleop Scoring</h4>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between">
-                                            <span>Avg Points:</span>
-                                            <span className="font-bold text-purple-600">{teleop?.avgPoints || 0}</span>
-                                        </div>
-                                        {/* Dynamically render action averages */}
-                                        {teleop && Object.entries(teleop as Record<string, unknown>)
-                                            .filter(([key]) => key.startsWith('avg') && key !== 'avgPoints' && key !== 'avgGamePiece1' && key !== 'avgGamePiece2')
-                                            .map(([key, value]) => (
-                                                <div key={key} className="flex justify-between">
-                                                    <span>{key.replace('avg', 'Avg ').replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                                    <span className="font-bold">{typeof value === 'number' ? value : 0}</span>
-                                                </div>
-                                            ))
-                                        }
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="endgame" className="space-y-4 h-full mt-0">
-                                <div>
-                                    <h4 className="font-semibold mb-3">Endgame Performance</h4>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between">
-                                            <span>Avg Points:</span>
-                                            <span className="font-bold text-blue-600">{endgame?.avgPoints || 0}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Climb Rate:</span>
-                                            <span className="font-bold text-purple-600">{endgame?.climbRate || 0}%</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Park Rate:</span>
-                                            <span className="font-bold text-gray-600">{endgame?.parkRate || 0}%</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
                         </div>
                     </Tabs>
