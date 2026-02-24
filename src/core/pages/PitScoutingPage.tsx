@@ -22,10 +22,8 @@ import { useGame } from "@/core/contexts/GameContext";
 import type { PitAssignment } from "@/core/lib/pitAssignmentTypes";
 import {
   getPitAssignmentMeta,
-  loadPitAssignmentsForEvent,
   loadMyPitAssignments,
   markPitAssignmentCompleted,
-  normalizeScoutName,
 } from "@/core/lib/pitAssignmentTransfer";
 import { Save, AlertCircle, CheckCircle } from "lucide-react";
 
