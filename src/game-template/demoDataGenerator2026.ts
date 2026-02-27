@@ -110,6 +110,27 @@ function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
 }
 
+function sampleSkewedInt(min: number, max: number, skewPower = 1): number {
+    const u = Math.random();
+    const skewed = Math.pow(u, skewPower);
+    return Math.floor(min + skewed * (max - min + 1));
+}
+
+function parseMatchOrdinal(matchKey: string): number {
+    const normalized = matchKey.toLowerCase();
+    const qm = normalized.match(/qm(\d+)/);
+    if (qm && qm[1]) {
+        return Number.parseInt(qm[1], 10);
+    }
+
+    const fallback = normalized.match(/(\d+)$/);
+    if (fallback && fallback[1]) {
+        return Number.parseInt(fallback[1], 10);
+    }
+
+    return 1;
+}
+
 function chooseClimbLocation(skillLevel: string, phase: 'auto' | 'teleop'): 'side' | 'middle' {
     const sideChanceBySkill = phase === 'auto'
         ? { elite: 0.72, strong: 0.64, average: 0.55, developing: 0.48 }
@@ -213,6 +234,31 @@ function pickShotType(phase: 'auto' | 'teleop', skillLevel: string): 'onTheMove'
  */
 export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     const isPlayoff = matchKey.includes('qf') || matchKey.includes('sf') || matchKey.includes('f');
+    const matchOrdinal = parseMatchOrdinal(matchKey);
+    const eventProgress = clamp(matchOrdinal / 70, 0, 1);
+    const rhythmVariance = (Math.random() - 0.5) * (1 - profile.consistency) * 0.16;
+    const progressionMultiplier = clamp(0.92 + eventProgress * 0.12 + rhythmVariance, 0.82, 1.18);
+    const lowOutputChanceBySkill = {
+        elite: 0.03,
+        strong: 0.07,
+        average: 0.13,
+        developing: 0.2,
+    } as const;
+    const deadMatchChanceBySkill = {
+        elite: 0.005,
+        strong: 0.012,
+        average: 0.025,
+        developing: 0.05,
+    } as const;
+
+    let profilePerformanceFactor = 1;
+    if (Math.random() < (lowOutputChanceBySkill[profile.skillLevel] ?? 0.1)) {
+        profilePerformanceFactor *= 0.45 + Math.random() * 0.35;
+    }
+    if (Math.random() < (deadMatchChanceBySkill[profile.skillLevel] ?? 0.02)) {
+        profilePerformanceFactor *= 0.03 + Math.random() * 0.12;
+    }
+
     const preferredLane: 'upper' | 'lower' = Math.random() < 0.5 ? 'upper' : 'lower';
     const preferredDepth: 'near' | 'far' = Math.random() < 0.6 ? 'near' : 'far';
 
@@ -232,22 +278,20 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
         position: POSITIONS[startKey],
     });
 
-    // Auto fuel scoring - Elite teams can score 100-150 in auto
-    // Elite: 100-150, Strong: 60-100, Average: 30-60, Developing: 10-30
-    let autoFuelCount = 0;
-    if (profile.skillLevel === 'elite') {
-        autoFuelCount = 100 + Math.floor(Math.random() * 51);
-    } else if (profile.skillLevel === 'strong') {
-        autoFuelCount = 60 + Math.floor(Math.random() * 41);
-    } else if (profile.skillLevel === 'average') {
-        autoFuelCount = 30 + Math.floor(Math.random() * 31);
-    } else {
-        autoFuelCount = 10 + Math.floor(Math.random() * 21);
-    }
+    // Auto fuel scoring calibrated from real-event distributions (per-match outputs)
+    const autoRangeBySkill = {
+        elite: { min: 6, max: 34, skew: 1.8 },
+        strong: { min: 2, max: 22, skew: 1.9 },
+        average: { min: 0, max: 14, skew: 2.1 },
+        developing: { min: 0, max: 8, skew: 2.3 },
+    } as const;
+    const autoRange = autoRangeBySkill[profile.skillLevel] ?? autoRangeBySkill.average;
+    let autoFuelCount = sampleSkewedInt(autoRange.min, autoRange.max, autoRange.skew);
 
     // Apply consistency variance and accuracy
     const variance = 1 - profile.consistency;
     autoFuelCount = Math.max(0, Math.floor(autoFuelCount * (1 + (Math.random() - 0.5) * variance)));
+    autoFuelCount = Math.max(0, Math.floor(autoFuelCount * profilePerformanceFactor));
     autoFuelCount = Math.floor(autoFuelCount * profile.autoAccuracy);
 
     // Add auto fuel scored waypoints as bursts (multi-ball per action)
@@ -298,9 +342,29 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     // =========================================================================
     const teleopActions: any[] = [];
 
-    // Determine robot role - some robots are passers
-    const isPasser = Math.random() < 0.25; // 25% chance to be a passer
-    const playedDefense = Math.random() < 0.2;
+    // Determine robot role tendencies
+    const passerBaseBySkill = {
+        elite: 0.18,
+        strong: 0.24,
+        average: 0.3,
+        developing: 0.34,
+    } as const;
+    const defenseBaseBySkill = {
+        elite: 0.1,
+        strong: 0.16,
+        average: 0.24,
+        developing: 0.3,
+    } as const;
+
+    let passerChance = passerBaseBySkill[profile.skillLevel] ?? 0.24;
+    passerChance += profile.teleopAccuracy < 0.65 ? 0.06 : -0.03;
+    passerChance += profile.consistency < 0.72 ? 0.03 : -0.02;
+    const isPasser = Math.random() < clamp(passerChance, 0.08, 0.55);
+
+    let defenseChance = defenseBaseBySkill[profile.skillLevel] ?? 0.2;
+    defenseChance += profile.consistency < 0.68 ? 0.06 : -0.03;
+    defenseChance += isPlayoff ? -0.03 : 0.02;
+    const playedDefense = Math.random() < clamp(defenseChance, 0.06, 0.45);
 
     // Traversal archetype influences hopper size and cycle tempo
     // - bump-primary: larger hopper, fewer/bigger dumps
@@ -317,21 +381,20 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     bumpPrimaryChance = Math.max(0.1, Math.min(0.9, bumpPrimaryChance));
     const traversalArchetype: 'bump' | 'trench' = Math.random() < bumpPrimaryChance ? 'bump' : 'trench';
 
-    // Teleop fuel activity - Best robots ~400-500 total
-    // Elite: 250-400, Strong: 180-280, Average: 100-200, Developing: 50-120
-    let teleopFuelActivity = 0;
-    if (profile.skillLevel === 'elite') {
-        teleopFuelActivity = 250 + Math.floor(Math.random() * 151);
-    } else if (profile.skillLevel === 'strong') {
-        teleopFuelActivity = 180 + Math.floor(Math.random() * 101);
-    } else if (profile.skillLevel === 'average') {
-        teleopFuelActivity = 100 + Math.floor(Math.random() * 101);
-    } else {
-        teleopFuelActivity = 50 + Math.floor(Math.random() * 71);
-    }
+    // Teleop fuel activity calibrated from real-event long-tail distribution
+    const teleopRangeBySkill = {
+        elite: { min: 35, max: 170, skew: 1.35 },
+        strong: { min: 18, max: 120, skew: 1.55 },
+        average: { min: 8, max: 85, skew: 1.8 },
+        developing: { min: 0, max: 52, skew: 2.1 },
+    } as const;
+    const teleopRange = teleopRangeBySkill[profile.skillLevel] ?? teleopRangeBySkill.average;
+    let teleopFuelActivity = sampleSkewedInt(teleopRange.min, teleopRange.max, teleopRange.skew);
 
     // Apply variance and accuracy
     teleopFuelActivity = Math.max(0, Math.floor(teleopFuelActivity * (1 + (Math.random() - 0.5) * variance)));
+    teleopFuelActivity = Math.max(0, Math.floor(teleopFuelActivity * progressionMultiplier));
+    teleopFuelActivity = Math.max(0, Math.floor(teleopFuelActivity * profilePerformanceFactor));
     teleopFuelActivity = Math.floor(teleopFuelActivity * profile.teleopAccuracy);
 
     // In playoffs, teams push harder
@@ -344,14 +407,29 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     let teleopPassCount = 0;
 
     if (isPasser) {
-        // Passers: 30% score, 70% pass
-        teleopFuelCount = Math.floor(teleopFuelActivity * 0.3);
-        teleopPassCount = Math.floor(teleopFuelActivity * 0.7);
+        const isPurePasser = Math.random() < 0.55;
+        if (isPurePasser) {
+            // Pure pass specialists from observed data: heavy pass, minimal score
+            teleopFuelCount = Math.floor(teleopFuelActivity * 0.15);
+            teleopPassCount = Math.floor(teleopFuelActivity * 0.85);
+        } else {
+            // Hybrid passers still contribute some direct scoring
+            teleopFuelCount = Math.floor(teleopFuelActivity * 0.4);
+            teleopPassCount = Math.floor(teleopFuelActivity * 0.6);
+        }
     } else {
-        // Scorers: 85% score, 15% pass
-        teleopFuelCount = Math.floor(teleopFuelActivity * 0.85);
-        teleopPassCount = Math.floor(teleopFuelActivity * 0.15);
+        // Scorers pass occasionally, especially under pressure
+        teleopFuelCount = Math.floor(teleopFuelActivity * 0.9);
+        teleopPassCount = Math.floor(teleopFuelActivity * 0.1);
     }
+
+    const passCapBySkill = {
+        elite: 145,
+        strong: 120,
+        average: 95,
+        developing: 75,
+    } as const;
+    teleopPassCount = Math.min(teleopPassCount, passCapBySkill[profile.skillLevel] ?? 100);
 
     // Add teleop scored waypoints as bursts (multi-ball per action)
     let remainingTeleopFuel = teleopFuelCount;
@@ -359,16 +437,16 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     while (remainingTeleopFuel > 0) {
         const scoreBurstRangeByArchetype = {
             bump: {
-                elite: { min: 8, max: 80 },
-                strong: { min: 7, max: 65 },
-                average: { min: 6, max: 50 },
-                developing: { min: 5, max: 40 },
+                elite: { min: 5, max: 34 },
+                strong: { min: 4, max: 27 },
+                average: { min: 3, max: 20 },
+                developing: { min: 2, max: 14 },
             },
             trench: {
-                elite: { min: 4, max: 50 },
-                strong: { min: 4, max: 42 },
-                average: { min: 3, max: 34 },
-                developing: { min: 3, max: 26 },
+                elite: { min: 3, max: 24 },
+                strong: { min: 2, max: 20 },
+                average: { min: 2, max: 15 },
+                developing: { min: 1, max: 10 },
             },
         } as const;
         const scoreBurstRange = scoreBurstRangeByArchetype[traversalArchetype][profile.skillLevel];
@@ -402,16 +480,16 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
     while (remainingTeleopPasses > 0) {
         const passBurstRangeByArchetype = {
             bump: {
-                elite: { min: 6, max: 55 },
-                strong: { min: 5, max: 45 },
-                average: { min: 4, max: 35 },
-                developing: { min: 3, max: 28 },
+                elite: { min: 4, max: 26 },
+                strong: { min: 3, max: 22 },
+                average: { min: 2, max: 18 },
+                developing: { min: 1, max: 14 },
             },
             trench: {
-                elite: { min: 3, max: 35 },
-                strong: { min: 3, max: 30 },
-                average: { min: 2, max: 24 },
-                developing: { min: 2, max: 18 },
+                elite: { min: 2, max: 20 },
+                strong: { min: 2, max: 16 },
+                average: { min: 1, max: 13 },
+                developing: { min: 1, max: 10 },
             },
         } as const;
         const passBurstRange = passBurstRangeByArchetype[traversalArchetype][profile.skillLevel];
@@ -768,5 +846,26 @@ export const generate2026GameData: GameDataGenerator = (profile, matchKey) => {
         startPosition,
     };
 
-    return gameDataTransformation.transformActionsToCounters(rawMatchData);
+    const transformed = gameDataTransformation.transformActionsToCounters(rawMatchData);
+
+    // Simulate occasional incomplete passing tracking in scouting entries.
+    // This keeps demo data realistic for analytics that must handle missing assist inputs.
+    const passTrackingMissingChanceBySkill = {
+        elite: 0.06,
+        strong: 0.1,
+        average: 0.15,
+        developing: 0.2,
+    } as const;
+
+    const passTrackingMissingChance = passTrackingMissingChanceBySkill[profile.skillLevel] ?? 0.12;
+    if (Math.random() < passTrackingMissingChance) {
+        if (transformed.auto && typeof transformed.auto === 'object') {
+            delete transformed.auto.fuelPassedCount;
+        }
+        if (transformed.teleop && typeof transformed.teleop === 'object') {
+            delete transformed.teleop.fuelPassedCount;
+        }
+    }
+
+    return transformed;
 };

@@ -69,15 +69,9 @@ const db = new TBACacheDB();
 
 /**
  * Cache expiration time in milliseconds
- * Default: 1 hour (matches can change if re-played)
+ * Default: 10 minutes
  */
-const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 hour
-
-/**
- * Maximum age for event metadata cache
- * Default: 5 minutes (event match list changes less frequently)
- */
-const METADATA_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutes
 
 // ============================================================================
 // Cache Functions
@@ -228,7 +222,7 @@ export async function isEventCacheFresh(eventKey: string): Promise<boolean> {
   }
   
   const age = Date.now() - metadata.lastFetchedAt;
-  return age < METADATA_EXPIRATION_MS;
+  return age < CACHE_EXPIRATION_MS;
 }
 
 /**
@@ -259,7 +253,7 @@ export async function getCacheExpiration(eventKey: string): Promise<{
   
   const ageMs = Date.now() - metadata.lastFetchedAt;
   const isExpired = ageMs > CACHE_EXPIRATION_MS;
-  const isFresh = ageMs < METADATA_EXPIRATION_MS;
+  const isFresh = ageMs < CACHE_EXPIRATION_MS;
   
   return {
     hasCache: true,

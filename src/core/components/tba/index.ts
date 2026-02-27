@@ -6,7 +6,6 @@
  * Component Organization:
  * - DataManagement: Data loading, display, and operations (match data, teams, validation display)
  * - EventConfiguration: Event setup and configuration (event selector, data type selector)
- * - MatchSelector: Generic match selection component
  * - ProcessingResults: Data processing feedback component
  * 
  * API Configuration:
@@ -20,7 +19,6 @@
  */
 
 // Core TBA Components
-export { MatchSelector } from './MatchSelector';
 export { ProcessingResults } from './ProcessingResults';
 
 // GAME-SPECIFIC: Uncomment and implement dependencies in your game repo

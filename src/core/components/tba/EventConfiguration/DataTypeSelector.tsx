@@ -63,7 +63,7 @@ export const DataTypeSelector: React.FC<DataTypeSelectorProps> = ({
   const selectedOption = dataTypeOptions.find(option => option.value === dataType);
 
   return (
-    <Card className="w-full">
+    <Card className="w-full h-full">
       <CardHeader>
         <CardTitle className="text-lg">Data Type</CardTitle>
         <CardDescription>

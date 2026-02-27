@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // Import hooks and components
 import { useTBAData } from '@/core/hooks/useTBAData';
 import { useTBAMatchData } from '@/core/hooks/useTBAMatchData';
-import { MatchSelector, ProcessingResults } from '@/core/components/tba';
+import { ProcessingResults } from '@/core/components/tba';
 import {
   MatchDataLoader,
   DataStatusCard,
@@ -23,6 +23,7 @@ import {
 import { DataAttribution } from '@/core/components/DataAttribution';
 import { getNexusPitData, storePitData, getStoredPitData, getNexusEvents, extractAndStoreTeamsFromPitAddresses, type NexusPitAddresses, type NexusPitMap } from '@/core/lib/tba';
 import { clearEventData, hasStoredEventData, setCurrentEvent, getCurrentEvent, isDifferentEvent } from '@/core/lib/tba';
+import { processPredictionRewardsForMatches } from '@/core/lib/predictionRewards';
 import { toast } from 'sonner';
 
 interface ProcessingResult {
@@ -52,6 +53,7 @@ const APIDataPage: React.FC = () => {
 
   // Processing results state
   const [processedResults, setProcessedResults] = useState<ProcessingResult[]>([]);
+  const [lastAutoProcessedSignature, setLastAutoProcessedSignature] = useState<string>('');
 
   // Nexus data state
   const [pitDataLoading, setPitDataLoading] = useState(false);
@@ -81,13 +83,13 @@ const APIDataPage: React.FC = () => {
 
   // Use the TBA match data hook for validation
   const {
-    // loading: validationLoading,
+    loading: validationLoading,
     matches: validationMatches,
     isOnline: validationOnline,
     cacheExpired: validationCacheExpired,
     cacheMetadata,
     clearCache: clearValidationCache,
-    // fetchEventMatches: fetchValidationMatches,
+    fetchEventMatches: fetchValidationMatches,
   } = useTBAMatchData();
 
   // Load event from localStorage on mount
@@ -173,24 +175,19 @@ const APIDataPage: React.FC = () => {
     await loadMatchResults(apiKey, eventKey, false, () => { });
   };
 
-  // const handleLoadValidationData = async () => {
-  //   if (!apiKey.trim()) {
-  //     toast.error('Please enter your TBA API key');
-  //     return;
-  //   }
+  const handleLoadValidationData = async () => {
+    if (!eventKey.trim()) {
+      toast.error('Please enter an event key');
+      return;
+    }
 
-  //   if (!eventKey.trim()) {
-  //     toast.error('Please enter an event key');
-  //     return;
-  //   }
+    executeWithConfirmation(async () => {
+      await fetchValidationMatches(eventKey, apiKey, false);
 
-  //   executeWithConfirmation(async () => {
-  //     await fetchValidationMatches(eventKey, apiKey);
-
-  //     // Update current event in localStorage after successful load
-  //     setCurrentEvent(eventKey.trim());
-  //   });
-  // };
+      // Update current event in localStorage after successful load
+      setCurrentEvent(eventKey.trim());
+    });
+  };
 
   const handleLoadEventTeams = async () => {
     if (!eventKey.trim()) {
@@ -288,9 +285,56 @@ const APIDataPage: React.FC = () => {
     }
   };
 
-  const handleProcessingComplete = (results: ProcessingResult[]) => {
-    setProcessedResults(results);
-  };
+  useEffect(() => {
+    if (dataType !== 'match-results') return;
+    if (!eventKey.trim()) return;
+    if (matchResultsLoading) return;
+    if (matches.length === 0) {
+      setProcessedResults([]);
+      return;
+    }
+
+    const maxMatchNumber = matches.reduce((max, match) => Math.max(max, match.match_number), 0);
+    const signature = `${eventKey}:${matches.length}:${maxMatchNumber}`;
+    if (signature === lastAutoProcessedSignature) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const autoProcess = async () => {
+      try {
+        const processed = await processPredictionRewardsForMatches(matches, {
+          eventKey,
+          onlyFinalResults: true,
+          includeZeroResultMatches: true,
+        });
+
+        if (cancelled) return;
+
+        setProcessedResults(processed.results);
+        setLastAutoProcessedSignature(signature);
+
+        const totalPredictions = processed.summary.processedPredictionCount;
+        if (totalPredictions > 0) {
+          toast.success(
+            `Auto-processed ${matches.length} matches: ${processed.summary.correctPredictionCount}/${totalPredictions} correct predictions, ${processed.summary.totalStakesAwarded} stakes awarded`
+          );
+        }
+      } catch (error) {
+        console.error('Error auto-processing match results:', error);
+        if (!cancelled) {
+          toast.error('Failed to auto-process match results.');
+        }
+      }
+    };
+
+    void autoProcess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataType, eventKey, matchResultsLoading, matches, lastAutoProcessedSignature]);
 
   // Create handlers with correct signatures for the components
   const handleStoreTeamsWithEventKey = () => {
@@ -354,13 +398,13 @@ const APIDataPage: React.FC = () => {
         nexusApiKey={nexusApiKey}
         matchDataLoading={matchDataLoading}
         matchResultsLoading={matchResultsLoading}
-        // validationLoading={validationLoading}
+        validationLoading={validationLoading}
         eventTeamsLoading={eventTeamsLoading}
         pitDataLoading={pitDataLoading}
         debugNexusLoading={debugNexusLoading}
         onLoadMatchData={handleLoadMatchData}
         onLoadMatchResults={handleLoadMatchResults}
-        // onLoadValidationData={handleLoadValidationData}
+        onLoadValidationData={handleLoadValidationData}
         onLoadEventTeams={handleLoadEventTeams}
         onLoadPitData={handleLoadPitData}
         onDebugNexus={handleDebugNexus}
@@ -374,8 +418,6 @@ const APIDataPage: React.FC = () => {
       {/* Match Results Section */}
       {dataType === 'match-results' && (
         <>
-          <MatchSelector matches={matches} onProcessingComplete={handleProcessingComplete} />
-
           {processedResults.length > 0 && (
             <ProcessingResults results={processedResults} />
           )}

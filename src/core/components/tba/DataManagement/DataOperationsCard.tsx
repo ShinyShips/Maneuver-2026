@@ -11,6 +11,7 @@ import {
   Trophy,
   Users,
   AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import { type TBADataType } from '../EventConfiguration/DataTypeSelector';
 
@@ -21,11 +22,13 @@ interface DataOperationsCardProps {
   nexusApiKey: string;
   matchDataLoading: boolean;
   matchResultsLoading: boolean;
+  validationLoading: boolean;
   eventTeamsLoading: boolean;
   pitDataLoading: boolean;
   debugNexusLoading: boolean;
   onLoadMatchData: () => void;
   onLoadMatchResults: () => void;
+  onLoadValidationData: () => void;
   onLoadEventTeams: () => void;
   onLoadPitData: () => void;
   onDebugNexus: () => void;
@@ -38,11 +41,13 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
   nexusApiKey,
   matchDataLoading,
   matchResultsLoading,
+  validationLoading,
   eventTeamsLoading,
   pitDataLoading,
   debugNexusLoading,
   onLoadMatchData,
   onLoadMatchResults,
+  onLoadValidationData,
   onLoadEventTeams,
   onLoadPitData,
   onDebugNexus,
@@ -74,6 +79,15 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
           title: 'Load Event Teams',
           description: 'Download team list participating in the event from The Blue Alliance',
           icon: Users,
+          requiresEvent: true,
+          requiresTBA: true,
+          requiresNexus: false,
+        };
+      case 'match-validation-data':
+        return {
+          title: 'Load Match Validation Data',
+          description: 'Download detailed match breakdowns from The Blue Alliance for validation',
+          icon: CheckCircle,
           requiresEvent: true,
           requiresTBA: true,
           requiresNexus: false,
@@ -151,6 +165,26 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
               <>
                 <Download className="h-4 w-4 mr-2" />
                 Load Match Results
+              </>
+            )}
+          </Button>
+        );
+      case 'match-validation-data':
+        return (
+          <Button
+            className="w-full h-12"
+            onClick={onLoadValidationData}
+            disabled={validationLoading || !canLoad}
+          >
+            {validationLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading Validation Data...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Load Match Validation Data
               </>
             )}
           </Button>

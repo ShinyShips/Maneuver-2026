@@ -301,6 +301,270 @@ const HIGH_VARIANCE_NOISE_PATTERN = [
   { red: { auto: 2, teleop: 9 }, blue: { auto: -2, teleop: -8 } },
 ];
 
+const COLLINEAR_AUTO_BY_TEAM: Record<number, number> = {
+  301: 55,
+  302: 42,
+  303: 34,
+  304: 26,
+  305: 16,
+  306: 10,
+  307: 4,
+  308: 0,
+};
+
+const COLLINEAR_TELEOP_BY_TEAM: Record<number, number> = {
+  301: 165,
+  302: 138,
+  303: 110,
+  304: 92,
+  305: 66,
+  306: 50,
+  307: 24,
+  308: 0,
+};
+
+const COLLINEAR_MATCHUPS: Array<{ red: number[]; blue: number[] }> = [
+  { red: [301, 302, 308], blue: [303, 304, 305] },
+  { red: [301, 302, 308], blue: [304, 305, 306] },
+  { red: [301, 302, 308], blue: [303, 306, 307] },
+  { red: [301, 302, 308], blue: [304, 306, 307] },
+  { red: [301, 303, 304], blue: [302, 305, 306] },
+  { red: [302, 303, 305], blue: [301, 304, 307] },
+  { red: [301, 304, 305], blue: [302, 303, 306] },
+  { red: [302, 304, 306], blue: [301, 303, 307] },
+  { red: [303, 304, 305], blue: [301, 302, 307] },
+  { red: [304, 305, 306], blue: [301, 302, 307] },
+  { red: [303, 305, 307], blue: [301, 304, 306] },
+  { red: [304, 306, 307], blue: [302, 303, 305] },
+  { red: [301, 302, 308], blue: [303, 304, 306] },
+  { red: [301, 302, 308], blue: [303, 305, 307] },
+  { red: [301, 302, 308], blue: [304, 305, 307] },
+  { red: [301, 302, 308], blue: [303, 306, 305] },
+];
+
+const COLLINEAR_NOISE = [
+  { red: { auto: 1, teleop: 8 }, blue: { auto: -1, teleop: -6 } },
+  { red: { auto: -1, teleop: 10 }, blue: { auto: 2, teleop: -7 } },
+  { red: { auto: 2, teleop: -5 }, blue: { auto: -1, teleop: 7 } },
+  { red: { auto: 0, teleop: 12 }, blue: { auto: 1, teleop: -8 } },
+];
+
+const ORDERING_STRESS_AUTO_BY_TEAM: Record<number, number> = {
+  401: 50,
+  402: 42,
+  403: 34,
+  404: 5,
+  405: 4,
+  406: 4,
+  407: 3,
+  408: 0,
+};
+
+const ORDERING_STRESS_TELEOP_BY_TEAM: Record<number, number> = {
+  401: 160,
+  402: 138,
+  403: 112,
+  404: 15,
+  405: 14,
+  406: 12,
+  407: 11,
+  408: 0,
+};
+
+const ORDERING_STRESS_MATCHUPS: Array<{ red: number[]; blue: number[] }> = [
+  { red: [401, 402, 408], blue: [403, 404, 405] },
+  { red: [401, 402, 408], blue: [403, 406, 407] },
+  { red: [401, 402, 408], blue: [404, 405, 406] },
+  { red: [401, 402, 408], blue: [403, 405, 407] },
+  { red: [401, 402, 408], blue: [404, 406, 407] },
+  { red: [401, 402, 408], blue: [403, 404, 406] },
+  { red: [401, 403, 404], blue: [402, 405, 406] },
+  { red: [402, 403, 405], blue: [401, 404, 407] },
+  { red: [401, 404, 405], blue: [402, 403, 406] },
+  { red: [402, 404, 406], blue: [401, 403, 407] },
+  { red: [403, 404, 405], blue: [401, 402, 407] },
+  { red: [404, 405, 406], blue: [401, 402, 407] },
+  { red: [401, 402, 408], blue: [403, 404, 407] },
+  { red: [401, 402, 408], blue: [403, 405, 406] },
+  { red: [401, 402, 408], blue: [404, 405, 407] },
+  { red: [401, 402, 408], blue: [403, 406, 405] },
+];
+
+const DEFENSE_AUTO_BY_TEAM: Record<number, number> = {
+  501: 42,
+  502: 36,
+  503: 30,
+  504: 22,
+  505: 18,
+  506: 12,
+  507: 8,
+  509: 5,
+};
+
+const DEFENSE_TELEOP_BY_TEAM: Record<number, number> = {
+  501: 140,
+  502: 126,
+  503: 108,
+  504: 82,
+  505: 70,
+  506: 52,
+  507: 38,
+  509: 16,
+};
+
+const DEFENSE_MATCHUPS: Array<{ red: number[]; blue: number[] }> = [
+  { red: [509, 501, 504], blue: [502, 503, 505] },
+  { red: [509, 502, 505], blue: [501, 503, 506] },
+  { red: [509, 501, 506], blue: [502, 504, 507] },
+  { red: [509, 502, 504], blue: [501, 503, 505] },
+  { red: [501, 502, 503], blue: [504, 505, 506] },
+  { red: [501, 504, 506], blue: [502, 503, 507] },
+  { red: [502, 504, 505], blue: [501, 503, 506] },
+  { red: [503, 504, 506], blue: [501, 502, 507] },
+  { red: [501, 502, 507], blue: [503, 504, 505] },
+  { red: [502, 503, 506], blue: [501, 504, 507] },
+  { red: [503, 505, 507], blue: [501, 502, 504] },
+  { red: [504, 505, 506], blue: [501, 502, 503] },
+];
+
+function buildDefenseSpecialistMatches(keyBase: string): TBAMatchData[] {
+  return DEFENSE_MATCHUPS.map((matchup, index) => {
+    const base = createMatch(
+      `${keyBase}_qm${index + 1}`,
+      matchup.red,
+      matchup.blue,
+      DEFENSE_AUTO_BY_TEAM,
+      DEFENSE_TELEOP_BY_TEAM
+    );
+
+    const redHasDefender = matchup.red.includes(509);
+    const blueHasDefender = matchup.blue.includes(509);
+
+    return offsetHubCounts(base, {
+      red: {
+        auto: 0,
+        teleop: blueHasDefender ? -28 : 0,
+      },
+      blue: {
+        auto: 0,
+        teleop: redHasDefender ? -28 : 0,
+      },
+    });
+  });
+}
+
+function buildMixedRoleDefenseMatches(keyBase: string): TBAMatchData[] {
+  return DEFENSE_MATCHUPS.map((matchup, index) => {
+    const base = createMatch(
+      `${keyBase}_qm${index + 1}`,
+      matchup.red,
+      matchup.blue,
+      DEFENSE_AUTO_BY_TEAM,
+      DEFENSE_TELEOP_BY_TEAM
+    );
+
+    const redHasDefender = matchup.red.includes(509);
+    const blueHasDefender = matchup.blue.includes(509);
+    const scoringSpikeMatch = index % 4 === 0;
+
+    return offsetHubCounts(base, {
+      red: {
+        auto: redHasDefender && scoringSpikeMatch ? 6 : 0,
+        teleop: (redHasDefender ? 12 : 0) + (blueHasDefender ? -22 : 0),
+      },
+      blue: {
+        auto: blueHasDefender && scoringSpikeMatch ? 6 : 0,
+        teleop: (blueHasDefender ? 12 : 0) + (redHasDefender ? -22 : 0),
+      },
+    });
+  });
+}
+
+function buildOrderingStressMatches(keyBase: string): TBAMatchData[] {
+  return ORDERING_STRESS_MATCHUPS.map((matchup, index) => {
+    const base = createMatch(
+      `${keyBase}_qm${index + 1}`,
+      matchup.red,
+      matchup.blue,
+      ORDERING_STRESS_AUTO_BY_TEAM,
+      ORDERING_STRESS_TELEOP_BY_TEAM
+    );
+
+    const hasCarryBot = matchup.red.includes(408) || matchup.blue.includes(408);
+    if (!hasCarryBot) {
+      return base;
+    }
+
+    return offsetHubCounts(base, {
+      red: matchup.red.includes(408)
+        ? { auto: 2, teleop: 22 }
+        : { auto: 0, teleop: 0 },
+      blue: matchup.blue.includes(408)
+        ? { auto: 2, teleop: 22 }
+        : { auto: 0, teleop: 0 },
+    });
+  });
+}
+
+function computeDefenseImpactByTeam(
+  matches: TBAMatchData[],
+  teamOprMap: Map<number, number>
+): Map<number, number> {
+  const aggregate = new Map<number, { suppressionSum: number; samples: number }>();
+
+  for (const match of matches) {
+    const scoreBreakdown = match.score_breakdown as {
+      red?: { hubScore?: { totalCount?: number } };
+      blue?: { hubScore?: { totalCount?: number } };
+    } | null;
+
+    for (const alliance of ['red', 'blue'] as const) {
+      const defenders = match.alliances[alliance].team_keys
+        .map(key => Number.parseInt(key.replace('frc', ''), 10))
+        .filter(Number.isFinite);
+
+      const opponentAlliance = alliance === 'red' ? 'blue' : 'red';
+      const opponents = match.alliances[opponentAlliance].team_keys
+        .map(key => Number.parseInt(key.replace('frc', ''), 10))
+        .filter(Number.isFinite);
+
+      const observedOpponent = scoreBreakdown?.[opponentAlliance]?.hubScore?.totalCount ?? 0;
+      const expectedOpponent = opponents.reduce((sum, team) => sum + (teamOprMap.get(team) ?? 0), 0);
+      const suppression = expectedOpponent - observedOpponent;
+      const perTeam = defenders.length > 0 ? suppression / defenders.length : 0;
+
+      for (const team of defenders) {
+        const current = aggregate.get(team) ?? { suppressionSum: 0, samples: 0 };
+        current.suppressionSum += perTeam;
+        current.samples += 1;
+        aggregate.set(team, current);
+      }
+    }
+  }
+
+  const defenseImpact = new Map<number, number>();
+  for (const [team, value] of aggregate.entries()) {
+    defenseImpact.set(team, value.samples > 0 ? value.suppressionSum / value.samples : 0);
+  }
+
+  return defenseImpact;
+}
+
+function buildCollinearityStressMatches(keyBase: string): TBAMatchData[] {
+  return COLLINEAR_MATCHUPS.map((matchup, index) => {
+    const base = createMatch(
+      `${keyBase}_qm${index + 1}`,
+      matchup.red,
+      matchup.blue,
+      COLLINEAR_AUTO_BY_TEAM,
+      COLLINEAR_TELEOP_BY_TEAM
+    );
+
+    const noise = COLLINEAR_NOISE[index % COLLINEAR_NOISE.length]!;
+    return offsetHubCounts(base, noise);
+  });
+}
+
 function buildHighVarianceStressMatches(matchCount: number, keyBase: string): TBAMatchData[] {
   return Array.from({ length: matchCount }, (_, index) => {
     const matchup = HIGH_VARIANCE_MATCHUPS[index % HIGH_VARIANCE_MATCHUPS.length]!;
@@ -336,6 +600,66 @@ function getTopNTeamsByTotalOpr(result: ReturnType<typeof calculateFuelOPR>, cou
 function countOverlap(a: number[], b: number[]): number {
   const bSet = new Set(b);
   return a.reduce((acc, value) => acc + (bSet.has(value) ? 1 : 0), 0);
+}
+
+function computeSpearmanCorrelation(xs: number[], ys: number[]): number {
+  const rank = (values: number[]): number[] => {
+    const indexed = values.map((value, index) => ({ value, index }));
+    indexed.sort((a, b) => a.value - b.value);
+
+    const ranks = new Array(values.length).fill(0);
+    for (let i = 0; i < indexed.length; i++) {
+      ranks[indexed[i]!.index] = i + 1;
+    }
+
+    return ranks;
+  };
+
+  const rx = rank(xs);
+  const ry = rank(ys);
+  const n = xs.length;
+
+  if (n <= 1) {
+    return 0;
+  }
+
+  let d2 = 0;
+  for (let i = 0; i < n; i++) {
+    const d = (rx[i] ?? 0) - (ry[i] ?? 0);
+    d2 += d * d;
+  }
+
+  return 1 - (6 * d2) / (n * (n * n - 1));
+}
+
+function computeHybridIndexForTest(
+  totalFuelOPR: number,
+  scaledTotalAvg: number,
+  matchesPlayed: number,
+  hasScaledFuelData: boolean
+): number {
+  const targetMatches = 6;
+  const matchPenalty = Math.max(0, (targetMatches - matchesPlayed) / targetMatches);
+
+  const gap = Math.abs(totalFuelOPR - scaledTotalAvg);
+  const scaleBase = Math.max(1, Math.abs(totalFuelOPR), Math.abs(scaledTotalAvg));
+  const gapPenalty = hasScaledFuelData
+    ? Math.max(0, Math.min(1, gap / scaleBase))
+    : 0;
+
+  const missingScaledPenalty = hasScaledFuelData ? 0 : 0.6;
+  const confidencePenalty = Math.max(0, Math.min(1,
+    0.35 * matchPenalty +
+    0.25 * gapPenalty +
+    0.25 * missingScaledPenalty
+  ));
+
+  const confidenceScore = 1 - confidencePenalty;
+  const hybridBase = hasScaledFuelData
+    ? 0.6 * scaledTotalAvg + 0.4 * totalFuelOPR
+    : totalFuelOPR;
+
+  return hybridBase * confidenceScore;
 }
 
 function simulateHybridLambdaTimeline(
@@ -977,5 +1301,450 @@ describe('calculateFuelOPR', () => {
     expect(hybrid.selectedLambda).toBeLessThanOrEqual(0.75);
     expect(hybrid.timeline).toHaveLength(18);
     expect(hybrid.latestSweep).not.toBeNull();
+  });
+
+  it('supports non-negative production mode while preserving signed impact mode', () => {
+    const matches = buildNoisyRealisticMatches(12, 'nonNegativeMode');
+
+    const impact = calculateFuelOPRHybrid(matches, {
+      includePlayoffs: false,
+      nonNegative: false,
+    });
+
+    const production = calculateFuelOPRHybrid(matches, {
+      includePlayoffs: false,
+      nonNegative: true,
+    });
+
+    expect(impact.opr.teams.length).toBeGreaterThan(0);
+    expect(production.opr.teams.length).toBe(impact.opr.teams.length);
+
+    for (const team of production.opr.teams) {
+      expect(team.autoFuelOPR).toBeGreaterThanOrEqual(0);
+      expect(team.teleopFuelOPR).toBeGreaterThanOrEqual(0);
+      expect(team.totalFuelOPR).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('hybrid scorer index improves rank alignment on demo-style noisy data', () => {
+    const matches = buildNoisyRealisticMatches(12, 'hybridRank');
+    const impact = calculateFuelOPRHybrid(matches, {
+      includePlayoffs: false,
+      nonNegative: false,
+    });
+
+    const trueTotalByTeam = new Map<number, number>();
+    for (const teamNumber of Object.keys(REALISTIC_AUTO_BY_TEAM).map(Number)) {
+      const auto = REALISTIC_AUTO_BY_TEAM[teamNumber] ?? 0;
+      const teleop = REALISTIC_TELEOP_BY_TEAM[teamNumber] ?? 0;
+      trueTotalByTeam.set(teamNumber, auto + teleop);
+    }
+
+    const rows = impact.opr.teams.map(team => {
+      const scaledTotalAvg = trueTotalByTeam.get(team.teamNumber) ?? 0;
+      const totalFuelOPR = team.totalFuelOPR;
+      const matchesPlayed = team.matchesPlayed;
+
+      const targetMatches = 6;
+      const matchPenalty = Math.max(0, (targetMatches - matchesPlayed) / targetMatches);
+      const gap = Math.abs(totalFuelOPR - scaledTotalAvg);
+      const scaleBase = Math.max(1, Math.abs(totalFuelOPR), Math.abs(scaledTotalAvg));
+      const gapPenalty = Math.max(0, Math.min(1, gap / scaleBase));
+      const confidencePenalty = Math.max(0, Math.min(1,
+        0.35 * matchPenalty +
+        0.25 * gapPenalty
+      ));
+      const confidenceScore = 1 - confidencePenalty;
+
+      const hybridBase = 0.6 * scaledTotalAvg + 0.4 * totalFuelOPR;
+      const hybridScorerIndex = hybridBase * confidenceScore;
+
+      return {
+        team: team.teamNumber,
+        trueTotal: scaledTotalAvg,
+        totalFuelOPR,
+        hybridScorerIndex,
+      };
+    });
+
+    const trueTotals = rows.map(row => row.trueTotal);
+    const impactScores = rows.map(row => row.totalFuelOPR);
+    const hybridScores = rows.map(row => row.hybridScorerIndex);
+
+    const impactRho = computeSpearmanCorrelation(impactScores, trueTotals);
+    const hybridRho = computeSpearmanCorrelation(hybridScores, trueTotals);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Hybrid rank alignment');
+      console.log('[OPR DEBUG] Spearman correlations:', {
+        impact: Math.round(impactRho * 1000) / 1000,
+        hybrid: Math.round(hybridRho * 1000) / 1000,
+      });
+      console.table(
+        [...rows]
+          .sort((a, b) => b.hybridScorerIndex - a.hybridScorerIndex)
+          .map(row => ({
+            team: row.team,
+            trueTotal: Math.round(row.trueTotal * 100) / 100,
+            impact: Math.round(row.totalFuelOPR * 100) / 100,
+            hybrid: Math.round(row.hybridScorerIndex * 100) / 100,
+          }))
+      );
+    }
+
+    expect(hybridRho).toBeGreaterThanOrEqual(impactRho);
+    expect(hybridRho).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('hybrid scorer index beats impact OPR under partner collinearity stress', () => {
+    const matches = buildCollinearityStressMatches('collinearRank');
+    const impact = calculateFuelOPRHybrid(matches, {
+      includePlayoffs: false,
+      nonNegative: false,
+      fallbackLambda: 0.01,
+    });
+
+    const trueTotalByTeam = new Map<number, number>();
+    for (const teamNumber of Object.keys(COLLINEAR_AUTO_BY_TEAM).map(Number)) {
+      trueTotalByTeam.set(teamNumber, (COLLINEAR_AUTO_BY_TEAM[teamNumber] ?? 0) + (COLLINEAR_TELEOP_BY_TEAM[teamNumber] ?? 0));
+    }
+
+    const missingScaledTeams = new Set([306, 307]);
+
+    const rows = impact.opr.teams.map(team => {
+      const trueTotal = trueTotalByTeam.get(team.teamNumber) ?? 0;
+      const hasScaledFuelData = !missingScaledTeams.has(team.teamNumber);
+      const scaledTotalAvg = hasScaledFuelData ? trueTotal : 0;
+      const totalFuelOPR = team.totalFuelOPR;
+      const matchesPlayed = team.matchesPlayed;
+
+      const targetMatches = 6;
+      const matchPenalty = Math.max(0, (targetMatches - matchesPlayed) / targetMatches);
+
+      const gap = Math.abs(totalFuelOPR - scaledTotalAvg);
+      const scaleBase = Math.max(1, Math.abs(totalFuelOPR), Math.abs(scaledTotalAvg));
+      const gapPenalty = hasScaledFuelData
+        ? Math.max(0, Math.min(1, gap / scaleBase))
+        : 0;
+
+      const missingScaledPenalty = hasScaledFuelData ? 0 : 0.6;
+      const confidencePenalty = Math.max(0, Math.min(1,
+        0.35 * matchPenalty +
+        0.25 * gapPenalty +
+        0.25 * missingScaledPenalty
+      ));
+      const confidenceScore = 1 - confidencePenalty;
+
+      const hybridBase = hasScaledFuelData
+        ? 0.6 * scaledTotalAvg + 0.4 * totalFuelOPR
+        : totalFuelOPR;
+      const hybridScorerIndex = hybridBase * confidenceScore;
+
+      return {
+        team: team.teamNumber,
+        trueTotal,
+        totalFuelOPR,
+        hybridScorerIndex,
+      };
+    });
+
+    const trueTotals = rows.map(row => row.trueTotal);
+    const impactScores = rows.map(row => row.totalFuelOPR);
+    const hybridScores = rows.map(row => row.hybridScorerIndex);
+
+    const impactRho = computeSpearmanCorrelation(impactScores, trueTotals);
+    const hybridRho = computeSpearmanCorrelation(hybridScores, trueTotals);
+
+    const top4True = [...rows]
+      .sort((a, b) => b.trueTotal - a.trueTotal)
+      .slice(0, 4)
+      .map(row => row.team);
+
+    const top4Impact = [...rows]
+      .sort((a, b) => b.totalFuelOPR - a.totalFuelOPR)
+      .slice(0, 4)
+      .map(row => row.team);
+
+    const top4Hybrid = [...rows]
+      .sort((a, b) => b.hybridScorerIndex - a.hybridScorerIndex)
+      .slice(0, 4)
+      .map(row => row.team);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Collinearity stress ranking');
+      console.log('[OPR DEBUG] Spearman correlations:', {
+        impact: Math.round(impactRho * 1000) / 1000,
+        hybrid: Math.round(hybridRho * 1000) / 1000,
+      });
+      console.log('[OPR DEBUG] Top4 overlap:', {
+        impact: countOverlap(top4Impact, top4True),
+        hybrid: countOverlap(top4Hybrid, top4True),
+      });
+      console.table(
+        [...rows]
+          .sort((a, b) => b.totalFuelOPR - a.totalFuelOPR)
+          .map(row => ({
+            team: row.team,
+            trueTotal: Math.round(row.trueTotal * 10) / 10,
+            impact: Math.round(row.totalFuelOPR * 10) / 10,
+            hybrid: Math.round(row.hybridScorerIndex * 10) / 10,
+          }))
+      );
+    }
+
+    expect(hybridRho).toBeGreaterThanOrEqual(impactRho);
+    expect(countOverlap(top4Hybrid, top4True)).toBeGreaterThanOrEqual(countOverlap(top4Impact, top4True));
+    expect(top4Hybrid.includes(308)).toBe(false);
+  });
+
+  it('hybrid scorer index fixes top-4 ordering under deceptive carry-bot schedules', () => {
+    const matches = buildOrderingStressMatches('orderingStress');
+    const impact = calculateFuelOPR(matches, {
+      includePlayoffs: false,
+      ridgeLambda: 0.001,
+    });
+
+    const trueTotalByTeam = new Map<number, number>();
+    for (const teamNumber of Object.keys(ORDERING_STRESS_AUTO_BY_TEAM).map(Number)) {
+      trueTotalByTeam.set(teamNumber, (ORDERING_STRESS_AUTO_BY_TEAM[teamNumber] ?? 0) + (ORDERING_STRESS_TELEOP_BY_TEAM[teamNumber] ?? 0));
+    }
+
+    const rows = impact.teams.map(team => {
+      const trueTotal = trueTotalByTeam.get(team.teamNumber) ?? 0;
+      const scaledTotalAvg = trueTotal;
+      const totalFuelOPR = team.totalFuelOPR;
+
+      const matchesPlayed = team.matchesPlayed;
+      const targetMatches = 6;
+      const matchPenalty = Math.max(0, (targetMatches - matchesPlayed) / targetMatches);
+
+      const gap = Math.abs(totalFuelOPR - scaledTotalAvg);
+      const scaleBase = Math.max(1, Math.abs(totalFuelOPR), Math.abs(scaledTotalAvg));
+      const gapPenalty = Math.max(0, Math.min(1, gap / scaleBase));
+
+      const confidencePenalty = Math.max(0, Math.min(1,
+        0.35 * matchPenalty +
+        0.25 * gapPenalty
+      ));
+      const confidenceScore = 1 - confidencePenalty;
+
+      const hybridBase = 0.6 * scaledTotalAvg + 0.4 * totalFuelOPR;
+      const hybridScorerIndex = hybridBase * confidenceScore;
+
+      return {
+        team: team.teamNumber,
+        trueTotal,
+        impact: totalFuelOPR,
+        hybrid: hybridScorerIndex,
+      };
+    });
+
+    const top4True = [...rows]
+      .sort((a, b) => b.trueTotal - a.trueTotal)
+      .slice(0, 4)
+      .map(row => row.team);
+
+    const top4Impact = [...rows]
+      .sort((a, b) => b.impact - a.impact)
+      .slice(0, 4)
+      .map(row => row.team);
+
+    const top4Hybrid = [...rows]
+      .sort((a, b) => b.hybrid - a.hybrid)
+      .slice(0, 4)
+      .map(row => row.team);
+
+    const impactOverlap = countOverlap(top4Impact, top4True);
+    const hybridOverlap = countOverlap(top4Hybrid, top4True);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Ordering stress top-4 check');
+      console.log('[OPR DEBUG] Top-4 sets:', {
+        true: top4True,
+        impact: top4Impact,
+        hybrid: top4Hybrid,
+      });
+      console.log('[OPR DEBUG] Overlap:', {
+        impactOverlap,
+        hybridOverlap,
+      });
+      console.table(
+        [...rows]
+          .sort((a, b) => b.impact - a.impact)
+          .map(row => ({
+            team: row.team,
+            trueTotal: Math.round(row.trueTotal * 10) / 10,
+            impact: Math.round(row.impact * 10) / 10,
+            hybrid: Math.round(row.hybrid * 10) / 10,
+          }))
+      );
+    }
+
+    expect(top4Impact.includes(408)).toBe(true);
+    expect(top4Hybrid.includes(408)).toBe(false);
+    expect(hybridOverlap).toBeGreaterThan(impactOverlap);
+  });
+
+  it('keeps ranking stable under sparse scaled-fuel coverage', () => {
+    const matches = buildHighVarianceStressMatches(18, 'sparseCoverage');
+    const impact = calculateFuelOPR(matches, {
+      includePlayoffs: false,
+      ridgeLambda: 0.01,
+    });
+
+    const trueTotalByTeam = new Map<number, number>();
+    for (const teamNumber of Object.keys(HIGH_VARIANCE_AUTO_BY_TEAM).map(Number)) {
+      trueTotalByTeam.set(teamNumber, (HIGH_VARIANCE_AUTO_BY_TEAM[teamNumber] ?? 0) + (HIGH_VARIANCE_TELEOP_BY_TEAM[teamNumber] ?? 0));
+    }
+
+    const missingScaledTeams = new Set([202, 205, 207, 208]);
+
+    const rows = impact.teams.map(team => {
+      const trueTotal = trueTotalByTeam.get(team.teamNumber) ?? 0;
+      const hasScaledFuelData = !missingScaledTeams.has(team.teamNumber);
+      const scaledTotalAvg = hasScaledFuelData ? trueTotal : 0;
+      const hybrid = computeHybridIndexForTest(team.totalFuelOPR, scaledTotalAvg, team.matchesPlayed, hasScaledFuelData);
+
+      return {
+        team: team.teamNumber,
+        trueTotal,
+        impact: team.totalFuelOPR,
+        hybrid,
+      };
+    });
+
+    const top4True = [...rows].sort((a, b) => b.trueTotal - a.trueTotal).slice(0, 4).map(r => r.team);
+    const top4Impact = [...rows].sort((a, b) => b.impact - a.impact).slice(0, 4).map(r => r.team);
+    const top4Hybrid = [...rows].sort((a, b) => b.hybrid - a.hybrid).slice(0, 4).map(r => r.team);
+
+    const impactOverlap = countOverlap(top4Impact, top4True);
+    const hybridOverlap = countOverlap(top4Hybrid, top4True);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Sparse coverage stability');
+      console.log('[OPR DEBUG] Top-4 overlap:', { impactOverlap, hybridOverlap });
+      console.table(
+        [...rows].sort((a, b) => b.hybrid - a.hybrid).map(row => ({
+          team: row.team,
+          trueTotal: Math.round(row.trueTotal),
+          impact: Math.round(row.impact),
+          hybrid: Math.round(row.hybrid),
+          missingScaled: missingScaledTeams.has(row.team),
+        }))
+      );
+    }
+
+    expect(top4Hybrid.includes(201)).toBe(true);
+    expect(hybridOverlap).toBeGreaterThanOrEqual(3);
+    expect(hybridOverlap).toBeGreaterThanOrEqual(impactOverlap - 1);
+  });
+
+  it('dampens carry-bot inflation magnitude under partner-lock conditions', () => {
+    const matches = buildCollinearityStressMatches('partnerLock');
+    const impact = calculateFuelOPR(matches, {
+      includePlayoffs: false,
+      ridgeLambda: 0.001,
+    });
+
+    const byTeam = new Map(impact.teams.map(team => [team.teamNumber, team]));
+
+    const carryTeam = 308;
+    const carryImpact = byTeam.get(carryTeam)?.totalFuelOPR ?? 0;
+    const carryHybrid = computeHybridIndexForTest(carryImpact, 0, byTeam.get(carryTeam)?.matchesPlayed ?? 0, true);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Partner-lock inflation dampening');
+      console.log('[OPR DEBUG] Carry bot metrics:', {
+        team: carryTeam,
+        impact: Math.round(carryImpact * 100) / 100,
+        hybrid: Math.round(carryHybrid * 100) / 100,
+      });
+    }
+
+    expect(carryImpact).toBeGreaterThan(7);
+    expect(carryHybrid).toBeLessThan(carryImpact);
+    expect(carryHybrid).toBeLessThanOrEqual(carryImpact * 0.5);
+  });
+
+  it('surfaces defense specialists via opponent suppression impact', () => {
+    const matches = buildDefenseSpecialistMatches('defenseSpecialist');
+    const impact = calculateFuelOPR(matches, {
+      includePlayoffs: false,
+      ridgeLambda: 0.01,
+    });
+
+    const teamOprMap = new Map(impact.teams.map(team => [team.teamNumber, team.totalFuelOPR]));
+    const defenseImpact = computeDefenseImpactByTeam(matches, teamOprMap);
+
+    const defenderTeam = 509;
+    const defenderScoringOpr = teamOprMap.get(defenderTeam) ?? 0;
+    const defenderDefenseImpact = defenseImpact.get(defenderTeam) ?? 0;
+
+    const byDefense = [...defenseImpact.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([team]) => team);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Defense specialist check');
+      console.log('[OPR DEBUG] Defender metrics:', {
+        team: defenderTeam,
+        scoringOpr: Math.round(defenderScoringOpr * 100) / 100,
+        defenseImpact: Math.round(defenderDefenseImpact * 100) / 100,
+      });
+      console.table(
+        impact.teams
+          .map(team => ({
+            team: team.teamNumber,
+            scoringOpr: Math.round(team.totalFuelOPR * 100) / 100,
+            defenseImpact: Math.round((defenseImpact.get(team.teamNumber) ?? 0) * 100) / 100,
+          }))
+          .sort((a, b) => b.defenseImpact - a.defenseImpact)
+      );
+    }
+
+    expect(defenderScoringOpr).toBeLessThan(80);
+    expect(defenderDefenseImpact).toBeGreaterThan(4);
+    expect(byDefense.slice(0, 2).includes(defenderTeam)).toBe(true);
+  });
+
+  it('retains defense signal when defender has mixed scoring + suppression role', () => {
+    const matches = buildMixedRoleDefenseMatches('mixedRoleDefense');
+    const impact = calculateFuelOPR(matches, {
+      includePlayoffs: false,
+      ridgeLambda: 0.01,
+    });
+
+    const teamOprMap = new Map(impact.teams.map(team => [team.teamNumber, team.totalFuelOPR]));
+    const defenseImpact = computeDefenseImpactByTeam(matches, teamOprMap);
+
+    const defenderTeam = 509;
+    const defenderScoringOpr = teamOprMap.get(defenderTeam) ?? 0;
+    const defenderDefenseImpact = defenseImpact.get(defenderTeam) ?? 0;
+
+    const byDefense = [...defenseImpact.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([team]) => team);
+
+    if (process.env.VITEST_OPR_DEBUG === '1') {
+      console.log('\n[OPR DEBUG] Mixed-role defense check');
+      console.log('[OPR DEBUG] Defender metrics:', {
+        team: defenderTeam,
+        scoringOpr: Math.round(defenderScoringOpr * 100) / 100,
+        defenseImpact: Math.round(defenderDefenseImpact * 100) / 100,
+      });
+      console.table(
+        impact.teams
+          .map(team => ({
+            team: team.teamNumber,
+            scoringOpr: Math.round(team.totalFuelOPR * 100) / 100,
+            defenseImpact: Math.round((defenseImpact.get(team.teamNumber) ?? 0) * 100) / 100,
+          }))
+          .sort((a, b) => b.defenseImpact - a.defenseImpact)
+      );
+    }
+
+    expect(defenderScoringOpr).toBeGreaterThan(20);
+    expect(defenderDefenseImpact).toBeGreaterThan(3);
+    expect(byDefense.slice(0, 3).includes(defenderTeam)).toBe(true);
   });
 });

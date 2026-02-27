@@ -3,6 +3,9 @@ import type { TBAMatchData } from '@/core/lib/tbaMatchData';
 export interface FuelOPROptions {
     ridgeLambda?: number;
     includePlayoffs?: boolean;
+    nonNegative?: boolean;
+    // TODO(statbotics): Add optional strength-of-schedule controls once Statbotics
+    // integration is available (e.g. applySosWeighting, sosExponent, sosByTeam).
 }
 
 export interface FuelOPRTeamResult {
@@ -31,6 +34,7 @@ export interface FuelOPRLambdaSweepOptions {
     lambdas?: number[];
     includePlayoffs?: boolean;
     holdoutMatchCount?: number;
+    nonNegative?: boolean;
 }
 
 export interface FuelOPRLambdaSweepResult {
@@ -49,6 +53,7 @@ export interface FuelOPRHybridOptions {
     minLambda?: number;
     maxLambda?: number;
     lambdas?: number[];
+    nonNegative?: boolean;
 }
 
 export type FuelOPRHybridMode = 'fixed' | 'carry' | 'swept';
@@ -123,6 +128,7 @@ export function calculateFuelOPR(
 ): FuelOPRResult {
     const lambda = options.ridgeLambda ?? DEFAULT_LAMBDA;
     const includePlayoffs = options.includePlayoffs ?? false;
+    const nonNegative = options.nonNegative ?? false;
 
     const { samples, matchCount } = buildAllianceSamples(matches, includePlayoffs);
     const teamSet = new Set<number>();
@@ -167,13 +173,24 @@ export function calculateFuelOPR(
         return row;
     });
 
+    // TODO(statbotics): This is the right insertion point for SOS-aware weighting.
+    // Example direction:
+    // - Build a per-alliance sample weight from the three participating teams'
+    //   strength-of-schedule values (min/mean/harmonic mean).
+    // - Pre-scale each row of A and corresponding b values by sqrt(weight)
+    //   before solving. This preserves least-squares semantics while reducing
+    //   inflated OPR for teams carried by easier schedules.
+
     const bAuto = samples.map(s => s.autoFuel);
     const bTeleop = samples.map(s => s.teleopFuel);
-    const bTotal = samples.map(s => s.totalFuel);
 
-    const autoFuelOPR = solveRidgeLeastSquares(A, bAuto, lambda);
-    const teleopFuelOPR = solveRidgeLeastSquares(A, bTeleop, lambda);
-    const totalFuelOPR = solveRidgeLeastSquares(A, bTotal, lambda);
+    const autoFuelOPR = nonNegative
+        ? solveNonNegativeRidgeLeastSquares(A, bAuto, lambda)
+        : solveRidgeLeastSquares(A, bAuto, lambda);
+    const teleopFuelOPR = nonNegative
+        ? solveNonNegativeRidgeLeastSquares(A, bTeleop, lambda)
+        : solveRidgeLeastSquares(A, bTeleop, lambda);
+    const totalFuelOPR = autoFuelOPR.map((auto, i) => auto + (teleopFuelOPR[i] ?? 0));
 
     const teams: FuelOPRTeamResult[] = teamNumbers.map((teamNumber, i) => ({
         teamNumber,
@@ -236,6 +253,7 @@ export function sweepFuelOPRLambda(
     options: FuelOPRLambdaSweepOptions = {}
 ): FuelOPRLambdaSweepResult {
     const includePlayoffs = options.includePlayoffs ?? false;
+    const nonNegative = options.nonNegative ?? false;
     const lambdas = (options.lambdas ?? DEFAULT_SWEEP_LAMBDAS)
         .filter(value => Number.isFinite(value) && value > 0);
 
@@ -260,7 +278,8 @@ export function sweepFuelOPRLambda(
     const rows = lambdas.map(lambda => {
         const trained = calculateFuelOPR(trainMatches, {
             ridgeLambda: lambda,
-            includePlayoffs: true,
+            includePlayoffs,
+            nonNegative,
         });
 
         const byTeam = new Map(trained.teams.map(team => [team.teamNumber, team]));
@@ -317,6 +336,7 @@ export function calculateFuelOPRHybrid(
     options: FuelOPRHybridOptions = {}
 ): FuelOPRHybridResult {
     const includePlayoffs = options.includePlayoffs ?? false;
+    const nonNegative = options.nonNegative ?? false;
     const fallbackLambda = options.fallbackLambda ?? DEFAULT_HYBRID_FALLBACK_LAMBDA;
     const minMatchesForSweep = options.minMatchesForSweep ?? DEFAULT_HYBRID_MIN_MATCHES_FOR_SWEEP;
     const updateEveryMatches = options.updateEveryMatches ?? DEFAULT_HYBRID_UPDATE_EVERY_MATCHES;
@@ -356,8 +376,9 @@ export function calculateFuelOPRHybrid(
         }
 
         latestSweep = sweepFuelOPRLambda(eligibleMatches.slice(0, matchCount), {
-            includePlayoffs: true,
+            includePlayoffs,
             lambdas,
+            nonNegative,
         });
 
         const sweepChoice = latestSweep.bestLambda ?? currentLambda;
@@ -375,6 +396,7 @@ export function calculateFuelOPRHybrid(
     const opr = calculateFuelOPR(matches, {
         ridgeLambda: currentLambda,
         includePlayoffs,
+        nonNegative,
     });
 
     const mode = timeline[timeline.length - 1]?.mode ?? 'fixed';
@@ -481,6 +503,61 @@ function solveRidgeLeastSquares(A: number[][], b: number[], lambda: number): num
     const nTeams = A[0]?.length ?? 0;
     if (nTeams === 0) return [];
 
+    const { AtA, Atb } = buildNormalEquations(A, b, lambda);
+
+    return gaussianEliminationSolve(AtA, Atb);
+}
+
+function solveNonNegativeRidgeLeastSquares(A: number[][], b: number[], lambda: number): number[] {
+    const nTeams = A[0]?.length ?? 0;
+    if (nTeams === 0) return [];
+
+    const { AtA, Atb } = buildNormalEquations(A, b, lambda);
+    const x = new Array(nTeams).fill(0);
+
+    let maxRowSum = 0;
+    for (let i = 0; i < nTeams; i++) {
+        const rowSum = AtA[i]!.reduce((sum, value) => sum + Math.abs(value), 0);
+        if (rowSum > maxRowSum) {
+            maxRowSum = rowSum;
+        }
+    }
+
+    const stepSize = maxRowSum > 0 ? 1 / maxRowSum : 1;
+    const maxIterations = 2000;
+    const tolerance = 1e-6;
+
+    // TODO(statbotics): If we later introduce SOS-weighted rows, consider
+    // adapting iteration limits/tolerance to keep runtime stable for larger
+    // event matrices (district champs/worlds).
+
+    for (let iter = 0; iter < maxIterations; iter++) {
+        let maxDelta = 0;
+
+        for (let i = 0; i < nTeams; i++) {
+            let gradient = -(Atb[i] ?? 0);
+            for (let j = 0; j < nTeams; j++) {
+                gradient += (AtA[i]![j] ?? 0) * (x[j] ?? 0);
+            }
+
+            const updated = Math.max(0, (x[i] ?? 0) - stepSize * gradient);
+            const delta = Math.abs(updated - (x[i] ?? 0));
+            if (delta > maxDelta) {
+                maxDelta = delta;
+            }
+            x[i] = updated;
+        }
+
+        if (maxDelta < tolerance) {
+            break;
+        }
+    }
+
+    return x;
+}
+
+function buildNormalEquations(A: number[][], b: number[], lambda: number): { AtA: number[][]; Atb: number[] } {
+    const nTeams = A[0]?.length ?? 0;
     const AtA = Array.from({ length: nTeams }, () => new Array(nTeams).fill(0));
     const Atb = new Array(nTeams).fill(0);
 
@@ -506,7 +583,7 @@ function solveRidgeLeastSquares(A: number[][], b: number[], lambda: number): num
         AtA[i]![i] += lambda;
     }
 
-    return gaussianEliminationSolve(AtA, Atb);
+    return { AtA, Atb };
 }
 
 function gaussianEliminationSolve(matrix: number[][], vector: number[]): number[] {

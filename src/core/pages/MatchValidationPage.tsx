@@ -8,19 +8,24 @@ import {
   MatchListCard,
   FuelOPRCard,
   type FuelOPRDisplayRow,
+  type FuelOPRDisplayMode,
 } from '@/core/components/match-validation';
 import { EventNameSelector } from '@/core/components/GameStartComponents/EventNameSelector';
 import { Card, CardContent } from '@/core/components/ui/card';
 import { Button } from '@/core/components/ui/button';
+import { Checkbox } from '@/core/components/ui/checkbox';
 import { RefreshCw, Settings } from 'lucide-react';
+import { toast } from 'sonner';
 import type { MatchListItem, ValidationConfig } from '@/core/lib/matchValidationTypes';
 import { DEFAULT_VALIDATION_CONFIG } from '@/core/lib/matchValidationTypes';
 import { formatMatchLabel } from '@/core/lib/matchValidationUtils';
 import { getCachedTBAEventMatches } from '@/core/lib/tbaCache';
 import { getEntriesByEvent } from '@/core/db/scoutingDatabase';
 import { calculateFuelOPRHybrid } from '@/game-template/fuelOpr';
+import { processPredictionRewardsForMatches } from '@/core/lib/predictionRewards';
 
 const VALIDATION_CONFIG_KEY = 'validationConfig';
+const FUEL_OPR_INCLUDE_PLAYOFFS_KEY = 'fuelOprIncludePlayoffs';
 
 const GAME_VALIDATION_DEFAULT_CONFIG: ValidationConfig = {
   ...DEFAULT_VALIDATION_CONFIG,
@@ -38,9 +43,13 @@ export const MatchValidationPage: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [validationConfig, setValidationConfig] = useState<ValidationConfig>(GAME_VALIDATION_DEFAULT_CONFIG);
   const [demoAutoValidated, setDemoAutoValidated] = useState(false);
-  const [fuelOprRows, setFuelOprRows] = useState<FuelOPRDisplayRow[]>([]);
-  const [fuelOprLambda, setFuelOprLambda] = useState<number | null>(null);
+  const [impactFuelOprRows, setImpactFuelOprRows] = useState<FuelOPRDisplayRow[]>([]);
+  const [productionFuelOprRows, setProductionFuelOprRows] = useState<FuelOPRDisplayRow[]>([]);
+  const [impactFuelOprLambda, setImpactFuelOprLambda] = useState<number | null>(null);
+  const [productionFuelOprLambda, setProductionFuelOprLambda] = useState<number | null>(null);
+  const [fuelOprMode, setFuelOprMode] = useState<FuelOPRDisplayMode>('impact');
   const [fuelOprLoading, setFuelOprLoading] = useState(false);
+  const [fuelOprIncludePlayoffs, setFuelOprIncludePlayoffs] = useState(true);
 
   // Load current event and validation config from localStorage on mount
   useEffect(() => {
@@ -57,6 +66,11 @@ export const MatchValidationPage: React.FC = () => {
       }
     } else {
       setValidationConfig(GAME_VALIDATION_DEFAULT_CONFIG);
+    }
+
+    const savedIncludePlayoffs = localStorage.getItem(FUEL_OPR_INCLUDE_PLAYOFFS_KEY);
+    if (savedIncludePlayoffs !== null) {
+      setFuelOprIncludePlayoffs(savedIncludePlayoffs === 'true');
     }
   }, []);
 
@@ -118,8 +132,10 @@ export const MatchValidationPage: React.FC = () => {
 
   useEffect(() => {
     if (!eventKey) {
-      setFuelOprRows([]);
-      setFuelOprLambda(null);
+      setImpactFuelOprRows([]);
+      setProductionFuelOprRows([]);
+      setImpactFuelOprLambda(null);
+      setProductionFuelOprLambda(null);
       return;
     }
 
@@ -154,18 +170,26 @@ export const MatchValidationPage: React.FC = () => {
 
         if (cancelled) return;
 
-        const hybrid = calculateFuelOPRHybrid(cachedMatches, {
-          includePlayoffs: true,
+        const impactHybrid = calculateFuelOPRHybrid(cachedMatches, {
+          includePlayoffs: fuelOprIncludePlayoffs,
+          nonNegative: false,
         });
 
-        const opr = hybrid.opr;
+        const productionHybrid = calculateFuelOPRHybrid(cachedMatches, {
+          includePlayoffs: fuelOprIncludePlayoffs,
+          nonNegative: true,
+        });
+
+        const impactOpr = impactHybrid.opr;
+        const productionOpr = productionHybrid.opr;
 
         if (import.meta.env.DEV && eventKey.startsWith('demo')) {
-          console.log(`[Fuel OPR] Hybrid lambda for ${eventKey}: ${hybrid.selectedLambda.toFixed(3)} (${hybrid.mode})`);
+          console.log(`[Fuel OPR] Impact lambda for ${eventKey}: ${impactHybrid.selectedLambda.toFixed(3)} (${impactHybrid.mode})`);
+          console.log(`[Fuel OPR] Production lambda for ${eventKey}: ${productionHybrid.selectedLambda.toFixed(3)} (${productionHybrid.mode})`);
 
-          const latestSweep = hybrid.latestSweep;
+          const latestSweep = impactHybrid.latestSweep;
           if (latestSweep && latestSweep.rows.length > 0) {
-            console.log(`[Fuel OPR] Latest sweep (train ${latestSweep.trainMatchCount}, holdout ${latestSweep.holdoutMatchCount})`);
+            console.log(`[Fuel OPR] Impact sweep (train ${latestSweep.trainMatchCount}, holdout ${latestSweep.holdoutMatchCount})`);
             console.table(
               latestSweep.rows.map(row => ({
                 lambda: row.lambda,
@@ -179,68 +203,322 @@ export const MatchValidationPage: React.FC = () => {
           matches: number;
           autoSum: number;
           teleopSum: number;
+          fuelDataMatches: number;
         }>();
+
+        const passingByTeam = new Map<number, {
+          passSum: number;
+          passDataMatches: number;
+        }>();
+
+        const sosByTeam = new Map<number, { sum: number; count: number }>();
+
+        const toFiniteNumber = (value: unknown): number | null => {
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+          }
+
+          if (typeof value === 'string') {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+          }
+
+          return null;
+        };
+
+        const extractSosValue = (gameData: Record<string, unknown>): number | null => {
+          const direct = toFiniteNumber(gameData.strengthOfSchedule ?? gameData.sos);
+          if (direct !== null) {
+            return direct;
+          }
+
+          const statbotics = gameData.statbotics as Record<string, unknown> | undefined;
+          if (!statbotics) {
+            return null;
+          }
+
+          return toFiniteNumber(
+            statbotics.strengthOfSchedule
+            ?? statbotics.sos
+            ?? statbotics.scheduleStrength
+          );
+        };
+
+        const sumActionPassAmounts = (actions: unknown): number | null => {
+          if (!Array.isArray(actions)) {
+            return null;
+          }
+
+          let sum = 0;
+          let hasPass = false;
+
+          for (const action of actions) {
+            if (!action || typeof action !== 'object') {
+              continue;
+            }
+
+            const typed = action as Record<string, unknown>;
+            const type = typed.type;
+            if (type !== 'pass' && type !== 'pass_alliance') {
+              continue;
+            }
+
+            hasPass = true;
+            const amount = toFiniteNumber(typed.amount ?? typed.count ?? typed.value);
+            sum += amount ?? 1;
+          }
+
+          return hasPass ? sum : null;
+        };
+
+        const extractPassingValue = (gameData: Record<string, unknown>): { value: number; hasData: boolean } => {
+          const auto = gameData.auto as Record<string, unknown> | undefined;
+          const teleop = gameData.teleop as Record<string, unknown> | undefined;
+
+          const fields: unknown[] = [
+            auto?.fuelPassedCount,
+            teleop?.fuelPassedCount,
+            gameData.autoFuelPassed,
+            gameData.teleopFuelPassed,
+            gameData.autoFuelPassedCount,
+            gameData.teleopFuelPassedCount,
+            gameData.totalFuelPassed,
+            gameData.fuelPassed,
+            gameData.auto_fuel_neutral_alliance_pass,
+            gameData.tele_fuel_neutral_alliance_pass,
+            gameData.tele_fuel_opponent_alliance_pass,
+            gameData.tele_fuel_opponent_neutral_pass,
+            gameData.autoFuelNeutralAlliancePass,
+            gameData.teleFuelNeutralAlliancePass,
+            gameData.teleFuelOpponentAlliancePass,
+            gameData.teleFuelOpponentNeutralPass,
+            auto?.fuelNeutralAlliancePass,
+            auto?.fuelOpponentAlliancePass,
+            teleop?.fuelNeutralAlliancePass,
+            teleop?.fuelOpponentAlliancePass,
+            teleop?.fuelOpponentNeutralPass,
+          ];
+
+          const actionDerived = [
+            sumActionPassAmounts(gameData.autoActions),
+            sumActionPassAmounts(gameData.teleopActions),
+            sumActionPassAmounts(auto?.actions),
+            sumActionPassAmounts(teleop?.actions),
+          ];
+
+          const numericValues = [...fields, ...actionDerived]
+            .map(toFiniteNumber)
+            .filter((value): value is number => value !== null);
+
+          if (numericValues.length === 0) {
+            return { value: 0, hasData: false };
+          }
+
+          const value = numericValues.reduce((sum, v) => sum + v, 0);
+          return { value, hasData: true };
+        };
 
         for (const entry of entries) {
           const team = entry.teamNumber;
           const gameData = (entry.gameData ?? {}) as Record<string, unknown>;
+          const auto = gameData.auto as Record<string, unknown> | undefined;
+          const teleop = gameData.teleop as Record<string, unknown> | undefined;
           const scaledMetrics = gameData.scaledMetrics as {
             scaledAutoFuel?: number;
             scaledTeleopFuel?: number;
           } | undefined;
 
           const rawFuel = parseFuelCounts(gameData);
-          const scaledAuto = typeof scaledMetrics?.scaledAutoFuel === 'number'
-            ? scaledMetrics.scaledAutoFuel
+          const hasScaledAuto = typeof scaledMetrics?.scaledAutoFuel === 'number';
+          const hasScaledTeleop = typeof scaledMetrics?.scaledTeleopFuel === 'number';
+          const hasRawAuto =
+            typeof auto?.fuelScoredCount === 'number' ||
+            typeof auto?.fuelScored === 'number' ||
+            typeof gameData.autoFuelScored === 'number';
+          const hasRawTeleop =
+            typeof teleop?.fuelScoredCount === 'number' ||
+            typeof teleop?.fuelScored === 'number' ||
+            typeof gameData.teleopFuelScored === 'number';
+
+          const hasFuelData = hasScaledAuto || hasScaledTeleop || hasRawAuto || hasRawTeleop;
+
+          const scaledAuto = hasScaledAuto
+            ? (scaledMetrics?.scaledAutoFuel ?? rawFuel.auto)
             : rawFuel.auto;
-          const scaledTeleop = typeof scaledMetrics?.scaledTeleopFuel === 'number'
-            ? scaledMetrics.scaledTeleopFuel
+          const scaledTeleop = hasScaledTeleop
+            ? (scaledMetrics?.scaledTeleopFuel ?? rawFuel.teleop)
             : rawFuel.teleop;
 
-          const current = scaledByTeam.get(team) ?? { matches: 0, autoSum: 0, teleopSum: 0 };
+          const current = scaledByTeam.get(team) ?? { matches: 0, autoSum: 0, teleopSum: 0, fuelDataMatches: 0 };
           current.matches += 1;
-          current.autoSum += scaledAuto;
-          current.teleopSum += scaledTeleop;
+          if (hasFuelData) {
+            current.autoSum += scaledAuto;
+            current.teleopSum += scaledTeleop;
+            current.fuelDataMatches += 1;
+          }
           scaledByTeam.set(team, current);
+
+          const passing = extractPassingValue(gameData);
+          const passCurrent = passingByTeam.get(team) ?? { passSum: 0, passDataMatches: 0 };
+          if (passing.hasData) {
+            passCurrent.passSum += passing.value;
+            passCurrent.passDataMatches += 1;
+          }
+          passingByTeam.set(team, passCurrent);
+
+          const sosValue = extractSosValue(gameData);
+          if (sosValue !== null) {
+            const sosCurrent = sosByTeam.get(team) ?? { sum: 0, count: 0 };
+            sosCurrent.sum += sosValue;
+            sosCurrent.count += 1;
+            sosByTeam.set(team, sosCurrent);
+          }
         }
 
-        const oprByTeam = new Map(opr.teams.map(team => [team.teamNumber, team]));
-        const allTeamNumbers = new Set<number>([
-          ...oprByTeam.keys(),
-          ...scaledByTeam.keys(),
-        ]);
+        const buildRows = (oprRows: typeof impactOpr.teams): FuelOPRDisplayRow[] => {
+          const oprByTeam = new Map(oprRows.map(team => [team.teamNumber, team]));
 
-        const rows: FuelOPRDisplayRow[] = [...allTeamNumbers]
-          .map(teamNumber => {
-            const oprTeam = oprByTeam.get(teamNumber);
-            const scaledTeam = scaledByTeam.get(teamNumber);
-            const matchesPlayed = Math.max(oprTeam?.matchesPlayed ?? 0, scaledTeam?.matches ?? 0);
+          const defenseByTeam = new Map<number, { suppressionSum: number; samples: number }>();
+          const eligibleMatches = cachedMatches.filter(match => fuelOprIncludePlayoffs || match.comp_level === 'qm');
 
-            const scaledAutoAvg = scaledTeam && scaledTeam.matches > 0 ? scaledTeam.autoSum / scaledTeam.matches : 0;
-            const scaledTeleopAvg = scaledTeam && scaledTeam.matches > 0 ? scaledTeam.teleopSum / scaledTeam.matches : 0;
+          const getObservedTotal = (match: typeof eligibleMatches[number], alliance: 'red' | 'blue'): number => {
+            const scoreBreakdown = match.score_breakdown as {
+              red?: { hubScore?: Record<string, unknown> };
+              blue?: { hubScore?: Record<string, unknown> };
+            } | null;
+            return toFiniteNumber(scoreBreakdown?.[alliance]?.hubScore?.totalCount) ?? 0;
+          };
 
-            return {
-              teamNumber,
-              matchesPlayed,
-              autoFuelOPR: oprTeam?.autoFuelOPR ?? 0,
-              teleopFuelOPR: oprTeam?.teleopFuelOPR ?? 0,
-              totalFuelOPR: oprTeam?.totalFuelOPR ?? 0,
-              scaledAutoAvg,
-              scaledTeleopAvg,
-              scaledTotalAvg: scaledAutoAvg + scaledTeleopAvg,
-            };
-          })
-          .sort((a, b) => b.totalFuelOPR - a.totalFuelOPR || b.scaledTotalAvg - a.scaledTotalAvg || a.teamNumber - b.teamNumber);
+          const getAllianceTeams = (match: typeof eligibleMatches[number], alliance: 'red' | 'blue'): number[] => {
+            return match.alliances[alliance].team_keys
+              .map(key => Number.parseInt(key.replace('frc', ''), 10))
+              .filter(Number.isFinite);
+          };
+
+          for (const match of eligibleMatches) {
+            for (const alliance of ['red', 'blue'] as const) {
+              const defendingTeams = getAllianceTeams(match, alliance);
+              const opponentAlliance = alliance === 'red' ? 'blue' : 'red';
+              const opponentTeams = getAllianceTeams(match, opponentAlliance);
+              const observedOpponentFuel = getObservedTotal(match, opponentAlliance);
+
+              const expectedOpponentFuel = opponentTeams.reduce((sum, teamNumber) => {
+                return sum + (oprByTeam.get(teamNumber)?.totalFuelOPR ?? 0);
+              }, 0);
+
+              const suppression = expectedOpponentFuel - observedOpponentFuel;
+              const perTeamSuppression = defendingTeams.length > 0 ? suppression / defendingTeams.length : 0;
+
+              for (const teamNumber of defendingTeams) {
+                const current = defenseByTeam.get(teamNumber) ?? { suppressionSum: 0, samples: 0 };
+                current.suppressionSum += perTeamSuppression;
+                current.samples += 1;
+                defenseByTeam.set(teamNumber, current);
+              }
+            }
+          }
+
+          const allTeamNumbers = new Set<number>([
+            ...oprByTeam.keys(),
+            ...scaledByTeam.keys(),
+            ...passingByTeam.keys(),
+            ...defenseByTeam.keys(),
+          ]);
+
+          return [...allTeamNumbers]
+            .map(teamNumber => {
+              const oprTeam = oprByTeam.get(teamNumber);
+              const scaledTeam = scaledByTeam.get(teamNumber);
+              const matchesPlayed = Math.max(oprTeam?.matchesPlayed ?? 0, scaledTeam?.matches ?? 0);
+
+              const fuelDataMatches = scaledTeam?.fuelDataMatches ?? 0;
+              const hasScaledFuelData = fuelDataMatches > 0;
+              const scaledAutoAvg = hasScaledFuelData ? (scaledTeam?.autoSum ?? 0) / fuelDataMatches : 0;
+              const scaledTeleopAvg = hasScaledFuelData ? (scaledTeam?.teleopSum ?? 0) / fuelDataMatches : 0;
+              const scaledTotalAvg = scaledAutoAvg + scaledTeleopAvg;
+              const totalFuelOPR = oprTeam?.totalFuelOPR ?? 0;
+              const passingAggregate = passingByTeam.get(teamNumber);
+              const hasPassingData = (passingAggregate?.passDataMatches ?? 0) > 0;
+              const passingAvg = hasPassingData
+                ? (passingAggregate?.passSum ?? 0) / (passingAggregate?.passDataMatches ?? 1)
+                : 0;
+
+              const defenseAggregate = defenseByTeam.get(teamNumber);
+              const defenseImpact = defenseAggregate && defenseAggregate.samples > 0
+                ? defenseAggregate.suppressionSum / defenseAggregate.samples
+                : 0;
+              const assistImpact = passingAvg;
+
+              const sosAggregate = sosByTeam.get(teamNumber);
+              const avgSos = sosAggregate && sosAggregate.count > 0 ? sosAggregate.sum / sosAggregate.count : null;
+              const sosPenalty = avgSos !== null
+                ? Math.max(0, Math.min(1, avgSos / 6))
+                : 0;
+
+              const targetMatches = 6;
+              const matchPenalty = Math.max(0, (targetMatches - matchesPlayed) / targetMatches);
+
+              const gap = Math.abs(totalFuelOPR - scaledTotalAvg);
+              const scaleBase = Math.max(1, Math.abs(totalFuelOPR), Math.abs(scaledTotalAvg));
+              const gapPenalty = hasScaledFuelData
+                ? Math.max(0, Math.min(1, gap / scaleBase))
+                : 0;
+
+              const missingScaledPenalty = hasScaledFuelData ? 0 : 0.6;
+
+              const confidencePenalty = Math.max(0, Math.min(1,
+                0.35 * matchPenalty +
+                0.25 * gapPenalty +
+                0.15 * sosPenalty +
+                0.25 * missingScaledPenalty
+              ));
+
+              const confidenceScore = 1 - confidencePenalty;
+              const hybridBase = hasScaledFuelData
+                ? 0.6 * scaledTotalAvg + 0.4 * totalFuelOPR
+                : totalFuelOPR;
+              const hybridScorerIndex = hybridBase * confidenceScore;
+              const assistComponent = hasPassingData ? assistImpact * 0.2 : 0;
+              const defenseComponent = defenseImpact * 0.2;
+              const totalContributionIndex = hybridScorerIndex + assistComponent + defenseComponent;
+
+              return {
+                teamNumber,
+                matchesPlayed,
+                autoFuelOPR: oprTeam?.autoFuelOPR ?? 0,
+                teleopFuelOPR: oprTeam?.teleopFuelOPR ?? 0,
+                totalFuelOPR,
+                scaledAutoAvg,
+                scaledTeleopAvg,
+                scaledTotalAvg,
+                confidenceScore,
+                confidencePenalty,
+                sosPenalty,
+                hybridScorerIndex,
+                assistImpact,
+                defenseImpact,
+                totalContributionIndex,
+              };
+            })
+            .sort((a, b) => b.totalContributionIndex - a.totalContributionIndex || b.hybridScorerIndex - a.hybridScorerIndex || a.teamNumber - b.teamNumber);
+        };
+
+        const impactRows = buildRows(impactOpr.teams);
+        const productionRows = buildRows(productionOpr.teams);
 
         if (!cancelled) {
-          setFuelOprRows(rows);
-          setFuelOprLambda(hybrid.selectedLambda);
+          setImpactFuelOprRows(impactRows);
+          setProductionFuelOprRows(productionRows);
+          setImpactFuelOprLambda(impactHybrid.selectedLambda);
+          setProductionFuelOprLambda(productionHybrid.selectedLambda);
         }
       } catch (error) {
         console.error('Failed to load Fuel OPR data:', error);
         if (!cancelled) {
-          setFuelOprRows([]);
-          setFuelOprLambda(null);
+          setImpactFuelOprRows([]);
+          setProductionFuelOprRows([]);
+          setImpactFuelOprLambda(null);
+          setProductionFuelOprLambda(null);
         }
       } finally {
         if (!cancelled) {
@@ -254,7 +532,89 @@ export const MatchValidationPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [eventKey, matchList, isValidating]);
+  }, [eventKey, matchList, isValidating, fuelOprIncludePlayoffs]);
+
+  useEffect(() => {
+    if (!eventKey || isValidating || matchList.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const runAutoPredictionRewards = async () => {
+      try {
+        const cachedMatches = await getCachedTBAEventMatches(eventKey, true);
+        if (cancelled || cachedMatches.length === 0) {
+          return;
+        }
+
+        const processed = await processPredictionRewardsForMatches(cachedMatches, {
+          eventKey,
+          onlyFinalResults: true,
+          includeZeroResultMatches: false,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (processed.summary.processedPredictionCount > 0) {
+          toast.success(
+            `Auto-processed ${processed.summary.processedPredictionCount} predictions (${processed.summary.correctPredictionCount} correct, ${processed.summary.totalStakesAwarded} stakes)`
+          );
+        }
+      } catch (error) {
+        console.error('Failed to auto-process prediction rewards:', error);
+      }
+    };
+
+    void runAutoPredictionRewards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventKey, isValidating, matchList]);
+
+  useEffect(() => {
+    if (!eventKey || isValidating || matchList.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const runAutoPredictionRewards = async () => {
+      try {
+        const cachedMatches = await getCachedTBAEventMatches(eventKey, true);
+        if (cancelled || cachedMatches.length === 0) {
+          return;
+        }
+
+        const processed = await processPredictionRewardsForMatches(cachedMatches, {
+          eventKey,
+          onlyFinalResults: true,
+          includeZeroResultMatches: false,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (processed.summary.processedPredictionCount > 0) {
+          toast.success(
+            `Auto-processed ${processed.summary.processedPredictionCount} predictions (${processed.summary.correctPredictionCount} correct, ${processed.summary.totalStakesAwarded} stakes)`
+          );
+        }
+      } catch (error) {
+        console.error('Failed to auto-process prediction rewards:', error);
+      }
+    };
+
+    void runAutoPredictionRewards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventKey, isValidating, matchList]);
 
   return (
     <div className="container min-h-screen mx-auto px-4 pt-12 pb-24 space-y-6 mt-safe">
@@ -337,11 +697,31 @@ export const MatchValidationPage: React.FC = () => {
 
       {/* Fuel OPR + Scaled Fuel */}
       {eventKey && (
-        <FuelOPRCard
-          rows={fuelOprRows}
-          lambda={fuelOprLambda}
-          isLoading={fuelOprLoading}
-        />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="fuel-opr-include-playoffs"
+              checked={fuelOprIncludePlayoffs}
+              onCheckedChange={(checked) => {
+                const next = checked === true;
+                setFuelOprIncludePlayoffs(next);
+                localStorage.setItem(FUEL_OPR_INCLUDE_PLAYOFFS_KEY, String(next));
+              }}
+            />
+            <label htmlFor="fuel-opr-include-playoffs" className="text-sm text-muted-foreground">
+              Include playoff matches in Fuel OPR calculation
+            </label>
+          </div>
+          <FuelOPRCard
+            impactRows={impactFuelOprRows}
+            productionRows={productionFuelOprRows}
+            impactLambda={impactFuelOprLambda}
+            productionLambda={productionFuelOprLambda}
+            mode={fuelOprMode}
+            onModeChange={setFuelOprMode}
+            isLoading={fuelOprLoading}
+          />
+        </div>
       )}
 
       {/* Filters */}
