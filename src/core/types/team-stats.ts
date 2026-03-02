@@ -69,6 +69,19 @@ export interface TeamStats {
     coprTotalAutoPoints?: number;
     coprTotalTowerPoints?: number;
 
+    // Statbotics EPA metrics (optional; populated from team-event EPA breakdown)
+    statboticsTotalPoints?: number;
+    statboticsAutoPoints?: number;
+    statboticsTeleopPoints?: number;
+    statboticsEndgamePoints?: number;
+    statboticsTotalFuel?: number;
+    statboticsAutoFuel?: number;
+    statboticsTeleopFuel?: number;
+    statboticsEndgameFuel?: number;
+    statboticsTotalTower?: number;
+    statboticsAutoTower?: number;
+    statboticsEndgameTower?: number;
+
     // Allow additional game-specific fields
     [key: string]: any;
 }

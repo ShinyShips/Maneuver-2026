@@ -8,9 +8,10 @@ import {
   MapPin,
   Bug,
   CheckCircle,
+  BarChart3,
 } from 'lucide-react';
 
-export type TBADataType = 'match-data' | 'match-results' | 'match-validation-data' | 'event-teams' | 'pit-data' | 'debug-nexus';
+export type TBADataType = 'match-data' | 'match-results' | 'match-validation-data' | 'statbotics-epa' | 'event-teams' | 'pit-data' | 'debug-nexus';
 
 interface DataTypeSelectorProps {
   dataType: TBADataType;
@@ -34,7 +35,13 @@ const dataTypeOptions = [
     value: 'match-validation-data' as const,
     label: 'Match Validation Data',
     icon: CheckCircle,
-    description: 'Load detailed match breakdowns for scouting validation'
+    description: 'Load TBA breakdowns and refresh TBA COPR + Statbotics EPA metrics'
+  },
+  {
+    value: 'statbotics-epa' as const,
+    label: 'Statbotics EPA',
+    icon: BarChart3,
+    description: 'Load Statbotics team-event EPA breakdown data'
   },
   {
     value: 'event-teams' as const,

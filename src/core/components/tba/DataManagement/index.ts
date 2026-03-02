@@ -8,3 +8,4 @@ export { DataStatusCard } from './DataStatusCard';
 export { DataOperationsCard } from './DataOperationsCard';
 export { MatchValidationDataDisplay } from './MatchValidationDataDisplay';
 export { PitDataDisplay } from './PitDataDisplay';
+export { StatboticsEPADataDisplay } from './StatboticsEPADataDisplay';

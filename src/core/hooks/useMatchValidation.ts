@@ -43,6 +43,7 @@ import {
 import { getAllMappedActionKeys, getAllMappedToggleKeys } from '@/game-template/game-schema';
 import { getEntriesByEvent } from '@/core/db/scoutingDatabase';
 import { fetchAndCacheEventCOPRs } from '@/core/lib/tba/coprUtils';
+import { extractTeamsFromMatches, fetchAndCacheEventStatboticsEPA, fetchEventTeamNumbersFromTBA } from '@/core/lib/statbotics/epaUtils';
 import { toast } from 'sonner';
 
 // ============================================================================
@@ -133,12 +134,22 @@ export function useMatchValidation({
         try {
             // Fetch matches from TBA
             setProgress({ current: 0, total: 1, currentMatch: '', phase: 'fetching-tba' });
-            await fetchEventMatches(eventKey, '');
+            const fetchedMatches = await fetchEventMatches(eventKey, '');
 
             try {
                 await fetchAndCacheEventCOPRs(eventKey, '');
             } catch (coprError) {
                 console.warn(`[Validation] Failed to refresh COPRs for ${eventKey}:`, coprError);
+            }
+
+            try {
+                let eventTeams = await fetchEventTeamNumbersFromTBA(eventKey, '');
+                if (eventTeams.length === 0) {
+                    eventTeams = extractTeamsFromMatches(fetchedMatches);
+                }
+                await fetchAndCacheEventStatboticsEPA(eventKey, eventTeams);
+            } catch (statboticsError) {
+                console.warn(`[Validation] Failed to refresh Statbotics EPA for ${eventKey}:`, statboticsError);
             }
 
         } catch (err) {

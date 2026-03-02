@@ -12,6 +12,7 @@ import {
   Users,
   AlertCircle,
   CheckCircle,
+  BarChart3,
 } from 'lucide-react';
 import { type TBADataType } from '../EventConfiguration/DataTypeSelector';
 
@@ -29,6 +30,7 @@ interface DataOperationsCardProps {
   onLoadMatchData: () => void;
   onLoadMatchResults: () => void;
   onLoadValidationData: () => void;
+  onLoadStatboticsEPA: () => void;
   onLoadEventTeams: () => void;
   onLoadPitData: () => void;
   onDebugNexus: () => void;
@@ -48,6 +50,7 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
   onLoadMatchData,
   onLoadMatchResults,
   onLoadValidationData,
+  onLoadStatboticsEPA,
   onLoadEventTeams,
   onLoadPitData,
   onDebugNexus,
@@ -86,7 +89,7 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
       case 'match-validation-data':
         return {
           title: 'Load Match Validation Data',
-          description: 'Download detailed match breakdowns from The Blue Alliance for validation',
+          description: 'Download TBA match breakdowns and refresh TBA COPR + Statbotics EPA metrics for validation',
           icon: CheckCircle,
           requiresEvent: true,
           requiresTBA: true,
@@ -100,6 +103,15 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
           requiresEvent: true,
           requiresTBA: false,
           requiresNexus: true,
+        };
+      case 'statbotics-epa':
+        return {
+          title: 'Load Statbotics EPA',
+          description: 'Download Statbotics team-event EPA breakdown data for all teams in this event',
+          icon: BarChart3,
+          requiresEvent: true,
+          requiresTBA: true,
+          requiresNexus: false,
         };
       case 'debug-nexus':
         return {
@@ -205,6 +217,26 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
               <>
                 <Download className="h-4 w-4 mr-2" />
                 Load Event Teams
+              </>
+            )}
+          </Button>
+        );
+      case 'statbotics-epa':
+        return (
+          <Button
+            className="w-full h-12"
+            onClick={onLoadStatboticsEPA}
+            disabled={validationLoading || !canLoad}
+          >
+            {validationLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading Statbotics EPA...
+              </>
+            ) : (
+              <>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Load Statbotics EPA
               </>
             )}
           </Button>

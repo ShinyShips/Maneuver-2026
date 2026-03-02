@@ -1,4 +1,4 @@
-type ApiProvider = 'tba' | 'nexus';
+type ApiProvider = 'tba' | 'nexus' | 'statbotics';
 
 interface ProxyRequestOptions {
   apiKeyOverride?: string;

@@ -11,6 +11,7 @@ import type { ScoutingEntryBase } from "@/types/scouting-entry";
 import { getCachedTBAEventMatches } from "@/core/lib/tbaCache";
 import { calculateFuelOPRHybrid } from "@/game-template/fuelOpr";
 import { getCachedCOPREventKeys, getCachedEventCOPRs } from "@/core/lib/tba/coprUtils";
+import { getCachedEventStatboticsEPA, getCachedStatboticsEventKeys } from "@/core/lib/statbotics/epaUtils";
 
 /**
  * useTeamStats - Hook for the Team Statistics page
@@ -38,6 +39,7 @@ export const useTeamStats = () => {
                 ...availableEvents.filter(eventKey => eventKey && eventKey !== 'all'),
                 ...(currentEvent ? [currentEvent] : []),
                 ...getCachedCOPREventKeys(),
+                ...getCachedStatboticsEventKeys(),
             ]),
         ];
     }, [availableEvents]);
@@ -56,6 +58,7 @@ export const useTeamStats = () => {
                     ...entries.map(e => e.eventKey).filter(Boolean),
                     ...pitEntries.map(e => e.eventKey).filter(Boolean),
                     ...getCachedCOPREventKeys(),
+                    ...getCachedStatboticsEventKeys(),
                 ]);
 
                 const currentEvent = localStorage.getItem('eventKey');
@@ -87,6 +90,13 @@ export const useTeamStats = () => {
                     }
                 }
 
+                const teamsFromStatbotics = new Set<string>();
+                for (const eventKey of getCachedStatboticsEventKeys()) {
+                    for (const teamNumber of getCachedEventStatboticsEPA(eventKey).keys()) {
+                        teamsFromStatbotics.add(String(teamNumber));
+                    }
+                }
+
                 // Extract unique teams (sorted)
                 const teams = [
                     ...new Set([
@@ -94,6 +104,7 @@ export const useTeamStats = () => {
                         ...pitEntries.map(e => String(e.teamNumber)).filter(Boolean),
                         ...teamsFromTBA,
                         ...teamsFromCOPR,
+                        ...teamsFromStatbotics,
                     ]),
                 ];
                 teams.sort((a, b) => parseInt(a) - parseInt(b));
@@ -128,8 +139,16 @@ export const useTeamStats = () => {
                 ? [eventFilter]
                 : [...new Set(getCachedCOPREventKeys())];
 
+            const statboticsEventKeys = eventFilter && eventFilter !== 'all'
+                ? [eventFilter]
+                : [...new Set(getCachedStatboticsEventKeys())];
+
             const coprSamples = coprEventKeys
                 .map(key => getCachedEventCOPRs(key).get(teamNum))
+                .filter((sample): sample is NonNullable<typeof sample> => sample !== undefined);
+
+            const statboticsSamples = statboticsEventKeys
+                .map(key => getCachedEventStatboticsEPA(key).get(teamNum))
                 .filter((sample): sample is NonNullable<typeof sample> => sample !== undefined);
 
             const average = (values: Array<number | undefined>): number => {
@@ -214,6 +233,17 @@ export const useTeamStats = () => {
                     coprTotalTeleopPoints: round1OrUndefined(averageOrUndefined(coprSamples.map(sample => sample.totalTeleopPoints))),
                     coprTotalAutoPoints: round1OrUndefined(averageOrUndefined(coprSamples.map(sample => sample.totalAutoPoints))),
                     coprTotalTowerPoints: round1OrUndefined(averageOrUndefined(coprSamples.map(sample => sample.totalTowerPoints))),
+                    statboticsTotalPoints: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.totalPoints))),
+                    statboticsAutoPoints: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.autoPoints))),
+                    statboticsTeleopPoints: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.teleopPoints))),
+                    statboticsEndgamePoints: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.endgamePoints))),
+                    statboticsTotalFuel: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.totalFuel))),
+                    statboticsAutoFuel: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.autoFuel))),
+                    statboticsTeleopFuel: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.teleopFuel))),
+                    statboticsEndgameFuel: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.endgameFuel))),
+                    statboticsTotalTower: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.totalTower))),
+                    statboticsAutoTower: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.autoTower))),
+                    statboticsEndgameTower: round1OrUndefined(averageOrUndefined(statboticsSamples.map(sample => sample.endgameTower))),
                 } as TeamStats;
             }
 
@@ -231,6 +261,17 @@ export const useTeamStats = () => {
                 coprTotalTeleopPoints?: number;
                 coprTotalAutoPoints?: number;
                 coprTotalTowerPoints?: number;
+                statboticsTotalPoints?: number;
+                statboticsAutoPoints?: number;
+                statboticsTeleopPoints?: number;
+                statboticsEndgamePoints?: number;
+                statboticsTotalFuel?: number;
+                statboticsAutoFuel?: number;
+                statboticsTeleopFuel?: number;
+                statboticsEndgameFuel?: number;
+                statboticsTotalTower?: number;
+                statboticsAutoTower?: number;
+                statboticsEndgameTower?: number;
             };
 
             baseStats.fuelAutoOPR = round1(teamOpr?.auto ?? 0);
@@ -247,6 +288,18 @@ export const useTeamStats = () => {
             const coprTotalAutoPoints = averageOrUndefined(coprSamples.map(sample => sample.totalAutoPoints));
             const coprTotalTowerPoints = averageOrUndefined(coprSamples.map(sample => sample.totalTowerPoints));
 
+            const statboticsTotalPoints = averageOrUndefined(statboticsSamples.map(sample => sample.totalPoints));
+            const statboticsAutoPoints = averageOrUndefined(statboticsSamples.map(sample => sample.autoPoints));
+            const statboticsTeleopPoints = averageOrUndefined(statboticsSamples.map(sample => sample.teleopPoints));
+            const statboticsEndgamePoints = averageOrUndefined(statboticsSamples.map(sample => sample.endgamePoints));
+            const statboticsTotalFuel = averageOrUndefined(statboticsSamples.map(sample => sample.totalFuel));
+            const statboticsAutoFuel = averageOrUndefined(statboticsSamples.map(sample => sample.autoFuel));
+            const statboticsTeleopFuel = averageOrUndefined(statboticsSamples.map(sample => sample.teleopFuel));
+            const statboticsEndgameFuel = averageOrUndefined(statboticsSamples.map(sample => sample.endgameFuel));
+            const statboticsTotalTower = averageOrUndefined(statboticsSamples.map(sample => sample.totalTower));
+            const statboticsAutoTower = averageOrUndefined(statboticsSamples.map(sample => sample.autoTower));
+            const statboticsEndgameTower = averageOrUndefined(statboticsSamples.map(sample => sample.endgameTower));
+
             baseStats.coprHubAutoPoints = coprHubAuto === undefined ? undefined : round1(coprHubAuto);
             baseStats.coprHubTeleopPoints = coprHubTeleop === undefined ? undefined : round1(coprHubTeleop);
             baseStats.coprHubTotalPoints = coprHubTotal === undefined ? undefined : round1(coprHubTotal);
@@ -256,6 +309,18 @@ export const useTeamStats = () => {
             baseStats.coprTotalTeleopPoints = coprTotalTeleopPoints === undefined ? undefined : round1(coprTotalTeleopPoints);
             baseStats.coprTotalAutoPoints = coprTotalAutoPoints === undefined ? undefined : round1(coprTotalAutoPoints);
             baseStats.coprTotalTowerPoints = coprTotalTowerPoints === undefined ? undefined : round1(coprTotalTowerPoints);
+
+            baseStats.statboticsTotalPoints = statboticsTotalPoints === undefined ? undefined : round1(statboticsTotalPoints);
+            baseStats.statboticsAutoPoints = statboticsAutoPoints === undefined ? undefined : round1(statboticsAutoPoints);
+            baseStats.statboticsTeleopPoints = statboticsTeleopPoints === undefined ? undefined : round1(statboticsTeleopPoints);
+            baseStats.statboticsEndgamePoints = statboticsEndgamePoints === undefined ? undefined : round1(statboticsEndgamePoints);
+            baseStats.statboticsTotalFuel = statboticsTotalFuel === undefined ? undefined : round1(statboticsTotalFuel);
+            baseStats.statboticsAutoFuel = statboticsAutoFuel === undefined ? undefined : round1(statboticsAutoFuel);
+            baseStats.statboticsTeleopFuel = statboticsTeleopFuel === undefined ? undefined : round1(statboticsTeleopFuel);
+            baseStats.statboticsEndgameFuel = statboticsEndgameFuel === undefined ? undefined : round1(statboticsEndgameFuel);
+            baseStats.statboticsTotalTower = statboticsTotalTower === undefined ? undefined : round1(statboticsTotalTower);
+            baseStats.statboticsAutoTower = statboticsAutoTower === undefined ? undefined : round1(statboticsAutoTower);
+            baseStats.statboticsEndgameTower = statboticsEndgameTower === undefined ? undefined : round1(statboticsEndgameTower);
 
             return baseStats;
         } catch (error) {

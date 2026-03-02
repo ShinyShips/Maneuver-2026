@@ -2,7 +2,7 @@ import React from 'react';
 import { ExternalLink } from 'lucide-react';
 
 interface DataAttributionProps {
-  sources: ('tba' | 'nexus')[];
+  sources: ('tba' | 'nexus' | 'statbotics')[];
   variant?: 'full' | 'compact' | 'inline';
   className?: string;
 }
@@ -14,6 +14,7 @@ export const DataAttribution: React.FC<DataAttributionProps> = ({
 }) => {
   const showTBA = sources.includes('tba');
   const showNexus = sources.includes('nexus');
+  const showStatbotics = sources.includes('statbotics');
 
   if (variant === 'full') {
     return (
@@ -42,6 +43,20 @@ export const DataAttribution: React.FC<DataAttributionProps> = ({
               className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 underline flex items-center gap-1"
             >
               Nexus for FRC
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        )}
+        {showStatbotics && (
+          <div className="flex items-center gap-1">
+            <span>EPA data from</span>
+            <a
+              href="https://www.statbotics.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 underline flex items-center gap-1"
+            >
+              Statbotics
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>
@@ -75,6 +90,19 @@ export const DataAttribution: React.FC<DataAttributionProps> = ({
           className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 underline"
         >
           Nexus for FRC
+        </a>
+      );
+    }
+    if (showStatbotics) {
+      attributions.push(
+        <a
+          key="statbotics"
+          href="https://www.statbotics.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 underline"
+        >
+          Statbotics
         </a>
       );
     }
@@ -113,6 +141,18 @@ export const DataAttribution: React.FC<DataAttributionProps> = ({
           title="Pit data from FRC Nexus"
         >
           Nexus<span className="hidden sm:inline"> for FRC</span>
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+      {showStatbotics && (
+        <a
+          href="https://www.statbotics.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 underline flex items-center gap-1"
+          title="EPA data from Statbotics"
+        >
+          Statbotics
           <ExternalLink className="h-3 w-3" />
         </a>
       )}

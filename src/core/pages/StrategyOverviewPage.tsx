@@ -5,13 +5,10 @@ import { strategyConfig } from "@/game/strategy-config";
 import { StrategyHeader } from "@/core/components/Strategy/StrategyHeader";
 import { StrategyChart } from "@/core/components/Strategy/StrategyChart";
 import { TeamStatsTableEnhanced } from "@/core/components/Strategy/TeamStatsTableEnhanced";
-import { loadScoutingData } from "@/core/lib/scoutingDataUtils";
-import { ScoutingEntryBase } from "@/types/scouting-entry";
 import { AggregationType, ColumnFilter, FilterOperator } from "@/core/types/strategy";
 import { Skeleton } from "@/core/components/ui/skeleton";
 
 export default function StrategyOverviewPage() {
-    const [scoutingData, setScoutingData] = useState<ScoutingEntryBase[]>([]);
     const [selectedEvent, setSelectedEvent] = useState<string>("all");
     const [aggregationType, setAggregationType] = useState<AggregationType>("average");
     const [chartType, setChartType] = useState<"bar" | "scatter" | "box" | "stacked">("bar");
@@ -29,12 +26,6 @@ export default function StrategyOverviewPage() {
 
     // Load data on mount
     useEffect(() => {
-        const fetchData = async () => {
-            const data = await loadScoutingData();
-            setScoutingData(data);
-        };
-        fetchData();
-
         // Load saved settings from localStorage
         const savedAggregation = localStorage.getItem("strategy_aggregation");
         if (savedAggregation) setAggregationType(savedAggregation as AggregationType);
@@ -90,11 +81,6 @@ export default function StrategyOverviewPage() {
         localStorage.setItem("strategy_visibleColumns", JSON.stringify(visibleKeys));
     }, [columnConfig]);
 
-    // Derived state
-    const availableEvents = useMemo(() => {
-        return Array.from(new Set(scoutingData.map((d) => d.eventKey))).sort();
-    }, [scoutingData]);
-
     // Calculate statistics using centralized hook
     const { teamStats, filteredTeamStats, isLoading, error } = useTeamStatistics(
         selectedEvent === "all" ? undefined : selectedEvent,
@@ -102,6 +88,11 @@ export default function StrategyOverviewPage() {
         columnFilters,
         aggregationType
     );
+
+    // Derived state
+    const availableEvents = useMemo(() => {
+        return Array.from(new Set(teamStats.map((d) => d.eventKey).filter(Boolean))).sort();
+    }, [teamStats]);
 
     // Prepare chart data using generic hook
     const { chartData, chartConfig } = useChartData(

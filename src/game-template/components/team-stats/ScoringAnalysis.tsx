@@ -23,8 +23,21 @@ export function ScoringAnalysis({
         teamStats.coprAutoTowerPoints,
         teamStats.coprEndgameTowerPoints,
     ].some(value => typeof value === 'number');
+
+    const hasStatboticsData = [
+        teamStats.statboticsTotalPoints,
+        teamStats.statboticsAutoPoints,
+        teamStats.statboticsTeleopPoints,
+        teamStats.statboticsEndgamePoints,
+        teamStats.statboticsAutoFuel,
+        teamStats.statboticsTeleopFuel,
+        teamStats.statboticsAutoTower,
+        teamStats.statboticsEndgameTower,
+    ].some(value => typeof value === 'number');
+
+    const hasExternalScoringData = hasCoprData || hasStatboticsData;
     
-    if (teamStats.matchesPlayed === 0 && !hasCoprData) {
+    if (teamStats.matchesPlayed === 0 && !hasExternalScoringData) {
         return (
             <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
@@ -43,10 +56,10 @@ export function ScoringAnalysis({
 
     return (
         <div className="space-y-6 pb-6">
-            {teamStats.matchesPlayed === 0 && hasCoprData && (
+            {teamStats.matchesPlayed === 0 && hasExternalScoringData && (
                 <Card>
                     <CardContent className="py-4 text-sm text-muted-foreground">
-                        No local match scouting entries for this team yet. Showing TBA COPR scoring metrics.
+                        No local match scouting entries for this team yet. Showing external scoring metrics from TBA COPR and/or Statbotics EPA.
                     </CardContent>
                 </Card>
             )}

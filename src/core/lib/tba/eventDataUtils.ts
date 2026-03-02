@@ -121,6 +121,8 @@ export const hasStoredEventData = (eventKey: string): boolean => {
     `match_results_${eventKey}`,
     `event_info_${eventKey}`,
     `pit_assignments_${eventKey}`,
+    `tba_event_coprs_${eventKey}`,
+    `statbotics_event_epa_${eventKey}`,
   ];
   
   for (const key of eventSpecificKeys) {
@@ -176,6 +178,10 @@ export const clearEventData = (eventKey: string): void => {
     // Clear pit assignments
     const pitAssignmentsKey = `pit_assignments_${eventKey}`;
     localStorage.removeItem(pitAssignmentsKey);
+
+    // Clear TBA COPRs and Statbotics EPA caches
+    localStorage.removeItem(`tba_event_coprs_${eventKey}`);
+    localStorage.removeItem(`statbotics_event_epa_${eventKey}`);
     
     console.log(`Successfully cleared all event data for ${eventKey}`);
     toast.success(`Cleared all stored data for event ${eventKey}`);

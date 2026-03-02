@@ -351,6 +351,10 @@ export const strategyColumns = {
         "rawValues.endgamePoints": { label: "Endgame Points", visible: true, numeric: true },
         "rawValues.scaledTotalFuel": { label: "Scaled Fuel (Total)", visible: true, numeric: true },
         "fuelTotalOPR": { label: "Fuel OPR (Total)", visible: true, numeric: true },
+        "statboticsTotalPoints": { label: "Statbotics EPA (Total Points)", visible: false, numeric: true },
+        "statboticsAutoPoints": { label: "Statbotics EPA (Auto Points)", visible: false, numeric: true },
+        "statboticsTeleopPoints": { label: "Statbotics EPA (Teleop Points)", visible: false, numeric: true },
+        "statboticsEndgamePoints": { label: "Statbotics EPA (Endgame Points)", visible: false, numeric: true },
         "coprTotalPoints": { label: "TBA COPR (Total Points)", visible: false, numeric: true },
         "coprTotalTeleopPoints": { label: "TBA COPR (Teleop Points)", visible: false, numeric: true },
         "coprTotalAutoPoints": { label: "TBA COPR (Auto Points)", visible: false, numeric: true },
@@ -360,6 +364,8 @@ export const strategyColumns = {
     overall: {
         "rawValues.totalFuel": { label: "Fuel Scored", visible: true, numeric: true },
         "rawValues.totalFuelPassed": { label: "Fuel Passed", visible: false, numeric: true },
+        "statboticsTotalFuel": { label: "Statbotics EPA (Fuel Total)", visible: false, numeric: true },
+        "statboticsTotalTower": { label: "Statbotics EPA (Tower Total)", visible: false, numeric: true },
         "coprHubTotalPoints": { label: "TBA COPR (Hub Total)", visible: false, numeric: true },
     },
     // Auto stats (use rawValues for user-selectable aggregation)
@@ -367,6 +373,8 @@ export const strategyColumns = {
         "rawValues.autoFuel": { label: "Auto Fuel", visible: true, numeric: true },
         "rawValues.scaledAutoFuel": { label: "Scaled Auto Fuel", visible: true, numeric: true },
         "fuelAutoOPR": { label: "Fuel OPR (Auto)", visible: true, numeric: true },
+        "statboticsAutoFuel": { label: "Statbotics EPA (Auto Fuel)", visible: false, numeric: true },
+        "statboticsAutoTower": { label: "Statbotics EPA (Auto Tower)", visible: false, numeric: true },
         "coprHubAutoPoints": { label: "TBA COPR (Hub Auto)", visible: false, numeric: true },
         "coprAutoTowerPoints": { label: "TBA COPR (Auto Tower)", visible: false, numeric: true },
         "autoShotOnTheMoveRate": { label: "Auto Shot On Move %", visible: true, numeric: true, percentage: true },
@@ -384,6 +392,7 @@ export const strategyColumns = {
         "rawValues.teleopFuel": { label: "Teleop Fuel", visible: true, numeric: true },
         "rawValues.scaledTeleopFuel": { label: "Scaled Teleop Fuel", visible: true, numeric: true },
         "fuelTeleopOPR": { label: "Fuel OPR (Teleop)", visible: true, numeric: true },
+        "statboticsTeleopFuel": { label: "Statbotics EPA (Teleop+Endgame Fuel)", visible: false, numeric: true },
         "coprHubTeleopPoints": { label: "TBA COPR (Hub Teleop)", visible: false, numeric: true },
         "teleopShotOnTheMoveRate": { label: "Teleop Shot On Move %", visible: true, numeric: true, percentage: true },
         "teleopShotStationaryRate": { label: "Teleop Shot Stationary %", visible: true, numeric: true, percentage: true },
@@ -400,6 +409,7 @@ export const strategyColumns = {
     // Endgame stats (climb rates are percentages, keep as-is)
     endgame: {
         "rawValues.endgameClimbStartTimeSec": { label: "Endgame Climb Start (s)", visible: true, numeric: true },
+        "statboticsEndgameTower": { label: "Statbotics EPA (Endgame Tower)", visible: false, numeric: true },
         "coprEndgameTowerPoints": { label: "TBA COPR (Endgame Tower)", visible: false, numeric: true },
         "endgame.climbL1Rate": { label: "L1 Climb %", visible: false, numeric: true, percentage: true },
         "endgame.climbL1Attempts": { label: "L1 Climb Attempts", visible: true, numeric: true },

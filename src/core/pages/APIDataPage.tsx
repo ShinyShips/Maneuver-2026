@@ -9,7 +9,8 @@ import {
   DataStatusCard,
   DataOperationsCard,
   MatchValidationDataDisplay,
-  PitDataDisplay
+  PitDataDisplay,
+  StatboticsEPADataDisplay,
 } from '@/core/components/tba/DataManagement';
 import {
   DataTypeSelector,
@@ -24,6 +25,8 @@ import { DataAttribution } from '@/core/components/DataAttribution';
 import { getNexusPitData, storePitData, getStoredPitData, getNexusEvents, extractAndStoreTeamsFromPitAddresses, type NexusPitAddresses, type NexusPitMap } from '@/core/lib/tba';
 import { clearEventData, hasStoredEventData, setCurrentEvent, getCurrentEvent, isDifferentEvent } from '@/core/lib/tba';
 import { processPredictionRewardsForMatches } from '@/core/lib/predictionRewards';
+import { fetchAndCacheEventCOPRs } from '@/core/lib/tba/coprUtils';
+import { extractTeamsFromMatches, fetchAndCacheEventStatboticsEPA, fetchEventTeamNumbersFromTBA } from '@/core/lib/statbotics/epaUtils';
 import { toast } from 'sonner';
 
 interface ProcessingResult {
@@ -65,6 +68,7 @@ const APIDataPage: React.FC = () => {
   // Debug Nexus state
   const [debugNexusLoading, setDebugNexusLoading] = useState(false);
   const [nexusEvents, setNexusEvents] = useState<Record<string, unknown> | null>(null);
+  const [statboticsRefreshKey, setStatboticsRefreshKey] = useState(0);
 
   // Use the TBA data hook
   const {
@@ -163,6 +167,7 @@ const APIDataPage: React.FC = () => {
 
       // Update current event in localStorage after successful load
       setCurrentEvent(eventKey.trim());
+      setStoredDataExists(hasStoredEventData(eventKey.trim()));
     });
   };
 
@@ -182,9 +187,53 @@ const APIDataPage: React.FC = () => {
     }
 
     executeWithConfirmation(async () => {
-      await fetchValidationMatches(eventKey, apiKey, false);
+      const validationData = await fetchValidationMatches(eventKey, apiKey, false);
+
+      try {
+        await fetchAndCacheEventCOPRs(eventKey, apiKey);
+      } catch (coprError) {
+        console.warn(`[API Data] Failed to refresh COPRs for ${eventKey}:`, coprError);
+      }
+
+      try {
+        let eventTeams = await fetchEventTeamNumbersFromTBA(eventKey, apiKey);
+        if (eventTeams.length === 0) {
+          eventTeams = extractTeamsFromMatches(validationData);
+        }
+        await fetchAndCacheEventStatboticsEPA(eventKey, eventTeams);
+        setStatboticsRefreshKey(Date.now());
+      } catch (statboticsError) {
+        console.warn(`[API Data] Failed to refresh Statbotics EPA for ${eventKey}:`, statboticsError);
+      }
 
       // Update current event in localStorage after successful load
+      setCurrentEvent(eventKey.trim());
+      setStoredDataExists(hasStoredEventData(eventKey.trim()));
+    });
+  };
+
+  const handleLoadStatboticsEPA = async () => {
+    if (!eventKey.trim()) {
+      toast.error('Please enter an event key');
+      return;
+    }
+
+    executeWithConfirmation(async () => {
+      const validationData = await fetchValidationMatches(eventKey, apiKey, false);
+
+      try {
+        let eventTeams = await fetchEventTeamNumbersFromTBA(eventKey, apiKey);
+        if (eventTeams.length === 0) {
+          eventTeams = extractTeamsFromMatches(validationData);
+        }
+        await fetchAndCacheEventStatboticsEPA(eventKey, eventTeams);
+        setStatboticsRefreshKey(Date.now());
+        toast.success(`Loaded Statbotics EPA for ${eventTeams.length} teams`);
+      } catch (statboticsError) {
+        console.warn(`[API Data] Failed to refresh Statbotics EPA for ${eventKey}:`, statboticsError);
+        toast.error('Failed to load Statbotics EPA data');
+      }
+
       setCurrentEvent(eventKey.trim());
     });
   };
@@ -352,16 +401,16 @@ const APIDataPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold">API Data</h1>
             <p className="text-muted-foreground">
-              Import match schedules, results, and team lists from The Blue Alliance or pit information from Nexus for FRC.
+              Import match schedules, results, team lists, and validation metrics from TBA/Statbotics, plus pit information from Nexus.
             </p>
           </div>
           {/* Attribution for TBA and Nexus APIs */}
           <div className="hidden md:block">
-            <DataAttribution sources={['tba', 'nexus']} variant="full" />
+            <DataAttribution sources={['tba', 'statbotics', 'nexus']} variant="full" />
           </div>
         </div>
         <div className="md:hidden mt-2">
-          <DataAttribution sources={['tba', 'nexus']} variant="compact" />
+          <DataAttribution sources={['tba', 'statbotics', 'nexus']} variant="compact" />
         </div>
       </div>
 
@@ -405,6 +454,7 @@ const APIDataPage: React.FC = () => {
         onLoadMatchData={handleLoadMatchData}
         onLoadMatchResults={handleLoadMatchResults}
         onLoadValidationData={handleLoadValidationData}
+        onLoadStatboticsEPA={handleLoadStatboticsEPA}
         onLoadEventTeams={handleLoadEventTeams}
         onLoadPitData={handleLoadPitData}
         onDebugNexus={handleDebugNexus}
@@ -426,14 +476,21 @@ const APIDataPage: React.FC = () => {
 
       {/* Match Validation Data Display */}
       {dataType === 'match-validation-data' && (
-        <MatchValidationDataDisplay
-          matches={validationMatches}
-          cacheMetadata={cacheMetadata}
-          eventKey={eventKey}
-          isOnline={validationOnline}
-          cacheExpired={validationCacheExpired}
-          onClearCache={() => clearValidationCache(eventKey)}
-        />
+        <div className="space-y-6">
+          <MatchValidationDataDisplay
+            matches={validationMatches}
+            cacheMetadata={cacheMetadata}
+            eventKey={eventKey}
+            isOnline={validationOnline}
+            cacheExpired={validationCacheExpired}
+            onClearCache={() => clearValidationCache(eventKey)}
+          />
+          <StatboticsEPADataDisplay eventKey={eventKey} refreshKey={statboticsRefreshKey} />
+        </div>
+      )}
+
+      {dataType === 'statbotics-epa' && (
+        <StatboticsEPADataDisplay eventKey={eventKey} refreshKey={statboticsRefreshKey} />
       )}
 
       {/* Event Teams Display */}

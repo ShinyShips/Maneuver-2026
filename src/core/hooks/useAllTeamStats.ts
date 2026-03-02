@@ -16,6 +16,7 @@ import { useAllMatches } from "./useAllMatches";
 import { calculateTeamStats } from "@/game-template/calculations";
 import { calculateFuelOPRHybrid } from "@/game-template/fuelOpr";
 import { getCachedCOPREventKeys, getCachedEventCOPRs } from "@/core/lib/tba/coprUtils";
+import { getCachedEventStatboticsEPA, getCachedStatboticsEventKeys } from "@/core/lib/statbotics/epaUtils";
 import { getCachedTBAEventKeys, getCachedTBAEventMatches } from "@/core/lib/tbaCache";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { ScoutingEntry } from "@/game-template/scoring";
@@ -52,6 +53,14 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
             coprEventKeys.map(key => [key, getCachedEventCOPRs(key)] as const)
         );
 
+        const statboticsEventKeys = eventKey
+            ? [eventKey]
+            : [...new Set(getCachedStatboticsEventKeys())];
+
+        const statboticsByEvent = new Map(
+            statboticsEventKeys.map(key => [key, getCachedEventStatboticsEPA(key)] as const)
+        );
+
         // Group matches by team + event
         const matchesByTeam = matches.reduce((acc, match) => {
             const teamNumber = match.teamNumber;
@@ -76,6 +85,7 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
             const calculated = calculateTeamStats(teamMatches);
             const fuelOpr = fuelOprByEventTeam.get(`${eventKey}::${teamNumber}`);
             const copr = coprByEvent.get(eventKey)?.get(teamNumber);
+            const statbotics = statboticsByEvent.get(eventKey)?.get(teamNumber);
 
             const baseStats = {
                 teamNumber,
@@ -98,6 +108,17 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                 coprTotalTeleopPoints: copr?.totalTeleopPoints,
                 coprTotalAutoPoints: copr?.totalAutoPoints,
                 coprTotalTowerPoints: copr?.totalTowerPoints,
+                statboticsTotalPoints: statbotics?.totalPoints,
+                statboticsAutoPoints: statbotics?.autoPoints,
+                statboticsTeleopPoints: statbotics?.teleopPoints,
+                statboticsEndgamePoints: statbotics?.endgamePoints,
+                statboticsTotalFuel: statbotics?.totalFuel,
+                statboticsAutoFuel: statbotics?.autoFuel,
+                statboticsTeleopFuel: statbotics?.teleopFuel,
+                statboticsEndgameFuel: statbotics?.endgameFuel,
+                statboticsTotalTower: statbotics?.totalTower,
+                statboticsAutoTower: statbotics?.autoTower,
+                statboticsEndgameTower: statbotics?.endgameTower,
             };
         });
 
@@ -113,11 +134,13 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
             try {
                 const tbaEventKeys = await getCachedTBAEventKeys();
                 const coprEventKeys = getCachedCOPREventKeys();
+                const statboticsEventKeys = getCachedStatboticsEventKeys();
                 const eventKeys = eventKey
                     ? [eventKey]
                     : [...new Set([
                         ...tbaEventKeys,
                         ...coprEventKeys,
+                        ...statboticsEventKeys,
                         ...scoutedTeamStats.map(team => team.eventKey).filter(Boolean),
                     ])];
 
@@ -128,9 +151,10 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                 const supplemental: TeamStats[] = [];
 
                 for (const key of eventKeys) {
-                    const [tbaMatches, coprByTeam] = await Promise.all([
+                    const [tbaMatches, coprByTeam, statboticsByTeam] = await Promise.all([
                         getCachedTBAEventMatches(key, true),
                         Promise.resolve(getCachedEventCOPRs(key)),
+                        Promise.resolve(getCachedEventStatboticsEPA(key)),
                     ]);
 
                     const hybrid = tbaMatches.length >= 2
@@ -144,6 +168,7 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                     const teamNumbers = new Set<number>([
                         ...oprByTeam.keys(),
                         ...coprByTeam.keys(),
+                        ...statboticsByTeam.keys(),
                     ]);
 
                     for (const teamNumber of teamNumbers) {
@@ -155,6 +180,7 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                         const teamStats = createEmptyTeamStats(teamNumber, key);
                         const opr = oprByTeam.get(teamNumber);
                         const copr = coprByTeam.get(teamNumber);
+                        const statbotics = statboticsByTeam.get(teamNumber);
 
                         teamStats.fuelAutoOPR = opr?.autoFuelOPR ?? 0;
                         teamStats.fuelTeleopOPR = opr?.teleopFuelOPR ?? 0;
@@ -169,6 +195,17 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                         teamStats.coprTotalTeleopPoints = copr?.totalTeleopPoints;
                         teamStats.coprTotalAutoPoints = copr?.totalAutoPoints;
                         teamStats.coprTotalTowerPoints = copr?.totalTowerPoints;
+                        teamStats.statboticsTotalPoints = statbotics?.totalPoints;
+                        teamStats.statboticsAutoPoints = statbotics?.autoPoints;
+                        teamStats.statboticsTeleopPoints = statbotics?.teleopPoints;
+                        teamStats.statboticsEndgamePoints = statbotics?.endgamePoints;
+                        teamStats.statboticsTotalFuel = statbotics?.totalFuel;
+                        teamStats.statboticsAutoFuel = statbotics?.autoFuel;
+                        teamStats.statboticsTeleopFuel = statbotics?.teleopFuel;
+                        teamStats.statboticsEndgameFuel = statbotics?.endgameFuel;
+                        teamStats.statboticsTotalTower = statbotics?.totalTower;
+                        teamStats.statboticsAutoTower = statbotics?.autoTower;
+                        teamStats.statboticsEndgameTower = statbotics?.endgameTower;
 
                         supplemental.push(teamStats);
                     }
