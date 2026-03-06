@@ -64,6 +64,7 @@ export function ScoringSections({
     <TeleopFieldMap
       onAddAction={onAddAction}
       actions={actions}
+      scoutOptions={scoutOptions}
       onUndo={onUndo}
       canUndo={canUndo}
       matchNumber={matchNumber}

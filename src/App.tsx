@@ -44,6 +44,13 @@ import AchievementsPage from "@/core/pages/AchievementsPage";
 import DevUtilitiesPage from "@/core/pages/DevUtilitiesPage";
 import { MatchValidationPage } from "@/core/pages/MatchValidationPage";
 import PitAssignmentsPage from "@/core/pages/PitAssignmentsPage";
+import TestLandingPage from "@/core/pages/test/TestLandingPage";
+import TestVisualScoutingPage from "@/core/pages/test/TestVisualScoutingPage";
+import TestFormScoutingPage from "@/core/pages/test/TestFormScoutingPage";
+import TestTLXPage from "@/core/pages/test/TestTLXPage";
+import TestPreferencePage from "@/core/pages/test/TestPreferencePage";
+import TestAnswerKeyPage from "@/core/pages/test/TestAnswerKeyPage";
+import TestResultsPage from "@/core/pages/test/TestResultsPage";
 import { InstallPrompt } from '@/core/components/pwa/InstallPrompt';
 import { PWAUpdatePrompt } from '@/core/components/pwa/PWAUpdatePrompt';
 import { StatusBarSpacer } from '@/core/components/StatusBarSpacer';
@@ -194,7 +201,7 @@ function App() {
             <HomePage 
               logo={logo} 
               appName="Maneuver 2026"
-              version="2026.1.0"
+              version="2026.1.1"
               onLoadDemoData={loadDemoData}
               onLoadDemoScheduleOnly={loadDemoScheduleOnly}
               onClearData={clearDemoData}
@@ -236,6 +243,13 @@ function App() {
         <Route path="/achievements" element={<AchievementsPage />} />
         <Route path="/match-validation" element={<MatchValidationPage />} />
         <Route path="/dev-utilities" element={<DevUtilitiesPage />} />
+        <Route path="/test" element={<TestLandingPage />} />
+        <Route path="/test/interface/visual" element={<TestVisualScoutingPage />} />
+        <Route path="/test/interface/form" element={<TestFormScoutingPage />} />
+        <Route path="/test/tlx" element={<TestTLXPage />} />
+        <Route path="/test/preferences" element={<TestPreferencePage />} />
+        <Route path="/test/answer-key" element={<TestAnswerKeyPage />} />
+        <Route path="/test/results" element={<TestResultsPage />} />
 
 
         {/* Add more routes as needed */}
@@ -291,7 +305,8 @@ function App() {
           (window as any).dbs = {
             main: db.db,
             pit: db.pitDB,
-            game: db.gameDB
+            game: db.gameDB,
+            experiment: db.experimentDB,
           };
           console.log('🗄️ Databases available at window.dbs');
         });

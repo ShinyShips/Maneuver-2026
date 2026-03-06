@@ -62,6 +62,7 @@ import { PostClimbProceed } from '../scoring/PostClimbProceed';
 export interface TeleopFieldMapProps {
     onAddAction: (action: PathWaypoint) => void;
     actions: PathWaypoint[];
+    scoutOptions?: Record<string, boolean>;
     onUndo?: () => void;
     canUndo?: boolean;
     matchNumber?: string | number;
@@ -109,7 +110,7 @@ export function TeleopFieldMap(props: TeleopFieldMapProps) {
             onBack={props.onBack}
             onProceed={props.onProceed}
         >
-            <TeleopFieldMapContent />
+            <TeleopFieldMapContent scoutOptions={props.scoutOptions} />
         </TeleopPathProvider>
     );
 }
@@ -118,7 +119,11 @@ export function TeleopFieldMap(props: TeleopFieldMapProps) {
 // CONTENT COMPONENT - Uses Context
 // =============================================================================
 
-function TeleopFieldMapContent() {
+function TeleopFieldMapContent({
+    scoutOptions,
+}: {
+    scoutOptions?: Record<string, boolean>;
+}) {
     // Get all state from context
     const {
         // From ScoringContext
@@ -172,7 +177,7 @@ function TeleopFieldMapContent() {
     }), []) as React.RefObject<HTMLCanvasElement>;
 
     const isMobile = useIsMobile();
-    const effectiveScoutOptions = getEffectiveScoutOptions();
+    const effectiveScoutOptions = getEffectiveScoutOptions(scoutOptions);
     const disableHubFuelScoringPopup =
         effectiveScoutOptions[GAME_SCOUT_OPTION_KEYS.disableHubFuelScoringPopup] === true;
     const disablePassingPopup =
