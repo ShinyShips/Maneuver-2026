@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Import hooks and components
 import { useTBAData } from '@/core/hooks/useTBAData';
@@ -43,9 +44,12 @@ interface ProcessingResult {
 }
 
 const APIDataPage: React.FC = () => {
+  const navigate = useNavigate();
+
   // API calls are proxied through Netlify Functions (server-side keys)
   const apiKey = '';
   const nexusApiKey = '';
+  const TEST_REDIRECT_EVENT_KEY = 'cogsci';
 
   // Shared state for configuration
   const [eventKey, setEventKey] = useState('');
@@ -141,6 +145,14 @@ const APIDataPage: React.FC = () => {
   const handleCancelEventSwitch = () => {
     setShowEventSwitchDialog(false);
     setPendingAction(() => { });
+  };
+
+  const handleEventKeyChange = (key: string) => {
+    setEventKey(key);
+
+    if (key.trim().toLowerCase() === TEST_REDIRECT_EVENT_KEY) {
+      navigate('/test');
+    }
   };
 
   const handleClearAllEventData = async () => {
@@ -491,7 +503,7 @@ const APIDataPage: React.FC = () => {
         <div className="lg:col-span-1">
           <EventConfigurationCard
             eventKey={eventKey}
-            setEventKey={setEventKey}
+            setEventKey={handleEventKeyChange}
             hasStoredData={storedDataExists}
             onClearAllData={handleClearAllEventData}
             clearingData={clearingEventData}

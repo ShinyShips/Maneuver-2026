@@ -53,6 +53,9 @@ export interface ExperimentSession {
   createdAt: number;
   clip1Id: string;
   clip2Id: string;
+  consentAgreedAt?: number;
+  consentVersion?: string;
+  consentSourceUrl?: string;
   completedAt?: number;
 }
 
