@@ -101,12 +101,7 @@ export interface TBATeam {
 
 // Helper function to make TBA API requests
 const makeTBARequest = async (endpoint: string): Promise<unknown> => {
-  const response = await fetch(`${TBA_BASE_URL}${endpoint}`, {
-    headers: {
-      'X-TBA-Auth-Key': TBA_AUTH_KEY,
-      'Accept': 'application/json',
-    },
-  });
+  const response = await fetch(`/api/tba-proxy?endpoint=${encodeURIComponent(endpoint)}`);
 
   if (!response.ok) {
     throw new Error(`TBA API Error: ${response.status} ${response.statusText}`);
@@ -254,43 +249,24 @@ export const getEvent = async (eventKey: string): Promise<TBAEvent> => {
 export const getEventTeams = async (eventKey: string, apiKey?: string): Promise<TBATeam[]> => {
   const endpoint = `/event/${eventKey}/teams/keys`;
   
-  if (apiKey) {
-    // Use provided API key for this request
-    const response = await fetch(`${TBA_BASE_URL}${endpoint}`, {
-      headers: {
-        'X-TBA-Auth-Key': apiKey,
-        'Accept': 'application/json',
-      },
-    });
+  // Always use the proxy now
+  const response = await fetch(`/api/tba-proxy?endpoint=${encodeURIComponent(endpoint)}`);
 
-    if (!response.ok) {
-      throw new Error(`TBA API Error: ${response.status} ${response.statusText}`);
-    }
-
-    const teamKeys = await response.json() as string[];
-    // Convert team keys (e.g., "frc1234") to team objects
-    return teamKeys.map(key => {
-      const teamNumber = parseInt(key.replace('frc', ''));
-      return {
-        key,
-        team_number: teamNumber,
-        nickname: `Team ${teamNumber}`,
-        name: `Team ${teamNumber}`,
-      };
-    }).sort((a, b) => a.team_number - b.team_number);
-  } else {
-    const teamKeys = await makeTBARequest(endpoint) as string[];
-    // Convert team keys (e.g., "frc1234") to team objects
-    return teamKeys.map(key => {
-      const teamNumber = parseInt(key.replace('frc', ''));
-      return {
-        key,
-        team_number: teamNumber,
-        nickname: `Team ${teamNumber}`,
-        name: `Team ${teamNumber}`,
-      };
-    }).sort((a, b) => a.team_number - b.team_number);
+  if (!response.ok) {
+    throw new Error(`TBA API Error: ${response.status} ${response.statusText}`);
   }
+
+  const teamKeys = await response.json() as string[];
+  // Convert team keys (e.g., "frc1234") to team objects
+  return teamKeys.map(key => {
+    const teamNumber = parseInt(key.replace('frc', ''));
+    return {
+      key,
+      team_number: teamNumber,
+      nickname: `Team ${teamNumber}`,
+      name: `Team ${teamNumber}`,
+    };
+  }).sort((a, b) => a.team_number - b.team_number);
 };
 
 // Local storage utilities for event teams

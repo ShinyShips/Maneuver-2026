@@ -25,11 +25,6 @@ export const useTBAData = () => {
   const [isStored, setIsStored] = useState(false);
 
   const fetchMatchDataFromTBA = async (tbaApiKey: string, tbaEventKey: string, rememberForSession: boolean, setApiKey: (key: string) => void) => {
-    if (!tbaApiKey.trim()) {
-      toast.error("Please enter your TBA API key");
-      return;
-    }
-
     if (!tbaEventKey.trim()) {
       toast.error("Please enter an event key");
       return;
@@ -38,13 +33,8 @@ export const useTBAData = () => {
     setMatchDataLoading(true);
 
     try {
-      const headers = {
-        "X-TBA-Auth-Key": tbaApiKey,
-      };
-
       const res = await fetch(
-        `https://www.thebluealliance.com/api/v3/event/${tbaEventKey}/matches/simple`,
-        { headers }
+        `/api/tba-proxy?endpoint=${encodeURIComponent(`/event/${tbaEventKey}/matches/simple`)}`
       );
 
       if (!res.ok) {
@@ -103,12 +93,6 @@ export const useTBAData = () => {
 
       // Update current event in localStorage after successful load
       setCurrentEvent(tbaEventKey.trim());
-
-      // Clear API key from memory after successful fetch if not remembering
-      if (!rememberForSession) {
-        setApiKey("");
-        sessionStorage.removeItem("tbaApiKey");
-      }
     } catch (err) {
       toast.error("Failed to fetch match data from TBA");
       console.error(err);
@@ -123,19 +107,10 @@ export const useTBAData = () => {
       return;
     }
 
-    if (!tbaApiKey.trim()) {
-      toast.error('Please enter your TBA API key');
-      return;
-    }
-
     setMatchResultsLoading(true);
     try {
-      const headers = {
-        "X-TBA-Auth-Key": tbaApiKey,
-      };
       const response = await fetch(
-        `https://www.thebluealliance.com/api/v3/event/${tbaEventKey.trim()}/matches/simple`,
-        { headers }
+        `/api/tba-proxy?endpoint=${encodeURIComponent(`/event/${tbaEventKey.trim()}/matches/simple`)}`
       );
 
       if (!response.ok) {
@@ -165,12 +140,6 @@ export const useTBAData = () => {
 
       localStorage.setItem('matchResults', JSON.stringify(matchResults));
       localStorage.setItem('currentEventKey', tbaEventKey.trim());
-
-      // Clear API key from memory if not remembering for session
-      if (!rememberForSession) {
-        setApiKey("");
-        sessionStorage.removeItem("tbaApiKey");
-      }
     } catch (error) {
       console.error('Error loading matches:', error);
       toast.error('Failed to load matches. Check the event key and API key.');
@@ -229,12 +198,6 @@ export const useTBAData = () => {
 
       // Update current event in localStorage after successful load
       setCurrentEvent(tbaEventKey.trim());
-
-      // Clear API key from memory if not remembering for session
-      if (!rememberForSession) {
-        setApiKey("");
-        sessionStorage.removeItem("tbaApiKey");
-      }
     } catch (error) {
       console.error('Error loading teams:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to load teams');

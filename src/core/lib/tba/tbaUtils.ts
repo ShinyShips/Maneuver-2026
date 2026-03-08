@@ -91,12 +91,7 @@ export const getMatchResult = (match: TBAMatch): {
 export const getEventTeams = async (eventKey: string, apiKey: string): Promise<TBATeam[]> => {
   const endpoint = `/event/${eventKey}/teams/keys`;
   
-  const response = await fetch(`${TBA_BASE_URL}${endpoint}`, {
-    headers: {
-      'X-TBA-Auth-Key': apiKey,
-      'Accept': 'application/json',
-    },
-  });
+  const response = await fetch(`/api/tba-proxy?endpoint=${encodeURIComponent(endpoint)}`);
 
   if (!response.ok) {
     throw new Error(`TBA API Error: ${response.status} ${response.statusText}`);

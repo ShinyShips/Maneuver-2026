@@ -131,13 +131,9 @@ export async function fetchTBAMatchDetail(
   matchKey: string,
   apiKey: string
 ): Promise<TBAMatchData> {
-  const url = `${TBA_BASE_URL}/match/${matchKey}`;
+  const endpoint = `/match/${matchKey}`;
   
-  const response = await fetch(url, {
-    headers: {
-      'X-TBA-Auth-Key': apiKey,
-    },
-  });
+  const response = await fetch(`/api/tba-proxy?endpoint=${encodeURIComponent(endpoint)}`);
   
   if (!response.ok) {
     if (response.status === 401) {

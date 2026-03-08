@@ -160,17 +160,27 @@ git merge upstream/main
 
 ### Environment Setup
 
+**For Development:**
 Copy `.env.example` to `.env` and add your API keys:
 
 ```env
-# The Blue Alliance API Key
+# The Blue Alliance API Key (Server-side - Cloudflare Pages)
 # Get your key at: https://www.thebluealliance.com/account
-VITE_TBA_API_KEY=your_tba_api_key_here
+TBA_API_KEY=your_tba_api_key_here
 
 # Nexus Stats API Key (optional, for additional match data)
 # Get your key at: https://frc.nexus/
 VITE_NEXUS_API_KEY=your_nexus_api_key_here
 ```
+
+**For Production (Cloudflare Pages):**
+1. Go to your Cloudflare Pages project settings
+2. Navigate to Settings → Environment variables
+3. Add `TBA_API_KEY` with your API key from https://www.thebluealliance.com/account
+4. Add `VITE_NEXUS_API_KEY` (optional) for Nexus Stats integration
+
+The TBA API key is now handled server-side via Cloudflare Pages Functions for security.
+
 
 ## 📚 Documentation
 
