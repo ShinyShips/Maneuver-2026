@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { Download, Filter, Info } from 'lucide-react';
 import { useWebRTC } from '@/core/contexts/WebRTCContext';
-import { buildPitAssignmentsTransferPayload } from '@/core/lib/pitAssignmentTransfer';
 import { loadScoutingData } from '@/core/lib/scoutingDataUtils';
 import { loadPitScoutingData } from '@/core/lib/pitScoutingUtils';
 import { gamificationDB as gameDB } from '@/game-template/gamification';
@@ -27,23 +26,10 @@ export function WebRTCDataRequestDialog() {
   const { dataRequested, setDataRequested, sendData, requestFilters, requestDataType } = context;
   const [transferStatus, setTransferStatus] = useState<string>('');
 
-  const getSafeJsonSize = (value: unknown): number => {
-    const seen = new WeakSet<object>();
-    const serialized = JSON.stringify(value, (_key, currentValue) => {
-      if (typeof currentValue === 'object' && currentValue !== null) {
-        if (seen.has(currentValue)) return '[Circular]';
-        seen.add(currentValue);
-      }
-      return currentValue;
-    });
-    return serialized?.length ?? 0;
-  };
-
   const getDataTypeLabel = (dataType: string | null) => {
     switch (dataType) {
       case 'scouting': return 'Scouting Data';
       case 'pit-scouting': return 'Pit Scouting Data';
-      case 'pit-assignments': return 'Pit Assignments';
       case 'match': return 'Match Schedule';
       case 'scout': return 'Scout Profiles';
       case 'combined': return 'Combined Data';
@@ -81,20 +67,6 @@ export function WebRTCDataRequestDialog() {
           originalCount = pitData.entries?.length || 0;
           data = pitData;
           console.log('📊 Loaded pit scouting data:', originalCount, 'entries');
-          break;
-        }
-
-        case 'pit-assignments': {
-          const eventKey = localStorage.getItem('eventKey') || localStorage.getItem('eventName') || '';
-          const sourceScoutName = localStorage.getItem('currentScout') || 'Scout';
-
-          if (!eventKey) {
-            throw new Error('No active event found for pit assignment transfer');
-          }
-
-          data = buildPitAssignmentsTransferPayload(eventKey, sourceScoutName);
-          originalCount = data.assignments.length;
-          console.log('📊 Loaded pit assignments:', originalCount, 'assignments');
           break;
         }
 
@@ -154,7 +126,7 @@ export function WebRTCDataRequestDialog() {
           throw new Error(`Unknown data type: ${requestDataType}`);
       }
 
-      const dataSize = getSafeJsonSize(data);
+      const dataSize = JSON.stringify(data).length;
       console.log('Scout sending data:', data);
       console.log('Data size:', dataSize, 'characters');
 
@@ -234,7 +206,7 @@ export function WebRTCDataRequestDialog() {
               {/* Data Type Info */}
               <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex flex-col">
                     <span className="font-medium text-blue-900 dark:text-blue-100 text-sm">
                       {getDataTypeLabel(requestDataType)}

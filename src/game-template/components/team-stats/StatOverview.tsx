@@ -19,25 +19,7 @@ export function StatOverview({
     rateSections: _rateSections,
     setActiveTab
 }: StatOverviewProps) {
-    const hasCoprData = [
-        teamStats.coprHubAutoPoints,
-        teamStats.coprHubTeleopPoints,
-        teamStats.coprAutoTowerPoints,
-        teamStats.coprEndgameTowerPoints,
-    ].some(value => typeof value === 'number');
-
-    const hasStatboticsData = [
-        teamStats.statboticsTotalPoints,
-        teamStats.statboticsAutoPoints,
-        teamStats.statboticsTeleopPoints,
-        teamStats.statboticsEndgamePoints,
-        teamStats.statboticsTotalFuel,
-        teamStats.statboticsTotalTower,
-    ].some(value => typeof value === 'number');
-
-    const hasExternalApiData = hasCoprData || hasStatboticsData;
-
-    if (teamStats.matchesPlayed === 0 && !hasExternalApiData) {
+    if (teamStats.matchesPlayed === 0) {
         return (
             <Card>
                 <CardContent className="flex flex-col items-center justify-center py-8">
@@ -46,7 +28,7 @@ export function StatOverview({
                         <p className="text-muted-foreground">
                             This team doesn't have any match scouting data.
                         </p>
-                        <Button onClick={() => setActiveTab("pit")} className="mt-4 p-4">
+                        <Button onClick={() => setActiveTab("pit")} className="mt-4">
                             View Pit Data →
                         </Button>
                     </div>
@@ -65,13 +47,6 @@ export function StatOverview({
 
     return (
         <div className="space-y-6 pb-6">
-            {teamStats.matchesPlayed === 0 && hasExternalApiData && (
-                <Card>
-                    <CardContent className="py-4 text-sm text-muted-foreground">
-                        No local match scouting entries for this team yet. Showing external metrics from TBA COPR and/or Statbotics EPA.
-                    </CardContent>
-                </Card>
-            )}
             {sections.map(section => (
                 <Card key={section.id}>
                     <CardHeader>

@@ -1,7 +1,7 @@
 /**
  * Game-Specific Data Transformation - 2026 REBUILT
  * 
- * Transforms PathWaypoint data from AutoFieldMap into counter fields.
+ * Transforms PathWaypoint data from AutoPathTracker into counter fields.
  * Full path is stored for visualization replay.
  * 
  * 2026 Path-Based Tracking:
@@ -23,28 +23,24 @@ import { toggles, getActionKeys } from "./game-schema";
  */
 function generateActionDefaults(phase: 'auto' | 'teleop'): Record<string, number> {
   const defaults: Record<string, number> = {};
-
+  
   // Actions tracked in both phases
-  const commonActions = ['fuelScored', 'fuelPassed', 'shotOnTheMove', 'shotStationary', 'trenchStuck', 'bumpStuck', 'brokenDown'];
-
+  const commonActions = ['fuelScored', 'fuelPassed'];
+  
   // Auto-only actions
   const autoOnlyActions = ['depotCollect', 'outpostCollect', 'foulCommitted'];
-
+  
   // Teleop-only actions
   const teleopOnlyActions: string[] = ['steal'];
-
-  const actionsToInclude = phase === 'auto'
+  
+  const actionsToInclude = phase === 'auto' 
     ? [...commonActions, ...autoOnlyActions]
     : [...commonActions, ...teleopOnlyActions];
-
+  
   actionsToInclude.forEach(key => {
     defaults[`${key}Count`] = 0;
-    // Initialize duration for actions that track time
-    if (key.includes('Stuck') || key === 'brokenDown') {
-      defaults[`${key}Duration`] = 0;
-    }
   });
-
+  
   return defaults;
 }
 
@@ -118,11 +114,11 @@ export const gameDataTransformation: DataTransformation = {
     // =========================================================================
     // Broken Down Time Tracking (from localStorage)
     // =========================================================================
-
+    
     // Read broken down time from localStorage (set by field maps)
     const autoBrokenDownTime = localStorage.getItem('autoBrokenDownTime');
     const teleopBrokenDownTime = localStorage.getItem('teleopBrokenDownTime');
-
+    
     if (autoBrokenDownTime) {
       const duration = parseInt(autoBrokenDownTime, 10);
       if (duration > 0) {
@@ -133,7 +129,7 @@ export const gameDataTransformation: DataTransformation = {
       localStorage.removeItem('autoBrokenDownTime');
       localStorage.removeItem('autoBrokenDownStart');
     }
-
+    
     if (teleopBrokenDownTime) {
       const duration = parseInt(teleopBrokenDownTime, 10);
       if (duration > 0) {
@@ -146,7 +142,33 @@ export const gameDataTransformation: DataTransformation = {
     }
 
     // =========================================================================
-    // Path-Based Tracking (AutoFieldMap waypoints)
+    // Shooting Time Tracking (from localStorage)
+    // =========================================================================
+    
+    // Read shooting time from localStorage (set by shooting timer)
+    const autoShootingTime = localStorage.getItem('autoShootingTime');
+    const teleopShootingTime = localStorage.getItem('teleopShootingTime');
+    
+    if (autoShootingTime) {
+      const duration = parseInt(autoShootingTime, 10);
+      if (duration > 0) {
+        result.auto.shootingTime = duration; // milliseconds
+      }
+      // Clear after reading
+      localStorage.removeItem('autoShootingTime');
+    }
+    
+    if (teleopShootingTime) {
+      const duration = parseInt(teleopShootingTime, 10);
+      if (duration > 0) {
+        result.teleop.shootingTime = duration; // milliseconds
+      }
+      // Clear after reading
+      localStorage.removeItem('teleopShootingTime');
+    }
+
+    // =========================================================================
+    // Path-Based Tracking (AutoPathTracker waypoints)
     // =========================================================================
 
     // Store full path for visualization
@@ -159,11 +181,6 @@ export const gameDataTransformation: DataTransformation = {
           case 'score':
             // fuelDelta is negative for deposits (robot loses fuel)
             result.auto.fuelScoredCount = (result.auto.fuelScoredCount || 0) + Math.abs(wp.fuelDelta || 0);
-            if (wp.shotType === 'onTheMove') {
-              result.auto.shotOnTheMoveCount = (result.auto.shotOnTheMoveCount || 0) + 1;
-            } else if (wp.shotType === 'stationary') {
-              result.auto.shotStationaryCount = (result.auto.shotStationaryCount || 0) + 1;
-            }
             break;
           case 'collect':
             // Track by location (depot vs outpost)
@@ -179,9 +196,9 @@ export const gameDataTransformation: DataTransformation = {
             break;
           case 'traversal':
             // Boolean flags for trench/bump usage in auto
-            if (wp.action === 'trench' || wp.action === 'trench1' || wp.action === 'trench2') {
+            if (wp.action === 'trench') {
               result.auto.autoTrench = true;
-            } else if (wp.action === 'bump' || wp.action === 'bump1' || wp.action === 'bump2') {
+            } else if (wp.action === 'bump') {
               result.auto.autoBump = true;
             } else if (wp.action === 'trench-stuck') {
               // Legacy: traversal-stuck from old flow (no duration)
@@ -194,14 +211,6 @@ export const gameDataTransformation: DataTransformation = {
             result.auto.foulCommittedCount = (result.auto.foulCommittedCount || 0) + 1;
             break;
           case 'climb':
-            if (typeof wp.climbStartTimeSecRemaining === 'number') {
-              result.auto.autoClimbStartTimeSecRemaining = wp.climbStartTimeSecRemaining;
-            }
-            if (wp.climbLocation === 'side') {
-              result.auto.autoClimbFromSide = true;
-            } else if (wp.climbLocation === 'middle') {
-              result.auto.autoClimbFromMiddle = true;
-            }
             if (wp.action === 'climb-success') {
               result.auto.autoClimbL1 = true;
             }
@@ -235,35 +244,20 @@ export const gameDataTransformation: DataTransformation = {
         switch (wp.type) {
           case 'score':
             result.teleop.fuelScoredCount = (result.teleop.fuelScoredCount || 0) + Math.abs(wp.fuelDelta || 0);
-            if (wp.shotType === 'onTheMove') {
-              result.teleop.shotOnTheMoveCount = (result.teleop.shotOnTheMoveCount || 0) + 1;
-            } else if (wp.shotType === 'stationary') {
-              result.teleop.shotStationaryCount = (result.teleop.shotStationaryCount || 0) + 1;
-            }
             break;
           case 'pass':
             result.teleop.fuelPassedCount = (result.teleop.fuelPassedCount || 0) + Math.abs(wp.fuelDelta || 0);
             break;
-          case 'climb': {
-            // Track climb level, location, and outcome in endgame section
-            if (typeof wp.climbStartTimeSecRemaining === 'number') {
-              result.teleop.teleopClimbStartTimeSecRemaining = wp.climbStartTimeSecRemaining;
-            }
-            const level = [1, 2, 3].includes(wp.climbLevel) ? wp.climbLevel : 1;
-            if (wp.climbLocation === 'side') {
-              result.endgame.climbFromSide = true;
-            } else if (wp.climbLocation === 'middle') {
-              result.endgame.climbFromMiddle = true;
-            }
+          case 'climb':
+            // Track climb level and outcome in endgame section
+            const level = wp.climbLevel || 1;
             if (wp.climbResult === 'success') {
               result.endgame[`climbL${level}`] = true;
             } else if (wp.climbResult === 'fail') {
               result.endgame.climbFailed = true;
             }
             break;
-          }
           case 'defense':
-            result.teleop.playedDefense = true;
             // Track defense by zone
             if (wp.zone === 'allianceZone') {
               result.teleop.defenseAllianceCount = (result.teleop.defenseAllianceCount || 0) + 1;
@@ -271,13 +265,6 @@ export const gameDataTransformation: DataTransformation = {
               result.teleop.defenseNeutralCount = (result.teleop.defenseNeutralCount || 0) + 1;
             } else if (wp.zone === 'opponentZone') {
               result.teleop.defenseOpponentCount = (result.teleop.defenseOpponentCount || 0) + 1;
-            }
-            if (wp.defenseEffectiveness === 'very') {
-              result.teleop.defenseVeryEffectiveCount = (result.teleop.defenseVeryEffectiveCount || 0) + 1;
-            } else if (wp.defenseEffectiveness === 'somewhat') {
-              result.teleop.defenseSomewhatEffectiveCount = (result.teleop.defenseSomewhatEffectiveCount || 0) + 1;
-            } else if (wp.defenseEffectiveness === 'not') {
-              result.teleop.defenseNotEffectiveCount = (result.teleop.defenseNotEffectiveCount || 0) + 1;
             }
             break;
           case 'steal':
@@ -351,15 +338,3 @@ export const gameDataTransformation: DataTransformation = {
 };
 
 export default gameDataTransformation;
-
-/**
- * Game-specific gameData fields to exclude from CSV export.
- * These are large visualization/replay arrays not useful for spreadsheet analysis.
- */
-export const csvExcludedFields: string[] = ['auto.autoPath', 'teleop.teleopPath'];
-
-/**
- * Game-specific pit scouting gameData fields to exclude from CSV export.
- * These are large visualization/replay arrays not useful for spreadsheet analysis.
- */
-export const pitCsvExcludedFields: string[] = ['reportedAutosByStart'];

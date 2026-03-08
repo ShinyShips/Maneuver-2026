@@ -11,7 +11,6 @@
 
 import { createContext, useContext, useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { useScoring, ScoringProvider, type ScoringProviderProps } from './ScoringContext';
-import type { ClimbLocation } from '../components/field-map';
 
 // =============================================================================
 // TYPES
@@ -33,8 +32,6 @@ export interface AutoPathContextValue {
     // Climb result for pending waypoint
     climbResult: 'success' | 'fail' | null;
     setClimbResult: (result: 'success' | 'fail' | null) => void;
-    climbLocation: ClimbLocation | undefined;
-    setClimbLocation: (location: ClimbLocation | undefined) => void;
 
     // Canvas dimensions
     canvasDimensions: { width: number; height: number };
@@ -109,7 +106,6 @@ function AutoPathProviderInner({ children }: { children: ReactNode }) {
 
     // Climb result
     const [climbResult, setClimbResult] = useState<'success' | 'fail' | null>(null);
-    const [climbLocation, setClimbLocation] = useState<ClimbLocation | undefined>(undefined);
 
     // Container ref for dimensions
     const containerRef = useRef<HTMLDivElement>(null);
@@ -149,8 +145,6 @@ function AutoPathProviderInner({ children }: { children: ReactNode }) {
         setShowPostClimbProceed,
         climbResult,
         setClimbResult,
-        climbLocation,
-        setClimbLocation,
         canvasDimensions,
         containerRef,
         drawingPoints,
@@ -168,7 +162,6 @@ function AutoPathProviderInner({ children }: { children: ReactNode }) {
         stuckElementKey,
         showPostClimbProceed,
         climbResult,
-        climbLocation,
         canvasDimensions,
         drawingPoints,
         isDrawing,

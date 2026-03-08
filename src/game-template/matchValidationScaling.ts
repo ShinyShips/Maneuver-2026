@@ -22,11 +22,6 @@ import { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import { ScalingFactors, ScaledTeamMetrics, AllianceScalingResult } from './types/scalingTypes';
 import { db } from '@/db';
 
-const normalizeMatchKey = (matchKey: string): string => {
-    if (!matchKey.includes('_')) return matchKey;
-    return matchKey.split('_')[1] || matchKey;
-};
-
 // ============================================================================
 // TBA 2026 Data Extraction
 // ============================================================================
@@ -146,12 +141,12 @@ export function calculateAllianceScaling(
         // Check for nested structure (auto.*, teleop.*, endgame.*)
         if (gameData.auto && typeof gameData.auto === 'object') {
             const autoData = gameData.auto as Record<string, unknown>;
-            autoFuel = (autoData.fuelScoredCount as number) ?? (autoData.fuelScored as number) ?? 0;
+            autoFuel = (autoData.fuelScored as number) ?? 0;
         }
 
         if (gameData.teleop && typeof gameData.teleop === 'object') {
             const teleopData = gameData.teleop as Record<string, unknown>;
-            teleopFuel = (teleopData.fuelScoredCount as number) ?? (teleopData.fuelScored as number) ?? 0;
+            teleopFuel = (teleopData.fuelScored as number) ?? 0;
         }
 
         if (gameData.endgame && typeof gameData.endgame === 'object') {
@@ -236,8 +231,6 @@ export async function updateEntriesWithScaling(
 
     const allTeams = [...scalingResults.red.teams, ...scalingResults.blue.teams];
 
-    const normalizedMatchKey = normalizeMatchKey(matchKey);
-
     for (const team of allTeams) {
         try {
             // Find the entry by composite key pattern
@@ -247,7 +240,7 @@ export async function updateEntriesWithScaling(
                 .toArray();
 
             // Find the specific match entry
-            const entry = entries.find(e => normalizeMatchKey(e.matchKey ?? '') === normalizedMatchKey);
+            const entry = entries.find(e => e.matchKey === matchKey);
 
             if (entry) {
                 // Update gameData with scaled metrics (2026-specific structure)
@@ -292,12 +285,10 @@ export async function updateEntriesWithScaling(
  * Checks gameData.scaledMetrics field (2026-specific)
  */
 export async function isMatchScaled(eventKey: string, matchKey: string): Promise<boolean> {
-    const normalizedMatchKey = normalizeMatchKey(matchKey);
-
     const entries = await db.scoutingData
         .where('eventKey')
         .equals(eventKey)
-        .filter(e => normalizeMatchKey(e.matchKey ?? '') === normalizedMatchKey)
+        .filter(e => e.matchKey === matchKey)
         .toArray();
 
     // Match is scaled if any entry has gameData.scaledMetrics.scalingApplied = true
@@ -312,12 +303,10 @@ export async function isMatchScaled(eventKey: string, matchKey: string): Promise
  * Removes gameData.scaledMetrics field (2026-specific)
  */
 export async function clearMatchScaling(eventKey: string, matchKey: string): Promise<number> {
-    const normalizedMatchKey = normalizeMatchKey(matchKey);
-
     const entries = await db.scoutingData
         .where('eventKey')
         .equals(eventKey)
-        .filter(e => normalizeMatchKey(e.matchKey ?? '') === normalizedMatchKey)
+        .filter(e => e.matchKey === matchKey)
         .toArray();
 
     let cleared = 0;

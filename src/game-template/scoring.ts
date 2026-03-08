@@ -42,20 +42,18 @@ export interface GameData {
         autoBump?: boolean;
         // Stuck counters (trouble with obstacles)
         trenchStuckCount?: number;
-        trenchStuckDuration?: number; // milliseconds
+        trenchStuckDuration?: number;
         bumpStuckCount?: number;
-        bumpStuckDuration?: number; // milliseconds
+        bumpStuckDuration?: number;
         // Broken down tracking
         brokenDownCount?: number;
-        brokenDownDuration?: number; // milliseconds
+        brokenDownDuration?: number;
+        // Shooting time tracking (milliseconds)
+        shootingTime?: number;
         // Other counters
         foulCommittedCount?: number;
         // Auto toggles
         autoClimbL1?: boolean;
-        autoClimbFromSide?: boolean;
-        autoClimbFromMiddle?: boolean;
-        // Climb timing
-        autoClimbStartTimeSecRemaining?: number | null;
         [key: string]: unknown;
     };
     teleop: {
@@ -66,16 +64,16 @@ export interface GameData {
         stealCount?: number;
         // Stuck counters
         trenchStuckCount?: number;
-        trenchStuckDuration?: number; // milliseconds
+        trenchStuckDuration?: number;
         bumpStuckCount?: number;
-        bumpStuckDuration?: number; // milliseconds
+        bumpStuckDuration?: number;
         // Broken down tracking
         brokenDownCount?: number;
-        brokenDownDuration?: number; // milliseconds
+        brokenDownDuration?: number;
+        // Shooting time tracking (milliseconds)
+        shootingTime?: number;
         // Teleop toggles
         playedDefense?: boolean;
-        // Climb timing
-        teleopClimbStartTimeSecRemaining?: number | null;
         [key: string]: unknown;
     };
     endgame: {
@@ -83,8 +81,6 @@ export interface GameData {
         climbL1?: boolean;
         climbL2?: boolean;
         climbL3?: boolean;
-        climbFromSide?: boolean;
-        climbFromMiddle?: boolean;
         // Status
         climbFailed?: boolean;
         
@@ -103,13 +99,8 @@ export interface GameData {
         roleInactiveThief?: boolean;
         
         // Passing zones (multi-select)
-        passedToAllianceFromNeutral?: boolean;
-        passedToAllianceFromOpponent?: boolean;
+        passedToAlliance?: boolean;
         passedToNeutral?: boolean;
-
-        // Teleop traversal confirmation (post-match)
-        usedTrenchInTeleop?: boolean;
-        usedBumpInTeleop?: boolean;
         
         // Qualitative accuracy (mutually exclusive)
         accuracyAll?: boolean;

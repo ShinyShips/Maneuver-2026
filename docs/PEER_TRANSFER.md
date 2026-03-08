@@ -12,7 +12,7 @@ The Peer Transfer system enables lead scouts to push or request data from connec
 
 - **Real-time Transfer**: Instant data sync between devices
 - **No Internet Required**: Works on local WiFi networks
-- **Multiple Data Types**: Scouting, pit scouting, pit assignments, match schedules, scout profiles
+- **Multiple Data Types**: Scouting, pit scouting, match schedules, scout profiles
 - **Push & Pull**: Lead can push data to scouts or request data from them
 - **Conflict Resolution**: Smart merge with duplicate detection
 
@@ -80,7 +80,6 @@ All transferred data uses a **wrapped format** with metadata:
 |------|--------|-------------|
 | `scouting` | `{ entries, version, exportedAt }` | Match scouting data |
 | `pit-scouting` | `{ entries, version, exportedAt }` | Pit scouting entries |
-| `pit-assignments` | `{ eventKey, sourceScoutName, generatedAt, assignments }` | Pit assignment distribution |
 | `match` | `{ matches }` | Match schedule |
 | `scout` | `{ scouts, predictions, achievements }` | Scout profiles |
 | `combined` | `{ entries, scoutProfiles, metadata }` | Scouting + profiles |
@@ -96,18 +95,6 @@ All transferred data uses a **wrapped format** with metadata:
 5. Once connected:
    - **Push**: Send your data to all scouts
    - **Request**: Pull data from scouts
-  - **Pit Assignments**: Push event assignments to connected scouts
-
-### Pit Assignments Push (Direct from Assignments Page)
-
-Pit assignments can also be pushed directly from the Pit Assignments workflow without opening WiFi Transfer:
-
-1. Go to **Pit Assignments**
-2. Generate or load assignments for the active event
-3. Click **Push Assignments** in the assignment controls
-4. Connected scouts receive the standard push dialog and can accept/import
-
-This uses the same WebRTC transfer channel and payload type (`pit-assignments`) as the WiFi Transfer page.
 
 ### Scout Mode
 
@@ -115,7 +102,6 @@ This uses the same WebRTC transfer channel and payload type (`pit-assignments`) 
 2. Select **Scout** mode
 3. Enter the room code from lead
 4. Accept/decline pushed data when prompted
-5. For pushed pit assignments, choose **replace**, **merge**, or **cancel** if assignments already exist
 
 ## Components
 
@@ -147,7 +133,7 @@ const { pushData, loadDataByType } = usePeerTransferPush({
 });
 
 // Push scouting data to all connected scouts
-await pushData('scouting', connectedScouts);
+await pushData('scouting', connectedScounts);
 ```
 
 ### `usePeerTransferImport`

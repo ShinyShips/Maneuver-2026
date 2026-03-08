@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Scout } from '@/game-template/gamification';
-import { getOrCreateScoutByName, getScout } from '../lib/scoutGamificationUtils';
+import { getOrCreateScoutByName } from '../lib/scoutGamificationUtils';
 
 export const useCurrentScout = () => {
   const [currentScout, setCurrentScout] = useState<Scout | null>(null);
@@ -43,6 +43,7 @@ export const useCurrentScout = () => {
   const refreshScout = async () => {
     if (currentScout) {
       try {
+        const { getScout } = await import('@/core/lib/scoutGamificationUtils');
         const updatedScout = await getScout(currentScout.name);
         if (updatedScout) {
           setCurrentScout(updatedScout);

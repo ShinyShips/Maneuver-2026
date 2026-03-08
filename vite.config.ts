@@ -14,36 +14,6 @@ export default defineConfig({
       devOptions: {
         enabled: false, // Disabled in dev to prevent false update prompts - only active in production
       },
-      manifest: {
-        name: "Maneuver - A FRC Strategy Suite",
-        short_name: "Maneuver FRC",
-        description: "Maneuver is a FRC Strategy Suite designed for offline first robotics competition scouting.",
-        theme_color: "#0f172a",
-        background_color: "#0f172a",
-        display: "standalone",
-        scope: "/",
-        start_url: "/",
-        icons: [
-          {
-            src: "android-chrome-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "maskable"
-          },
-          {
-            src: "android-chrome-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any"
-          },
-          {
-            src: "android-chrome-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable"
-          }
-        ]
-      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png'],
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB (increase from default 2 MB)

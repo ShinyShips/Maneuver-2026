@@ -11,7 +11,6 @@
 import type { ScoutingEntry } from "@/game-template/scoring";
 import type { TeamStats } from "@/core/types/team-stats";
 import { scoringCalculations } from "./scoring";
-import { millisecondsToSeconds } from "./duration";
 
 // Helper functions
 const sum = <T>(arr: T[], fn: (item: T) => number): number =>
@@ -24,21 +23,6 @@ const percent = (count: number, total: number): number =>
     total > 0 ? Math.round((count / total) * 100) : 0;
 
 const val = (n: number | unknown): number => (typeof n === 'number' ? n : 0);
-
-const avg = (values: number[]): number => {
-    if (values.length === 0) return 0;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-};
-
-const START_POSITION_LABELS = ['Left Trench', 'Left Bump', 'Hub', 'Right Bump', 'Right Trench'];
-
-const getStartPositionIndex = (positionLabel?: string): number => {
-    if (!positionLabel) return -1;
-    const index = START_POSITION_LABELS.findIndex(
-        (label) => label.toLowerCase() === positionLabel.toLowerCase()
-    );
-    return index;
-};
 
 /**
  * Calculate all statistics for a single team from their match entries.
@@ -92,12 +76,19 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const totalFuelScored = autoFuelTotal + teleopFuelTotal;
     const totalFuelPassed = autoFuelPassedTotal + teleopFuelPassedTotal;
     const totalPieces = totalFuelScored; // For compatibility
-    const autoShotOnTheMoveTotal = sum(teamMatches, m => val(m.gameData?.auto?.shotOnTheMoveCount));
-    const autoShotStationaryTotal = sum(teamMatches, m => val(m.gameData?.auto?.shotStationaryCount));
-    const teleopShotOnTheMoveTotal = sum(teamMatches, m => val(m.gameData?.teleop?.shotOnTheMoveCount));
-    const teleopShotStationaryTotal = sum(teamMatches, m => val(m.gameData?.teleop?.shotStationaryCount));
-    const autoShotTypeTotal = autoShotOnTheMoveTotal + autoShotStationaryTotal;
-    const teleopShotTypeTotal = teleopShotOnTheMoveTotal + teleopShotStationaryTotal;
+
+    // ============================================================================
+    // SHOOTING TIME CALCULATIONS (2026 Game)
+    // ============================================================================
+
+    // Shooting time in milliseconds
+    const autoShootingTimeTotal = sum(teamMatches, m =>
+        val(m.gameData?.auto?.shootingTime)
+    );
+
+    const teleopShootingTimeTotal = sum(teamMatches, m =>
+        val(m.gameData?.teleop?.shootingTime)
+    );
 
     // ============================================================================
     // AUTO PHASE STATS
@@ -105,55 +96,9 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
 
     // Auto climb (new for 2026!)
     const autoClimbCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbL1 === true).length;
-    const autoClimbFromSideCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbFromSide === true).length;
-    const autoClimbFromMiddleCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbFromMiddle === true).length;
-    const autoClimbStartTimes = teamMatches
-        .map(m => m.gameData?.auto?.autoClimbStartTimeSecRemaining)
-        .filter((time): time is number => typeof time === 'number');
 
     // Starting positions
     const startPositions = calculateStartPositions(teamMatches, matchCount);
-    const startPositionPercentages = startPositions.reduce<Record<string, number>>((acc, pos) => {
-        const index = getStartPositionIndex(pos.position);
-        if (index >= 0) {
-            acc[`position${index}`] = pos.percentage;
-        }
-        return acc;
-    }, {});
-
-    const matchResults = teamMatches.map((match) => {
-        const autoPoints = scoringCalculations.calculateAutoPoints({ gameData: match.gameData } as any);
-        const teleopPoints = scoringCalculations.calculateTeleopPoints({ gameData: match.gameData } as any);
-        const endgamePoints = scoringCalculations.calculateEndgamePoints({ gameData: match.gameData } as any);
-        const startPositionLabel = typeof match.gameData?.auto?.startPositionLabel === 'string'
-            ? match.gameData.auto.startPositionLabel
-            : undefined;
-        const startPosition = typeof match.gameData?.auto?.startPosition === 'number'
-            ? match.gameData.auto.startPosition
-            : getStartPositionIndex(startPositionLabel);
-
-        const autoPath = Array.isArray(match.gameData?.auto?.autoPath)
-            ? match.gameData.auto.autoPath.filter((wp) => wp && wp.position)
-            : (Array.isArray(match.gameData?.auto?.actions)
-                ? match.gameData.auto.actions.filter((wp) => wp && wp.position)
-                : []);
-
-        return {
-            matchNumber: String(match.matchNumber),
-            alliance: match.allianceColor,
-            eventKey: match.eventKey || '',
-            teamNumber: match.teamNumber,
-            scoutName: match.scoutName,
-            totalPoints: autoPoints + teleopPoints + endgamePoints,
-            autoPoints,
-            teleopPoints,
-            endgamePoints,
-            startPosition,
-            autoFuel: val(match.gameData?.auto?.fuelScoredCount),
-            teleopFuel: val(match.gameData?.teleop?.fuelScoredCount),
-            autoPath,
-        };
-    }).sort((a, b) => parseInt(a.matchNumber) - parseInt(b.matchNumber));
 
     // Auto stuck tracking
     const autoTrenchStuckTotal = sum(teamMatches, m => val(m.gameData?.auto?.trenchStuckCount));
@@ -169,128 +114,14 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const climbL1Count = teamMatches.filter(m => m.gameData?.endgame?.climbL1 === true).length;
     const climbL2Count = teamMatches.filter(m => m.gameData?.endgame?.climbL2 === true).length;
     const climbL3Count = teamMatches.filter(m => m.gameData?.endgame?.climbL3 === true).length;
-    const hasAttemptAtLevel = (match: ScoutingEntry, level: 1 | 2 | 3): boolean => {
-        const endgame = match.gameData?.endgame as Record<string, unknown> | undefined;
-        if (endgame?.[`climbAttemptL${level}`] === true) return true;
-        if (endgame?.[`climbL${level}`] === true) return true;
-
-        const teleopPath = match.gameData?.teleop?.teleopPath;
-        if (Array.isArray(teleopPath)) {
-            return teleopPath.some((waypoint) => {
-                if (!waypoint || typeof waypoint !== 'object') return false;
-                const record = waypoint as Record<string, unknown>;
-                return record.type === 'climb' && record.climbLevel === level;
-            });
-        }
-
-        return false;
-    };
-    const climbAttemptL1Count = teamMatches.filter(m => hasAttemptAtLevel(m, 1)).length;
-    const climbAttemptL2Count = teamMatches.filter(m => hasAttemptAtLevel(m, 2)).length;
-    const climbAttemptL3Count = teamMatches.filter(m => hasAttemptAtLevel(m, 3)).length;
-    const climbFromSideCount = teamMatches.filter(m => m.gameData?.endgame?.climbFromSide === true).length;
-    const climbFromMiddleCount = teamMatches.filter(m => m.gameData?.endgame?.climbFromMiddle === true).length;
-    const endgameClimbLocationAttemptCount = climbFromSideCount + climbFromMiddleCount;
     const climbFailedCount = teamMatches.filter(m => m.gameData?.endgame?.climbFailed === true).length;
     const climbSuccessCount = climbL1Count + climbL2Count + climbL3Count;
-    const levelAttemptCount = climbAttemptL1Count + climbAttemptL2Count + climbAttemptL3Count;
-    const teleopClimbAttemptCount = Math.max(levelAttemptCount, climbSuccessCount + climbFailedCount, endgameClimbLocationAttemptCount);
-    const usedTrenchInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedTrenchInTeleop === true).length;
-    const usedBumpInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedBumpInTeleop === true).length;
-    const passedToAllianceFromNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromNeutral === true).length;
-    const passedToAllianceFromOpponentCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromOpponent === true).length;
-    const passedToNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToNeutral === true).length;
-    const teleopClimbStartTimes = teamMatches
-        .map(m => m.gameData?.teleop?.teleopClimbStartTimeSecRemaining)
-        .filter((time): time is number => typeof time === 'number');
-    const brokeDownCount = teamMatches.filter(m =>
-        val(m.gameData?.auto?.brokenDownCount) > 0 || val(m.gameData?.teleop?.brokenDownCount) > 0
-    ).length;
-    const noShowCount = teamMatches.filter(m =>
-        m.noShow === true || /no\s*show/i.test(m.comments || '')
-    ).length;
 
     // ============================================================================
     // TELEOP STATS
     // ============================================================================
 
     const defenseCount = teamMatches.filter(m => m.gameData?.teleop?.playedDefense === true).length;
-
-    const defenseByTargetAccumulator: Record<string, { attempts: number; very: number; somewhat: number; not: number; }> = {};
-    let totalDefenseEvents = 0;
-    let veryEffectiveCount = 0;
-    let somewhatEffectiveCount = 0;
-    let notEffectiveCount = 0;
-
-    teamMatches.forEach((match) => {
-        const teleopPath = match.gameData?.teleop?.teleopPath;
-        if (!Array.isArray(teleopPath)) return;
-
-        teleopPath.forEach((waypoint) => {
-            if (!waypoint || typeof waypoint !== 'object') return;
-            const record = waypoint as Record<string, unknown>;
-            if (record.type !== 'defense') return;
-
-            totalDefenseEvents += 1;
-            const defendedTeamNumber = Number(record.defendedTeamNumber);
-            const targetKey = Number.isFinite(defendedTeamNumber) && defendedTeamNumber > 0
-                ? String(defendedTeamNumber)
-                : 'Unknown';
-
-            if (!defenseByTargetAccumulator[targetKey]) {
-                defenseByTargetAccumulator[targetKey] = { attempts: 0, very: 0, somewhat: 0, not: 0 };
-            }
-
-            const targetSummary = defenseByTargetAccumulator[targetKey]!;
-            targetSummary.attempts += 1;
-
-            const effectiveness = record.defenseEffectiveness;
-            if (effectiveness === 'very') {
-                veryEffectiveCount += 1;
-                targetSummary.very += 1;
-            } else if (effectiveness === 'somewhat') {
-                somewhatEffectiveCount += 1;
-                targetSummary.somewhat += 1;
-            } else if (effectiveness === 'not') {
-                notEffectiveCount += 1;
-                targetSummary.not += 1;
-            }
-        });
-    });
-
-    const defenseByTarget = Object.fromEntries(
-        Object.entries(defenseByTargetAccumulator).map(([team, stats]) => {
-            const weighted = (stats.very * 2) + stats.somewhat;
-            const effectivenessScore = stats.attempts > 0
-                ? Math.round((weighted / (stats.attempts * 2)) * 100)
-                : 0;
-
-            return [team, { ...stats, effectivenessScore }];
-        })
-    );
-
-    const mostDefendedTeam = Object.entries(defenseByTarget as Record<string, { attempts: number }> )
-        .filter(([team]) => team !== 'Unknown')
-        .sort(([, a], [, b]) => b.attempts - a.attempts)[0]?.[0] || 'None';
-
-    const mostEffectiveDefenseTargetEntry = Object.entries(
-        defenseByTarget as Record<string, { attempts: number; effectivenessScore: number }>
-    )
-        .filter(([team, stats]) => team !== 'Unknown' && stats.attempts > 0)
-        .sort(([, a], [, b]) => {
-            if (b.effectivenessScore !== a.effectivenessScore) {
-                return b.effectivenessScore - a.effectivenessScore;
-            }
-            return b.attempts - a.attempts;
-        })[0];
-
-    const mostEffectiveDefenseTarget = mostEffectiveDefenseTargetEntry
-        ? `${mostEffectiveDefenseTargetEntry[0]} (${mostEffectiveDefenseTargetEntry[1].effectivenessScore}%)`
-        : 'None';
-
-    const defenseEffectivenessScore = totalDefenseEvents > 0
-        ? Math.round((((veryEffectiveCount * 2) + somewhatEffectiveCount) / (totalDefenseEvents * 2)) * 100)
-        : 0;
 
     // Defense counts by zone
     const defenseAllianceTotal = sum(teamMatches, m => val(m.gameData?.teleop?.defenseAllianceCount));
@@ -323,23 +154,6 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const roleInactiveThiefCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveThief === true).length;
     const roleInactiveDefenseCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveDefense === true).length;
 
-    // Accuracy selections (qualitative buckets)
-    const accuracyAllCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyAll === true).length;
-    const accuracyMostCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyMost === true).length;
-    const accuracySomeCount = teamMatches.filter(m => m.gameData?.endgame?.accuracySome === true).length;
-    const accuracyFewCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyFew === true).length;
-    const accuracyLittleCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyLittle === true).length;
-    const accuracySelectionCount = accuracyAllCount + accuracyMostCount + accuracySomeCount + accuracyFewCount + accuracyLittleCount;
-    const weightedAccuracyTotal =
-        (accuracyAllCount * 5)
-        + (accuracyMostCount * 4)
-        + (accuracySomeCount * 3)
-        + (accuracyFewCount * 2)
-        + (accuracyLittleCount * 1);
-    const accuracyScore = accuracySelectionCount > 0
-        ? Math.round((weightedAccuracyTotal / (accuracySelectionCount * 5)) * 100)
-        : 0;
-
     // Calculate primary roles (most frequently played)
     const activeRoles = [
         { name: 'Cycler', count: roleActiveCyclerCount },
@@ -363,9 +177,6 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const topInactiveRoles = inactiveRoles.filter(r => r.count === maxInactiveCount && r.count > 0);
     const primaryInactiveRole = topInactiveRoles.length > 0 ? topInactiveRoles.map(r => r.name).join(' / ') : 'None';
 
-    const autoClimbLocationAttemptCount = autoClimbFromSideCount + autoClimbFromMiddleCount;
-    const autoClimbAttemptCount = Math.max(autoClimbCount, autoClimbLocationAttemptCount);
-
     // ============================================================================
     // RAW VALUES (for UI aggregation: average, max, 75th percentile, etc.)
     // ============================================================================
@@ -384,11 +195,11 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         endgamePoints: teamMatches.map(m =>
             scoringCalculations.calculateEndgamePoints({ gameData: m.gameData } as any)
         ),
-
+        
         // Fuel (per match)
         autoFuel: teamMatches.map(m => val(m.gameData?.auto?.fuelScoredCount)),
         teleopFuel: teamMatches.map(m => val(m.gameData?.teleop?.fuelScoredCount)),
-        totalFuel: teamMatches.map(m =>
+        totalFuel: teamMatches.map(m => 
             val(m.gameData?.auto?.fuelScoredCount) + val(m.gameData?.teleop?.fuelScoredCount)
         ),
         autoFuelPassed: teamMatches.map(m => val(m.gameData?.auto?.fuelPassedCount)),
@@ -396,43 +207,20 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         totalFuelPassed: teamMatches.map(m =>
             val(m.gameData?.auto?.fuelPassedCount) + val(m.gameData?.teleop?.fuelPassedCount)
         ),
-        scaledAutoFuel: teamMatches.map(m => {
-            const scaledMetrics = m.gameData?.scaledMetrics as { scaledAutoFuel?: number } | undefined;
-            return typeof scaledMetrics?.scaledAutoFuel === 'number'
-                ? scaledMetrics.scaledAutoFuel
-                : val(m.gameData?.auto?.fuelScoredCount);
-        }),
-        scaledTeleopFuel: teamMatches.map(m => {
-            const scaledMetrics = m.gameData?.scaledMetrics as { scaledTeleopFuel?: number } | undefined;
-            return typeof scaledMetrics?.scaledTeleopFuel === 'number'
-                ? scaledMetrics.scaledTeleopFuel
-                : val(m.gameData?.teleop?.fuelScoredCount);
-        }),
-        scaledTotalFuel: teamMatches.map(m => {
-            const scaledMetrics = m.gameData?.scaledMetrics as {
-                scaledAutoFuel?: number;
-                scaledTeleopFuel?: number;
-            } | undefined;
-
-            const scaledAuto = typeof scaledMetrics?.scaledAutoFuel === 'number'
-                ? scaledMetrics.scaledAutoFuel
-                : val(m.gameData?.auto?.fuelScoredCount);
-            const scaledTeleop = typeof scaledMetrics?.scaledTeleopFuel === 'number'
-                ? scaledMetrics.scaledTeleopFuel
-                : val(m.gameData?.teleop?.fuelScoredCount);
-
-            return scaledAuto + scaledTeleop;
-        }),
-
+        
+        // Shooting Time (per match, in seconds)
+        autoShootingTime: teamMatches.map(m => val(m.gameData?.auto?.shootingTime) / 1000),
+        teleopShootingTime: teamMatches.map(m => val(m.gameData?.teleop?.shootingTime) / 1000),
+        
         // Climb (boolean per match - 1 if climbed, 0 if not)
         climbL1: teamMatches.map(m => m.gameData?.endgame?.climbL1 === true ? 1 : 0),
         climbL2: teamMatches.map(m => m.gameData?.endgame?.climbL2 === true ? 1 : 0),
         climbL3: teamMatches.map(m => m.gameData?.endgame?.climbL3 === true ? 1 : 0),
-        climbAny: teamMatches.map(m =>
+        climbAny: teamMatches.map(m => 
             (m.gameData?.endgame?.climbL1 || m.gameData?.endgame?.climbL2 || m.gameData?.endgame?.climbL3) ? 1 : 0
         ),
         autoClimb: teamMatches.map(m => m.gameData?.auto?.autoClimbL1 === true ? 1 : 0),
-
+        
         // Defense & Steals (per match)
         steals: teamMatches.map(m => val(m.gameData?.teleop?.stealCount)),
         defenseActions: teamMatches.map(m =>
@@ -440,20 +228,6 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
             val(m.gameData?.teleop?.defenseNeutralCount) +
             val(m.gameData?.teleop?.defenseOpponentCount)
         ),
-
-        // Stuck Durations (per match, in seconds)
-        autoTrenchStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.auto?.trenchStuckDuration))),
-        autoBumpStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.auto?.bumpStuckDuration))),
-        teleopTrenchStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.teleop?.trenchStuckDuration))),
-        teleopBumpStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.teleop?.bumpStuckDuration))),
-
-        // Climb start timing (seconds remaining) - include only matches with recorded values
-        autoClimbStartTimeSec: teamMatches
-            .map(m => m.gameData?.auto?.autoClimbStartTimeSecRemaining)
-            .filter((time): time is number => typeof time === 'number'),
-        endgameClimbStartTimeSec: teamMatches
-            .map(m => m.gameData?.teleop?.teleopClimbStartTimeSecRemaining)
-            .filter((time): time is number => typeof time === 'number'),
     };
 
     // ============================================================================
@@ -480,89 +254,14 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         avgTeleopFuelPassed: round(teleopFuelPassedTotal / matchCount),
         avgFuelPassed: round(totalFuelPassed / matchCount),
         avgTotalFuel: round(totalFuelScored / matchCount),
-        avgScaledAutoFuel: round(
-            sum(teamMatches, m => {
-                const scaledMetrics = m.gameData?.scaledMetrics as { scaledAutoFuel?: number } | undefined;
-                return typeof scaledMetrics?.scaledAutoFuel === 'number'
-                    ? scaledMetrics.scaledAutoFuel
-                    : val(m.gameData?.auto?.fuelScoredCount);
-            }) / matchCount
-        ),
-        avgScaledTeleopFuel: round(
-            sum(teamMatches, m => {
-                const scaledMetrics = m.gameData?.scaledMetrics as { scaledTeleopFuel?: number } | undefined;
-                return typeof scaledMetrics?.scaledTeleopFuel === 'number'
-                    ? scaledMetrics.scaledTeleopFuel
-                    : val(m.gameData?.teleop?.fuelScoredCount);
-            }) / matchCount
-        ),
-        avgScaledTotalFuel: round(
-            sum(teamMatches, m => {
-                const scaledMetrics = m.gameData?.scaledMetrics as {
-                    scaledAutoFuel?: number;
-                    scaledTeleopFuel?: number;
-                } | undefined;
-
-                const scaledAuto = typeof scaledMetrics?.scaledAutoFuel === 'number'
-                    ? scaledMetrics.scaledAutoFuel
-                    : val(m.gameData?.auto?.fuelScoredCount);
-                const scaledTeleop = typeof scaledMetrics?.scaledTeleopFuel === 'number'
-                    ? scaledMetrics.scaledTeleopFuel
-                    : val(m.gameData?.teleop?.fuelScoredCount);
-
-                return scaledAuto + scaledTeleop;
-            }) / matchCount
-        ),
-        fuelAutoOPR: 0,
-        fuelTeleopOPR: 0,
-        fuelTotalOPR: 0,
-        avgAutoClimbStartTimeSec: round(avg(autoClimbStartTimes)),
-        avgTeleopClimbStartTimeSec: round(avg(teleopClimbStartTimes)),
-        autoShotOnTheMoveRate: percent(autoShotOnTheMoveTotal, autoShotTypeTotal),
-        autoShotStationaryRate: percent(autoShotStationaryTotal, autoShotTypeTotal),
-        teleopShotOnTheMoveRate: percent(teleopShotOnTheMoveTotal, teleopShotTypeTotal),
-        teleopShotStationaryRate: percent(teleopShotStationaryTotal, teleopShotTypeTotal),
-        autoClimbRate: percent(autoClimbCount, autoClimbAttemptCount),
-        autoClimbFromSideRate: percent(autoClimbFromSideCount, autoClimbLocationAttemptCount),
-        autoClimbFromMiddleRate: percent(autoClimbFromMiddleCount, autoClimbLocationAttemptCount),
-        autoClimbAttempts: autoClimbAttemptCount,
-        climbAttempts: teleopClimbAttemptCount,
-        climbL1Rate: percent(climbL1Count, climbAttemptL1Count),
-        climbL1Attempts: climbAttemptL1Count,
-        climbL2Rate: percent(climbL2Count, climbAttemptL2Count),
-        climbL2Attempts: climbAttemptL2Count,
-        climbL3Rate: percent(climbL3Count, climbAttemptL3Count),
-        climbL3Attempts: climbAttemptL3Count,
-        climbFromSideRate: percent(climbFromSideCount, endgameClimbLocationAttemptCount),
-        climbFromMiddleRate: percent(climbFromMiddleCount, endgameClimbLocationAttemptCount),
-        climbSuccessRate: percent(climbSuccessCount, teleopClimbAttemptCount),
-        brokeDownCount,
-        noShowCount,
-        accuracyAllRate: percent(accuracyAllCount, matchCount),
-        accuracyMostRate: percent(accuracyMostCount, matchCount),
-        accuracySomeRate: percent(accuracySomeCount, matchCount),
-        accuracyFewRate: percent(accuracyFewCount, matchCount),
-        accuracyLittleRate: percent(accuracyLittleCount, matchCount),
-        accuracyScore,
-        roleActiveCleanUpRate: percent(roleActiveCleanUpCount, matchCount),
-        roleActivePasserRate: percent(roleActivePasserCount, matchCount),
-        roleActiveDefenseRate: percent(roleActiveDefenseCount, matchCount),
-        roleActiveCyclerRate: percent(roleActiveCyclerCount, matchCount),
-        roleActiveThiefRate: percent(roleActiveThiefCount, matchCount),
-        roleInactiveCleanUpRate: percent(roleInactiveCleanUpCount, matchCount),
-        roleInactivePasserRate: percent(roleInactivePasserCount, matchCount),
-        roleInactiveDefenseRate: percent(roleInactiveDefenseCount, matchCount),
-        roleInactiveCyclerRate: percent(roleInactiveCyclerCount, matchCount),
-        roleInactiveThiefRate: percent(roleInactiveThiefCount, matchCount),
-        defenseVeryEffectiveRate: totalDefenseEvents > 0 ? Math.round((veryEffectiveCount / totalDefenseEvents) * 100) : 0,
-        defenseSomewhatEffectiveRate: totalDefenseEvents > 0 ? Math.round((somewhatEffectiveCount / totalDefenseEvents) * 100) : 0,
-        defenseNotEffectiveRate: totalDefenseEvents > 0 ? Math.round((notEffectiveCount / totalDefenseEvents) * 100) : 0,
-        defenseEffectivenessScore,
-        mostDefendedTeam,
-        mostEffectiveDefenseTarget,
-        defenseByTarget,
-        startPositions: startPositionPercentages,
-        matchResults,
+        avgAutoShootingTime: round((autoShootingTimeTotal / matchCount) / 1000, 1), // Convert to seconds
+        avgTeleopShootingTime: round((teleopShootingTimeTotal / matchCount) / 1000, 1), // Convert to seconds
+        autoClimbRate: percent(autoClimbCount, matchCount),
+        autoClimbAttempts: autoClimbCount,
+        climbL1Rate: percent(climbL1Count, matchCount),
+        climbL2Rate: percent(climbL2Count, matchCount),
+        climbL3Rate: percent(climbL3Count, matchCount),
+        climbSuccessRate: percent(climbSuccessCount, matchCount),
 
         // Role data
         primaryActiveRole,
@@ -586,11 +285,7 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
             avgGamePiece2: round(autoFuelPassedTotal / matchCount), // Auto passed
             mobilityRate: 0, // Not applicable in 2026
             autoClimbRate: percent(autoClimbCount, matchCount),
-            autoClimbFromSideRate: percent(autoClimbFromSideCount, matchCount),
-            autoClimbFromMiddleRate: percent(autoClimbFromMiddleCount, matchCount),
             avgFuelScored: round(autoFuelTotal / matchCount),
-            shotOnTheMoveRate: percent(autoShotOnTheMoveTotal, autoShotTypeTotal),
-            shotStationaryRate: percent(autoShotStationaryTotal, autoShotTypeTotal),
             startPositions,
             // 2026-specific stuck stats
             avgTrenchStuck: round(autoTrenchStuckTotal / matchCount),
@@ -606,8 +301,6 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
             avgGamePiece2: round(teleopFuelPassedTotal / matchCount), // Teleop passed
             avgFuelScored: round(teleopFuelTotal / matchCount),
             avgFuelPassed: round(teleopFuelPassedTotal / matchCount),
-            shotOnTheMoveRate: percent(teleopShotOnTheMoveTotal, teleopShotTypeTotal),
-            shotStationaryRate: percent(teleopShotStationaryTotal, teleopShotTypeTotal),
             defenseRate: percent(defenseCount, matchCount),
             // 2026-specific detailed stats
             totalDefenseActions: round(totalDefenseActions / matchCount),
@@ -622,34 +315,23 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         endgame: {
             avgPoints: round(totalEndgamePoints / matchCount),
             // Climb rates
-            climbL1Rate: percent(climbL1Count, climbAttemptL1Count),
-            climbL2Rate: percent(climbL2Count, climbAttemptL2Count),
-            climbL3Rate: percent(climbL3Count, climbAttemptL3Count),
-            climbAttempts: teleopClimbAttemptCount,
-            climbL1Attempts: climbAttemptL1Count,
-            climbL2Attempts: climbAttemptL2Count,
-            climbL3Attempts: climbAttemptL3Count,
-            climbFromSideRate: percent(climbFromSideCount, endgameClimbLocationAttemptCount),
-            climbFromMiddleRate: percent(climbFromMiddleCount, endgameClimbLocationAttemptCount),
-            climbSuccessRate: percent(climbSuccessCount, teleopClimbAttemptCount),
-            climbFailedRate: percent(climbFailedCount, teleopClimbAttemptCount),
+            climbL1Rate: percent(climbL1Count, matchCount),
+            climbL2Rate: percent(climbL2Count, matchCount),
+            climbL3Rate: percent(climbL3Count, matchCount),
+            climbSuccessRate: percent(climbSuccessCount, matchCount),
+            climbFailedRate: percent(climbFailedCount, matchCount),
             // Legacy compatibility aliases
-            climbRate: percent(climbSuccessCount, teleopClimbAttemptCount),
+            climbRate: percent(climbSuccessCount, matchCount),
             parkRate: 0, // Not applicable in 2026
-            shallowClimbRate: percent(climbL1Count, climbAttemptL1Count),
-            deepClimbRate: percent(climbL3Count, climbAttemptL3Count),
-            option1Rate: percent(climbL1Count, climbAttemptL1Count),
-            option2Rate: percent(climbL2Count, climbAttemptL2Count),
-            option3Rate: percent(climbL3Count, climbAttemptL3Count),
+            shallowClimbRate: percent(climbL1Count, matchCount),
+            deepClimbRate: percent(climbL3Count, matchCount),
+            option1Rate: percent(climbL1Count, matchCount),
+            option2Rate: percent(climbL2Count, matchCount),
+            option3Rate: percent(climbL3Count, matchCount),
             option4Rate: 0,
             option5Rate: 0,
-            toggle1Rate: percent(climbFailedCount, teleopClimbAttemptCount),
+            toggle1Rate: percent(climbFailedCount, matchCount),
             toggle2Rate: 0, // Removed noClimb - can be inferred
-            usedTrenchInTeleopRate: percent(usedTrenchInTeleopCount, matchCount),
-            usedBumpInTeleopRate: percent(usedBumpInTeleopCount, matchCount),
-            passedToAllianceFromNeutralRate: percent(passedToAllianceFromNeutralCount, matchCount),
-            passedToAllianceFromOpponentRate: percent(passedToAllianceFromOpponentCount, matchCount),
-            passedToNeutralRate: percent(passedToNeutralCount, matchCount),
         },
 
         // Raw values for charts
@@ -709,9 +391,6 @@ function getEmptyStats(): Omit<TeamStats, 'teamNumber' | 'eventKey'> {
             avgGamePiece1: 0,
             avgGamePiece2: 0,
             mobilityRate: 0,
-            autoClimbRate: 0,
-            autoClimbFromSideRate: 0,
-            autoClimbFromMiddleRate: 0,
             startPositions: [],
         },
         teleop: {
@@ -725,63 +404,12 @@ function getEmptyStats(): Omit<TeamStats, 'teamNumber' | 'eventKey'> {
             parkRate: 0,
             shallowClimbRate: 0,
             deepClimbRate: 0,
-            climbFromSideRate: 0,
-            climbFromMiddleRate: 0,
         },
         rawValues: {
             totalPoints: [],
             autoPoints: [],
             teleopPoints: [],
             endgamePoints: [],
-            scaledAutoFuel: [],
-            scaledTeleopFuel: [],
-            scaledTotalFuel: [],
-            autoClimbStartTimeSec: [],
-            endgameClimbStartTimeSec: [],
         },
-        avgScaledAutoFuel: 0,
-        avgScaledTeleopFuel: 0,
-        avgScaledTotalFuel: 0,
-        fuelAutoOPR: 0,
-        fuelTeleopOPR: 0,
-        fuelTotalOPR: 0,
-        avgAutoClimbStartTimeSec: 0,
-        avgTeleopClimbStartTimeSec: 0,
-        autoClimbAttempts: 0,
-        climbAttempts: 0,
-        climbL1Attempts: 0,
-        climbL2Attempts: 0,
-        climbL3Attempts: 0,
-        autoShotOnTheMoveRate: 0,
-        autoShotStationaryRate: 0,
-        teleopShotOnTheMoveRate: 0,
-        teleopShotStationaryRate: 0,
-        brokeDownCount: 0,
-        noShowCount: 0,
-        accuracyAllRate: 0,
-        accuracyMostRate: 0,
-        accuracySomeRate: 0,
-        accuracyFewRate: 0,
-        accuracyLittleRate: 0,
-        accuracyScore: 0,
-        roleActiveCleanUpRate: 0,
-        roleActivePasserRate: 0,
-        roleActiveDefenseRate: 0,
-        roleActiveCyclerRate: 0,
-        roleActiveThiefRate: 0,
-        roleInactiveCleanUpRate: 0,
-        roleInactivePasserRate: 0,
-        roleInactiveDefenseRate: 0,
-        roleInactiveCyclerRate: 0,
-        roleInactiveThiefRate: 0,
-        defenseVeryEffectiveRate: 0,
-        defenseSomewhatEffectiveRate: 0,
-        defenseNotEffectiveRate: 0,
-        defenseEffectivenessScore: 0,
-        mostDefendedTeam: 'None',
-        mostEffectiveDefenseTarget: 'None',
-        defenseByTarget: {},
-        startPositions: {},
-        matchResults: [],
     };
 }

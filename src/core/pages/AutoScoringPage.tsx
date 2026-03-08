@@ -3,19 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Button } from "@/core/components/ui/button";
 import { Badge } from "@/core/components/ui/badge";
-import { Input } from "@/core/components/ui/input";
 import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 import { ScoringSections, StatusToggles } from "@/game-template/components";
-import { FIELD_ELEMENTS } from "@/game-template/components/field-map";
-import { formatDurationSecondsLabel } from "@/game-template/duration";
-import { AUTO_PHASE_DURATION_MS } from "@/game-template/constants";
 import { useWorkflowNavigation } from "@/core/hooks/useWorkflowNavigation";
 import { submitMatchData } from "@/core/lib/submitMatch";
 import { useGame } from "@/core/contexts/GameContext";
 import { workflowConfig } from "@/game-template/game-schema";
-
-const AUTO_CLIMB_START_PRESETS = [20, 15, 10, 5] as const;
 
 const AutoScoringPage = () => {
   const { transformation } = useGame();
@@ -27,9 +21,7 @@ const AutoScoringPage = () => {
 
   const getSavedState = () => {
     const saved = localStorage.getItem("autoStateStack");
-    if (!saved) return [];
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
+    return saved ? JSON.parse(saved) : [];
   };
 
   const getSavedStatus = () => {
@@ -45,9 +37,6 @@ const AutoScoringPage = () => {
   const [scoringActions, setScoringActions] = useState(getSavedState());
   const [robotStatus, setRobotStatus] = useState(getSavedStatus());
   const [undoHistory, setUndoHistory] = useState(getSavedHistory());
-  const autoClimbStartTimeSecRemaining = typeof robotStatus?.autoClimbStartTimeSecRemaining === 'number'
-    ? robotStatus.autoClimbStartTimeSecRemaining
-    : null;
 
   // Save state to localStorage whenever actions change
   useEffect(() => {
@@ -108,87 +97,7 @@ const AutoScoringPage = () => {
     });
   };
 
-  const handleAutoClimbStartPreset = (seconds: number) => {
-    updateRobotStatus({
-      autoClimbStartTimeSecRemaining:
-        autoClimbStartTimeSecRemaining === seconds ? null : seconds,
-    });
-  };
-
-  const handleAutoClimbStartInput = (rawValue: string) => {
-    if (rawValue === '') {
-      updateRobotStatus({ autoClimbStartTimeSecRemaining: null });
-      return;
-    }
-
-    const parsed = Number.parseInt(rawValue, 10);
-    if (Number.isNaN(parsed)) return;
-
-    const clamped = Math.max(0, Math.min(20, parsed));
-    updateRobotStatus({ autoClimbStartTimeSecRemaining: clamped });
-  };
-
-  const handleProceed = async (finalActions?: any[]) => {
-    let actionsToUse = Array.isArray(finalActions) ? finalActions : scoringActions;
-
-    // Capture any active stuck timers if they wasn't captured by the field map's internal onProceed
-    if (!finalActions) {
-      const savedStuck = localStorage.getItem('teleopStuckStarts');
-      if (savedStuck) {
-        const stuckStarts = JSON.parse(savedStuck);
-        const stuckEntries = Object.entries(stuckStarts);
-        const now = Date.now();
-        const nextActions = [...actionsToUse];
-        const nextStuckStarts: Record<string, number> = { ...stuckStarts };
-        let addedAny = false;
-
-        for (const [elementKey, startTime] of stuckEntries) {
-          if (startTime && typeof startTime === 'number') {
-            const obstacleType = elementKey.includes('trench') ? 'trench' : 'bump';
-            const element = FIELD_ELEMENTS[elementKey as keyof typeof FIELD_ELEMENTS];
-            const duration = Math.min(now - startTime, AUTO_PHASE_DURATION_MS);
-
-            const unstuckWaypoint = {
-              id: `${now}-${Math.random().toString(36).substr(2, 9)}`,
-              type: 'unstuck',
-              action: `unstuck-${obstacleType}`,
-              position: element ? { x: element.x, y: element.y } : { x: 0, y: 0 },
-              timestamp: now,
-              duration,
-              obstacleType,
-              amountLabel: formatDurationSecondsLabel(duration)
-            };
-            nextActions.push(unstuckWaypoint);
-            // Persistent stuck: reset start time to 'now' for Teleop tracking
-            nextStuckStarts[elementKey] = now;
-            addedAny = true;
-          }
-        }
-
-        if (addedAny) {
-          actionsToUse = nextActions;
-          localStorage.setItem('teleopStuckStarts', JSON.stringify(nextStuckStarts));
-          setScoringActions(nextActions);
-        }
-      }
-
-      // Also capture active broken down time
-      const autoBrokenDownStart = localStorage.getItem('autoBrokenDownStart');
-      if (autoBrokenDownStart) {
-        const startTime = parseInt(autoBrokenDownStart, 10);
-        const duration = Date.now() - startTime;
-        const currentTotal = parseInt(localStorage.getItem('autoBrokenDownTime') || '0', 10);
-        localStorage.setItem('autoBrokenDownTime', String(currentTotal + duration));
-        // Reset for teleop
-        localStorage.setItem('teleopBrokenDownStart', String(Date.now()));
-      }
-    }
-
-    if (Array.isArray(finalActions)) {
-      setScoringActions(actionsToUse);
-    }
-    localStorage.setItem("autoStateStack", JSON.stringify(actionsToUse));
-
+  const handleProceed = async () => {
     if (isSubmitPage) {
       // This is the last page - submit match data
       const success = await submitMatchData({
@@ -202,7 +111,7 @@ const AutoScoringPage = () => {
       navigate(nextRoute, {
         state: {
           inputs: states?.inputs,
-          autoStateStack: actionsToUse,
+          autoStateStack: scoringActions,
           autoRobotStatus: robotStatus,
           ...(states?.rescout && { rescout: states.rescout }),
         },
@@ -225,7 +134,6 @@ const AutoScoringPage = () => {
             phase="auto"
             onAddAction={addScoringAction}
             actions={scoringActions}
-            scoutOptions={states?.inputs?.scoutOptions}
             onUndo={undoLastAction}
             canUndo={undoHistory.length > 0}
             matchNumber={states?.inputs?.matchNumber}
@@ -245,7 +153,7 @@ const AutoScoringPage = () => {
               Back
             </Button>
             <Button
-              onClick={() => handleProceed()}
+              onClick={handleProceed}
               className={`flex-2 h-12 text-lg font-semibold ${isSubmitPage ? 'bg-green-600 hover:bg-green-700' : ''}`}
             >
               {isSubmitPage ? 'Submit Match Data' : 'Continue to Teleop'}
@@ -333,42 +241,6 @@ const AutoScoringPage = () => {
               </Card>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Auto Climb Start Time</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-4 gap-2">
-                  {AUTO_CLIMB_START_PRESETS.map((seconds) => (
-                    <Button
-                      key={seconds}
-                      type="button"
-                      variant={autoClimbStartTimeSecRemaining === seconds ? "default" : "outline"}
-                      onClick={() => handleAutoClimbStartPreset(seconds)}
-                      className="h-9"
-                    >
-                      {seconds}s
-                    </Button>
-                  ))}
-                </div>
-
-                <div className="space-y-1">
-                  <label htmlFor="auto-climb-start-time" className="text-sm text-muted-foreground">
-                    Exact seconds remaining (0-20)
-                  </label>
-                  <Input
-                    id="auto-climb-start-time"
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={autoClimbStartTimeSecRemaining ?? ''}
-                    onChange={(e) => handleAutoClimbStartInput(e.target.value)}
-                    placeholder="Type exact time"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Undo Button */}
             <Button
               variant="outline"
@@ -389,7 +261,7 @@ const AutoScoringPage = () => {
                 Back
               </Button>
               <Button
-                onClick={() => handleProceed()}
+                onClick={handleProceed}
                 className={`flex-2 h-12 text-lg font-semibold ${isSubmitPage ? 'bg-green-600 hover:bg-green-700' : ''}`}
               >
                 {isSubmitPage ? 'Submit Match Data' : 'Continue to Teleop'}

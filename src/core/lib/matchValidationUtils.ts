@@ -396,18 +396,12 @@ function extractTBAValue(
     breakdown: Record<string, unknown>,
     tbaPath: string | readonly string[],
     type: TBAMappingType,
-    matchValue?: string | readonly string[]
+    matchValue?: string
 ): number {
     // Array of paths - count matching values
     if (Array.isArray(tbaPath)) {
         if (type === 'countMatching' && matchValue) {
             return tbaPath.filter(path => getNestedValue(breakdown, path) === matchValue).length;
-        }
-        if (type === 'countMatchingAny' && Array.isArray(matchValue)) {
-            return tbaPath.filter(path => {
-                const value = getNestedValue(breakdown, path);
-                return typeof value === 'string' && matchValue.includes(value);
-            }).length;
         }
         // Sum all values for 'count' type with array
         return tbaPath.reduce((sum, path) => {
@@ -575,17 +569,6 @@ function getActionLabel(actionKey: string): string {
     if (actionKey in actions) {
         return actions[actionKey as keyof typeof actions].label;
     }
-
-    const syntheticLabels: Record<string, string> = {
-        autoFuelScored: 'Auto Fuel Scored',
-        teleopFuelScored: 'Teleop Fuel Scored',
-        totalFuelScored: 'Total Fuel Scored',
-    };
-
-    if (actionKey in syntheticLabels) {
-        return syntheticLabels[actionKey] ?? actionKey;
-    }
-
     return actionKey;
 }
 
@@ -603,15 +586,6 @@ function getToggleLabel(toggleKey: string): string {
             }
         }
     }
-
-    const syntheticLabels: Record<string, string> = {
-        autoClimbSuccess: 'Auto Climb Success',
-    };
-
-    if (toggleKey in syntheticLabels) {
-        return syntheticLabels[toggleKey] ?? toggleKey;
-    }
-
     return toggleKey;
 }
 

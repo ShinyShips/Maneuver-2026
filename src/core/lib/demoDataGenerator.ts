@@ -15,16 +15,9 @@ import { db, saveScoutingEntry, savePitScoutingEntry } from '@/core/db/database'
 import type { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import type { PitScoutingEntryBase, DrivetrainType, ProgrammingLanguage } from '@/core/types/pit-scouting';
 import { setCurrentEvent } from '@/core/lib/tba/eventDataUtils';
-import { cacheTBAMatches, clearEventCache, clearEventValidationResults, storeValidationResult } from '@/core/lib/tbaCache';
+import { cacheTBAMatches } from '@/core/lib/tbaCache';
 import { getOrCreateScoutByName, updateScoutStats } from '@/core/lib/scoutGamificationUtils';
 import { gamificationDB, createMatchPrediction } from '@/game/gamification';
-import type {
-    Discrepancy,
-    MatchValidationResult,
-    TeamValidation,
-    ValidationResultDB,
-    ValidationStatus,
-} from '@/core/lib/matchValidationTypes';
 
 // ============================================================================
 // Configuration
@@ -140,7 +133,7 @@ interface MatchSchedule {
  * Generate qualification match schedule
  * Uses sequential team assignment to ensure each team plays exactly 12 matches
  */
-function generateQualSchedule(teams: TeamSkillProfile[], eventKey: string): MatchSchedule[] {
+function generateQualSchedule(teams: TeamSkillProfile[]): MatchSchedule[] {
     const matches: MatchSchedule[] = [];
     const teamNumbers = teams.map(t => t.teamNumber);
     
@@ -160,7 +153,7 @@ function generateQualSchedule(teams: TeamSkillProfile[], eventKey: string): Matc
         const blueTeams = selectedTeams.slice(3, 6);
         
         matches.push({
-            matchKey: `${eventKey}_qm${matchNum}`,
+            matchKey: `${DEMO_EVENT_KEY}_qm${matchNum}`,
             matchNumber: matchNum,
             compLevel: 'qm',
             redTeams,
@@ -243,20 +236,7 @@ function generatePrediction(
 // Game Data Generation (uses injected generator)
 // ============================================================================
 
-export interface GameDataGenerationContext {
-    eventKey: string;
-    matchNumber: number;
-    allianceColor: AllianceColor;
-    teamNumber: number;
-    allianceTeams: number[];
-    opponentTeams: number[];
-}
-
-export type GameDataGenerator = (
-    profile: TeamSkillProfile,
-    matchKey: string,
-    context?: GameDataGenerationContext
-) => Record<string, unknown>;
+export type GameDataGenerator = (profile: TeamSkillProfile, matchKey: string) => Record<string, unknown>;
 
 /**
  * Default game data generator (random data, no profile consideration)
@@ -279,7 +259,6 @@ export interface DemoDataOptions {
     clearExisting?: boolean;
     gameDataGenerator?: GameDataGenerator;
     includePlayoffs?: boolean;
-    seedFakeValidationResults?: boolean;
 }
 
 export interface DemoDataResult {
@@ -293,624 +272,6 @@ export interface DemoDataResult {
     };
 }
 
-type AllianceColor = 'red' | 'blue';
-
-interface DemoAllianceStats {
-    autoFuelCount: number;
-    teleopFuelCount: number;
-    autoTowerResults: string[];
-    endgameTowerResults: string[];
-}
-
-interface DemoMatchStats {
-    red: DemoAllianceStats;
-    blue: DemoAllianceStats;
-}
-
-type DemoScoutAssignments = Map<string, Record<string, string>>;
-
-interface DemoAllianceBreakdown {
-    adjustPoints: number;
-    autoTowerPoints: number;
-    autoTowerRobot1: string;
-    autoTowerRobot2: string;
-    autoTowerRobot3: string;
-    endGameTowerPoints: number;
-    endGameTowerRobot1: string;
-    endGameTowerRobot2: string;
-    endGameTowerRobot3: string;
-    energizedAchieved: boolean;
-    foulPoints: number;
-    g206Penalty: boolean;
-    hubScore: {
-        autoCount: number;
-        autoPoints: number;
-        endgameCount: number;
-        endgamePoints: number;
-        shift1Count: number;
-        shift1Points: number;
-        shift2Count: number;
-        shift2Points: number;
-        shift3Count: number;
-        shift3Points: number;
-        shift4Count: number;
-        shift4Points: number;
-        teleopCount: number;
-        teleopPoints: number;
-        totalCount: number;
-        totalPoints: number;
-        transitionCount: number;
-        transitionPoints: number;
-    };
-    majorFoulCount: number;
-    minorFoulCount: number;
-    rp: number;
-    superchargedAchieved: boolean;
-    totalAutoPoints: number;
-    totalPoints: number;
-    totalTeleopPoints: number;
-    totalTowerPoints: number;
-    traversalAchieved: boolean;
-}
-
-function emptyAllianceStats(): DemoAllianceStats {
-    return {
-        autoFuelCount: 0,
-        teleopFuelCount: 0,
-        autoTowerResults: [],
-        endgameTowerResults: [],
-    };
-}
-
-function getOrCreateMatchStats(statsMap: Map<string, DemoMatchStats>, matchKey: string): DemoMatchStats {
-    const existing = statsMap.get(matchKey);
-    if (existing) {
-        return existing;
-    }
-
-    const created: DemoMatchStats = {
-        red: emptyAllianceStats(),
-        blue: emptyAllianceStats(),
-    };
-    statsMap.set(matchKey, created);
-    return created;
-}
-
-function parseAutoTowerResult(gameData: Record<string, unknown>): string {
-    const auto = gameData.auto as Record<string, unknown> | undefined;
-    if (!auto || typeof auto !== 'object') return 'None';
-
-    if (auto.autoClimbL3 === true) return 'Level3';
-    if (auto.autoClimbL2 === true) return 'Level2';
-    if (auto.autoClimbL1 === true) return 'Level1';
-    return 'None';
-}
-
-function parseEndgameTowerResult(gameData: Record<string, unknown>): string {
-    const endgame = gameData.endgame as Record<string, unknown> | undefined;
-    if (!endgame || typeof endgame !== 'object') return 'None';
-
-    if (endgame.climbL3 === true) return 'Level3';
-    if (endgame.climbL2 === true) return 'Level2';
-    if (endgame.climbL1 === true) return 'Level1';
-    return 'None';
-}
-
-function parseFuelCounts(gameData: Record<string, unknown>): { auto: number; teleop: number } {
-    const auto = gameData.auto as Record<string, unknown> | undefined;
-    const teleop = gameData.teleop as Record<string, unknown> | undefined;
-
-    const autoFuel =
-        (typeof auto?.fuelScoredCount === 'number' ? auto.fuelScoredCount : undefined) ??
-        (typeof auto?.fuelScored === 'number' ? auto.fuelScored : undefined) ??
-        (typeof gameData.autoFuelScored === 'number' ? gameData.autoFuelScored : undefined) ??
-        0;
-
-    const teleopFuel =
-        (typeof teleop?.fuelScoredCount === 'number' ? teleop.fuelScoredCount : undefined) ??
-        (typeof teleop?.fuelScored === 'number' ? teleop.fuelScored : undefined) ??
-        (typeof gameData.teleopFuelScored === 'number' ? gameData.teleopFuelScored : undefined) ??
-        0;
-
-    return { auto: autoFuel, teleop: teleopFuel };
-}
-
-function applyOfficialFuelVariance(value: number): number {
-    const roll = Math.random();
-
-    // Most entries are close; occasional larger miss for realism
-    let delta = 0;
-    if (roll < 0.55) delta = 0;
-    else if (roll < 0.78) delta = -1;
-    else if (roll < 0.90) delta = 1;
-    else if (roll < 0.96) delta = -2;
-    else delta = 2;
-
-    return Math.max(0, value + delta);
-}
-
-function downgradeTowerLevel(level: string): string {
-    if (level === 'Level3') return 'Level2';
-    if (level === 'Level2') return 'Level1';
-    return 'None';
-}
-
-function applyOfficialTowerVariance(level: string): string {
-    if (level === 'None') {
-        // Rarely gets credited as a low climb when scouts missed it
-        return Math.random() < 0.03 ? 'Level1' : 'None';
-    }
-
-    const roll = Math.random();
-    if (roll < 0.75) return level;              // most match scout call
-    if (roll < 0.92) return downgradeTowerLevel(level); // occasional over-call by scouts
-    return 'None';                               // occasional complete miss
-}
-
-function recordDemoEntryStats(
-    statsMap: Map<string, DemoMatchStats>,
-    fullMatchKey: string,
-    alliance: AllianceColor,
-    gameData: Record<string, unknown>
-): void {
-    const matchStats = getOrCreateMatchStats(statsMap, fullMatchKey);
-    const allianceStats = matchStats[alliance];
-
-    const fuel = parseFuelCounts(gameData);
-    allianceStats.autoFuelCount += applyOfficialFuelVariance(fuel.auto);
-    allianceStats.teleopFuelCount += applyOfficialFuelVariance(fuel.teleop);
-    allianceStats.autoTowerResults.push(applyOfficialTowerVariance(parseAutoTowerResult(gameData)));
-    allianceStats.endgameTowerResults.push(applyOfficialTowerVariance(parseEndgameTowerResult(gameData)));
-}
-
-function recordDemoScoutAssignment(
-    assignments: DemoScoutAssignments,
-    fullMatchKey: string,
-    alliance: AllianceColor,
-    teamNumber: number,
-    scoutName: string
-): void {
-    const byMatch = assignments.get(fullMatchKey) ?? {};
-    byMatch[`${alliance}:${teamNumber}`] = scoutName;
-    assignments.set(fullMatchKey, byMatch);
-}
-
-function getTowerPoints(levels: string[], isAuto: boolean): number {
-    return levels.reduce((sum, level) => {
-        if (level === 'None') return sum;
-        if (isAuto) return sum + 15;
-        if (level === 'Level3') return sum + 30;
-        if (level === 'Level2') return sum + 20;
-        return sum + 10;
-    }, 0);
-}
-
-function buildAllianceBreakdown(stats: DemoAllianceStats): DemoAllianceBreakdown {
-    const autoTower = [...stats.autoTowerResults, 'None', 'None', 'None'].slice(0, 3);
-    const endgameTower = [...stats.endgameTowerResults, 'None', 'None', 'None'].slice(0, 3);
-
-    const autoTowerPoints = getTowerPoints(autoTower, true);
-    const endGameTowerPoints = getTowerPoints(endgameTower, false);
-    const totalTowerPoints = autoTowerPoints + endGameTowerPoints;
-
-    const autoFuelPoints = stats.autoFuelCount;
-    const teleopFuelPoints = stats.teleopFuelCount;
-    const totalFuelCount = stats.autoFuelCount + stats.teleopFuelCount;
-    const totalFuelPoints = autoFuelPoints + teleopFuelPoints;
-
-    const totalAutoPoints = autoFuelPoints + autoTowerPoints;
-    const totalTeleopPoints = teleopFuelPoints + endGameTowerPoints;
-    const totalPoints = totalAutoPoints + totalTeleopPoints;
-
-    return {
-        adjustPoints: 0,
-        autoTowerPoints,
-        autoTowerRobot1: autoTower[0] || 'None',
-        autoTowerRobot2: autoTower[1] || 'None',
-        autoTowerRobot3: autoTower[2] || 'None',
-        endGameTowerPoints,
-        endGameTowerRobot1: endgameTower[0] || 'None',
-        endGameTowerRobot2: endgameTower[1] || 'None',
-        endGameTowerRobot3: endgameTower[2] || 'None',
-        energizedAchieved: false,
-        foulPoints: 0,
-        g206Penalty: false,
-        hubScore: {
-            autoCount: stats.autoFuelCount,
-            autoPoints: autoFuelPoints,
-            endgameCount: 0,
-            endgamePoints: 0,
-            shift1Count: Math.round(totalFuelCount * 0.25),
-            shift1Points: Math.round(totalFuelPoints * 0.25),
-            shift2Count: Math.round(totalFuelCount * 0.25),
-            shift2Points: Math.round(totalFuelPoints * 0.25),
-            shift3Count: Math.round(totalFuelCount * 0.25),
-            shift3Points: Math.round(totalFuelPoints * 0.25),
-            shift4Count: totalFuelCount - Math.round(totalFuelCount * 0.75),
-            shift4Points: totalFuelPoints - Math.round(totalFuelPoints * 0.75),
-            teleopCount: stats.teleopFuelCount,
-            teleopPoints: teleopFuelPoints,
-            totalCount: totalFuelCount,
-            totalPoints: totalFuelPoints,
-            transitionCount: 0,
-            transitionPoints: 0,
-        },
-        majorFoulCount: 0,
-        minorFoulCount: 0,
-        rp: 0,
-        superchargedAchieved: false,
-        totalAutoPoints,
-        totalPoints,
-        totalTeleopPoints,
-        totalTowerPoints,
-        traversalAchieved: false,
-    };
-}
-
-function buildDemoScoreBreakdown(stats: DemoMatchStats): { red: DemoAllianceBreakdown; blue: DemoAllianceBreakdown } {
-    return {
-        red: buildAllianceBreakdown(stats.red),
-        blue: buildAllianceBreakdown(stats.blue),
-    };
-}
-
-type FuelScoreField = 'autoFuelScored' | 'teleopFuelScored' | 'totalFuelScored';
-
-const FUEL_FIELD_LABELS: Record<FuelScoreField, string> = {
-    autoFuelScored: 'Auto Fuel Scored',
-    teleopFuelScored: 'Teleop Fuel Scored',
-    totalFuelScored: 'Total Fuel Scored',
-};
-
-interface FuelScoreSnapshot {
-    scouted: Record<FuelScoreField, number>;
-    tba: Record<FuelScoreField, number>;
-}
-
-function createFuelScoreSnapshot(severity: 'minor' | 'warning' | 'critical'): FuelScoreSnapshot {
-    const scoutedAuto = 40;
-    const scoutedTeleop = 60;
-
-    const deltas = {
-        minor: { auto: 3, teleop: 5 },
-        warning: { auto: 7, teleop: 11 },
-        critical: { auto: 12, teleop: 20 },
-    } as const;
-
-    const delta = deltas[severity];
-    const tbaAuto = scoutedAuto + delta.auto;
-    const tbaTeleop = scoutedTeleop + delta.teleop;
-
-    return {
-        scouted: {
-            autoFuelScored: scoutedAuto,
-            teleopFuelScored: scoutedTeleop,
-            totalFuelScored: scoutedAuto + scoutedTeleop,
-        },
-        tba: {
-            autoFuelScored: tbaAuto,
-            teleopFuelScored: tbaTeleop,
-            totalFuelScored: tbaAuto + tbaTeleop,
-        },
-    };
-}
-
-function createDemoDiscrepancy(
-    snapshot: FuelScoreSnapshot,
-    field: FuelScoreField,
-    severity: 'minor' | 'warning' | 'critical'
-): Discrepancy {
-    const scoutedValue = snapshot.scouted[field];
-    const tbaValue = snapshot.tba[field];
-    const difference = tbaValue - scoutedValue;
-    const absDifference = Math.abs(difference);
-    const percentDiff = scoutedValue > 0
-        ? (absDifference / scoutedValue) * 100
-        : 0;
-    const direction = difference >= 0 ? 'under-counted' : 'over-counted';
-    const fieldLabel = FUEL_FIELD_LABELS[field];
-
-    return {
-        category: 'fuel',
-        field,
-        fieldLabel,
-        scoutedValue,
-        tbaValue,
-        difference: absDifference,
-        percentDiff,
-        severity,
-        message: `${fieldLabel}: Scouted ${scoutedValue}, TBA ${tbaValue} (${direction} by ${absDifference})`,
-    };
-}
-
-function createDemoTeams(match: MatchSchedule, scoutAssignments?: DemoScoutAssignments): TeamValidation[] {
-    const byMatch = scoutAssignments?.get(match.matchKey) ?? {};
-
-    const redTeams = match.redTeams.map(teamNumber => ({
-        teamNumber: teamNumber.toString(),
-        alliance: 'red' as const,
-        scoutName: byMatch[`red:${teamNumber}`] ?? 'Demo Scout',
-        hasScoutedData: true,
-        discrepancies: [],
-        confidence: 'medium' as const,
-        flagForReview: false,
-        notes: [],
-    }));
-
-    const blueTeams = match.blueTeams.map(teamNumber => ({
-        teamNumber: teamNumber.toString(),
-        alliance: 'blue' as const,
-        scoutName: byMatch[`blue:${teamNumber}`] ?? 'Demo Scout',
-        hasScoutedData: true,
-        discrepancies: [],
-        confidence: 'medium' as const,
-        flagForReview: false,
-        notes: [],
-    }));
-
-    return [...redTeams, ...blueTeams];
-}
-
-function createFakeValidationResult(
-    eventKey: string,
-    match: MatchSchedule,
-    scoutAssignments?: DemoScoutAssignments
-): MatchValidationResult {
-    const redDiscrepancies: Discrepancy[] = [];
-    const blueDiscrepancies: Discrepancy[] = [];
-
-    const redRoll = match.matchNumber % 12;
-    const blueRoll = (match.matchNumber * 7 + 3) % 12;
-
-    const seedAllianceDiscrepancies = (target: Discrepancy[], roll: number) => {
-        // ~50% passed, ~33% flagged, ~17% failed
-        if (roll <= 5) {
-            return;
-        }
-
-        if (roll <= 9) {
-            const snapshot = createFuelScoreSnapshot(roll % 2 === 0 ? 'warning' : 'minor');
-            target.push(createDemoDiscrepancy(snapshot, 'totalFuelScored', roll % 2 === 0 ? 'warning' : 'minor'));
-            if (roll === 9) {
-                target.push(createDemoDiscrepancy(snapshot, 'teleopFuelScored', 'minor'));
-            }
-            return;
-        }
-
-        const snapshot = createFuelScoreSnapshot('critical');
-        target.push(createDemoDiscrepancy(snapshot, 'totalFuelScored', 'critical'));
-        target.push(createDemoDiscrepancy(snapshot, 'autoFuelScored', 'warning'));
-    };
-
-    seedAllianceDiscrepancies(redDiscrepancies, redRoll);
-    seedAllianceDiscrepancies(blueDiscrepancies, blueRoll);
-
-    const getAllianceStatus = (discrepancies: Discrepancy[]): ValidationStatus => {
-        const hasCritical = discrepancies.some(d => d.severity === 'critical');
-        if (hasCritical) return 'failed';
-        if (discrepancies.length > 0) return 'flagged';
-        return 'passed';
-    };
-
-    const redStatus = getAllianceStatus(redDiscrepancies);
-    const blueStatus = getAllianceStatus(blueDiscrepancies);
-
-    const status: ValidationStatus =
-        redStatus === 'failed' || blueStatus === 'failed'
-            ? 'failed'
-            : redStatus === 'flagged' || blueStatus === 'flagged'
-                ? 'flagged'
-                : 'passed';
-
-    const totalDiscrepancies = redDiscrepancies.length + blueDiscrepancies.length;
-    const criticalDiscrepancies = [...redDiscrepancies, ...blueDiscrepancies].filter(d => d.severity === 'critical').length;
-    const warningDiscrepancies = [...redDiscrepancies, ...blueDiscrepancies].filter(d => d.severity === 'warning').length;
-
-    const confidence = status === 'passed' ? 'high' as const : status === 'flagged' ? 'medium' as const : 'low' as const;
-    const redConfidence = redStatus === 'passed' ? 'high' as const : redStatus === 'flagged' ? 'medium' as const : 'low' as const;
-    const blueConfidence = blueStatus === 'passed' ? 'high' as const : blueStatus === 'flagged' ? 'medium' as const : 'low' as const;
-
-    const buildAllianceComparison = (discrepancies: Discrepancy[], baseScoutedPoints: number) => {
-        const tbaPoints = discrepancies.reduce((sum, discrepancy) => {
-            return sum + (discrepancy.tbaValue - discrepancy.scoutedValue);
-        }, baseScoutedPoints);
-
-        const scoreDifference = tbaPoints - baseScoutedPoints;
-        const scorePercentDiff = tbaPoints > 0
-            ? Math.abs(scoreDifference) / tbaPoints * 100
-            : 0;
-
-        return {
-            totalScoutedPoints: baseScoutedPoints,
-            totalTBAPoints: tbaPoints,
-            scoreDifference,
-            scorePercentDiff,
-        };
-    };
-
-    const redComparison = buildAllianceComparison(redDiscrepancies, 100);
-    const blueComparison = buildAllianceComparison(blueDiscrepancies, 100);
-
-    return {
-        id: `${eventKey}_${match.matchKey}`,
-        eventKey,
-        matchKey: match.matchKey,
-        matchNumber: match.matchNumber.toString(),
-        compLevel: match.compLevel,
-        setNumber: 1,
-        status,
-        confidence,
-        redAlliance: {
-            alliance: 'red',
-            status: redStatus,
-            confidence: redConfidence,
-            discrepancies: redDiscrepancies,
-            totalScoutedPoints: redComparison.totalScoutedPoints,
-            totalTBAPoints: redComparison.totalTBAPoints,
-            scoreDifference: redComparison.scoreDifference,
-            scorePercentDiff: redComparison.scorePercentDiff,
-        },
-        blueAlliance: {
-            alliance: 'blue',
-            status: blueStatus,
-            confidence: blueConfidence,
-            discrepancies: blueDiscrepancies,
-            totalScoutedPoints: blueComparison.totalScoutedPoints,
-            totalTBAPoints: blueComparison.totalTBAPoints,
-            scoreDifference: blueComparison.scoreDifference,
-            scorePercentDiff: blueComparison.scorePercentDiff,
-        },
-        teams: createDemoTeams(match, scoutAssignments),
-        totalDiscrepancies,
-        criticalDiscrepancies,
-        warningDiscrepancies,
-        flaggedForReview: status === 'flagged' || status === 'failed',
-        requiresReScout: status === 'failed',
-        validatedAt: Date.now(),
-    };
-}
-
-async function seedFakeValidationResults(
-    eventKey: string,
-    matches: MatchSchedule[],
-    scoutAssignments?: DemoScoutAssignments
-): Promise<void> {
-    await clearEventValidationResults(eventKey);
-
-    const rows: ValidationResultDB[] = matches.map(match => {
-        const result = createFakeValidationResult(eventKey, match, scoutAssignments);
-        return {
-            id: `${eventKey}_${match.matchKey}`,
-            eventKey,
-            matchKey: match.matchKey,
-            matchNumber: result.matchNumber,
-            result,
-            timestamp: Date.now(),
-        };
-    });
-
-    for (const row of rows) {
-        await storeValidationResult(row);
-    }
-
-    console.log(`  ✓ Seeded ${rows.length} fake validation results`);
-}
-
-async function cacheAndStoreDemoSchedule(
-    eventKey: string,
-    matches: MatchSchedule[],
-    matchStatsMap?: Map<string, DemoMatchStats>
-): Promise<void> {
-    const tbaMatches = matches.map((match, index) => {
-        const matchStats = matchStatsMap?.get(match.matchKey);
-        const scoreBreakdown = matchStats ? buildDemoScoreBreakdown(matchStats) : null;
-        const redScore = scoreBreakdown?.red.totalPoints ?? -1;
-        const blueScore = scoreBreakdown?.blue.totalPoints ?? -1;
-        const winningAlliance: '' | 'red' | 'blue' =
-            redScore < 0 || blueScore < 0
-                ? ''
-                : redScore === blueScore
-                    ? ''
-                    : redScore > blueScore
-                        ? 'red'
-                        : 'blue';
-
-        return {
-            key: match.matchKey,
-            comp_level: match.compLevel,
-            set_number: 1,
-            match_number: match.matchNumber,
-            alliances: {
-                red: {
-                    score: redScore,
-                    team_keys: match.redTeams.map(t => `frc${t}`),
-                    surrogate_team_keys: [],
-                    dq_team_keys: [],
-                },
-                blue: {
-                    score: blueScore,
-                    team_keys: match.blueTeams.map(t => `frc${t}`),
-                    surrogate_team_keys: [],
-                    dq_team_keys: [],
-                },
-            },
-            winning_alliance: winningAlliance,
-            event_key: eventKey,
-            time: Math.floor(Date.now() / 1000) + (index * 600),
-            predicted_time: Math.floor(Date.now() / 1000) + (index * 600),
-            actual_time: 0,
-            post_result_time: 0,
-            score_breakdown: scoreBreakdown,
-            videos: [],
-        };
-    });
-
-    await cacheTBAMatches(tbaMatches);
-    console.log(`  ✓ Cached ${tbaMatches.length} matches as TBA data`);
-
-    const matchData = matches.map(match => ({
-        matchNum: match.matchNumber,
-        redAlliance: match.redTeams,
-        blueAlliance: match.blueTeams
-    }));
-    localStorage.setItem('matchData', JSON.stringify(matchData));
-    console.log(`  ✓ Stored match schedule in localStorage for team selection`);
-}
-
-export async function generateDemoEventScheduleOnly(options: Pick<DemoDataOptions, 'eventKey' | 'clearExisting'> = {}): Promise<DemoDataResult> {
-    const {
-        eventKey = DEMO_EVENT_KEY,
-        clearExisting = true,
-    } = options;
-
-    console.log('🗓️ Generating demo event schedule only...');
-
-    try {
-        if (clearExisting) {
-            await db.scoutingData.where('eventKey').equals(eventKey).delete();
-            await clearEventCache(eventKey);
-            await clearEventValidationResults(eventKey);
-            await gamificationDB.predictions.where('eventKey').equals(eventKey).delete();
-            console.log('  ✓ Cleared existing demo event scouting and cached schedule data');
-        }
-
-        const teams = generateTeamProfiles();
-        console.log(`  ✓ Generated ${teams.length} team profiles`);
-
-        const qualSchedule = generateQualSchedule(teams, eventKey);
-        console.log(`  ✓ Generated ${qualSchedule.length} qual matches`);
-
-        localStorage.setItem('eventKey', eventKey);
-        setCurrentEvent(eventKey);
-        console.log(`  ✓ Set ${eventKey} as current event`);
-
-        await cacheAndStoreDemoSchedule(eventKey, qualSchedule);
-
-        return {
-            success: true,
-            message: `Demo schedule created: ${teams.length} teams, ${qualSchedule.length} matches`,
-            stats: {
-                teamsGenerated: teams.length,
-                qualMatches: qualSchedule.length,
-                playoffMatches: 0,
-                entriesGenerated: 0,
-            },
-        };
-    } catch (error) {
-        console.error('❌ Error generating demo schedule:', error);
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Unknown error',
-            stats: {
-                teamsGenerated: 0,
-                qualMatches: 0,
-                playoffMatches: 0,
-                entriesGenerated: 0,
-            },
-        };
-    }
-}
-
 /**
  * Generate complete demo event data
  */
@@ -920,7 +281,6 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
         clearExisting = true,
         gameDataGenerator = defaultGameDataGenerator,
         includePlayoffs: _includePlayoffs = true,
-        seedFakeValidationResults: shouldSeedFakeValidationResults = false,
     } = options;
     
     console.log('🎲 Generating demo event data...');
@@ -932,7 +292,6 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
                 .where('eventKey')
                 .equals(eventKey)
                 .delete();
-            await clearEventValidationResults(eventKey);
             console.log('  ✓ Cleared existing demo data');
         }
         
@@ -941,28 +300,22 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
         console.log(`  ✓ Generated ${teams.length} team profiles`);
         
         // Generate match schedules (only qualification matches)
-        const qualSchedule = generateQualSchedule(teams, eventKey);
+        const qualSchedule = generateQualSchedule(teams);
         const allMatches = qualSchedule;
         console.log(`  ✓ Generated ${qualSchedule.length} qual matches`);
         
         // Generate scouting entries for all matches
         let entriesGenerated = 0;
         const processedEntries = new Set<string>(); // Track entry IDs to prevent duplicates
-        const matchStatsMap = new Map<string, DemoMatchStats>();
-        const matchScoutAssignments: DemoScoutAssignments = new Map();
         
         for (const match of allMatches) {
-            const normalizedMatchKey = match.matchKey.includes('_')
-                ? (match.matchKey.split('_')[1] || match.matchKey)
-                : match.matchKey;
-
             // Red alliance entries
             for (let i = 0; i < match.redTeams.length; i++) {
                 const teamNumber = match.redTeams[i];
                 if (!teamNumber) continue;
                 
                 // Check for duplicate team in this match
-                const entryId = `${eventKey}::${normalizedMatchKey}::${teamNumber}::red`;
+                const entryId = `${eventKey}::${match.matchKey.split('_')[1]}::${teamNumber}::red`;
                 if (processedEntries.has(entryId)) {
                     console.warn(`Duplicate entry detected: ${entryId}`);
                     continue;
@@ -975,28 +328,19 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
                 const scoutName = TEST_SCOUT_NAMES[Math.floor(Math.random() * TEST_SCOUT_NAMES.length)] || "Demo Scout";
                 
                 const entry: ScoutingEntryBase<Record<string, unknown>> = {
-                    id: `${eventKey}::${normalizedMatchKey}::${teamNumber}::red`,
+                    id: `${eventKey}::${match.matchKey.split('_')[1]}::${teamNumber}::red`,
                     teamNumber,
                     matchNumber: match.matchNumber,
                     allianceColor: 'red',
                     scoutName,
                     eventKey,
-                    matchKey: normalizedMatchKey,
+                    matchKey: match.matchKey,
                     timestamp: Date.now() - (allMatches.length - allMatches.indexOf(match)) * 60000, // Spread over time
                     comments: Math.random() > 0.7 ? generateRandomComment(profile) : undefined,
-                    gameData: gameDataGenerator(profile, normalizedMatchKey, {
-                        eventKey,
-                        matchNumber: match.matchNumber,
-                        allianceColor: 'red',
-                        teamNumber,
-                        allianceTeams: [...match.redTeams],
-                        opponentTeams: [...match.blueTeams],
-                    }),
+                    gameData: gameDataGenerator(profile, match.matchKey),
                 };
                 
                 await saveScoutingEntry(entry);
-                recordDemoEntryStats(matchStatsMap, match.matchKey, 'red', entry.gameData);
-                recordDemoScoutAssignment(matchScoutAssignments, match.matchKey, 'red', teamNumber, scoutName);
                 entriesGenerated++;
             }
             
@@ -1006,7 +350,7 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
                 if (!teamNumber) continue;
                 
                 // Check for duplicate team in this match
-                const entryId = `${eventKey}::${normalizedMatchKey}::${teamNumber}::blue`;
+                const entryId = `${eventKey}::${match.matchKey.split('_')[1]}::${teamNumber}::blue`;
                 if (processedEntries.has(entryId)) {
                     console.warn(`Duplicate entry detected: ${entryId}`);
                     continue;
@@ -1019,28 +363,19 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
                 const scoutName = TEST_SCOUT_NAMES[Math.floor(Math.random() * TEST_SCOUT_NAMES.length)] || "Demo Scout";
                 
                 const entry: ScoutingEntryBase<Record<string, unknown>> = {
-                    id: `${eventKey}::${normalizedMatchKey}::${teamNumber}::blue`,
+                    id: `${eventKey}::${match.matchKey.split('_')[1]}::${teamNumber}::blue`,
                     teamNumber,
                     matchNumber: match.matchNumber,
                     allianceColor: 'blue',
                     scoutName,
                     eventKey,
-                    matchKey: normalizedMatchKey,
+                    matchKey: match.matchKey,
                     timestamp: Date.now() - (allMatches.length - allMatches.indexOf(match)) * 60000,
                     comments: Math.random() > 0.7 ? generateRandomComment(profile) : undefined,
-                    gameData: gameDataGenerator(profile, normalizedMatchKey, {
-                        eventKey,
-                        matchNumber: match.matchNumber,
-                        allianceColor: 'blue',
-                        teamNumber,
-                        allianceTeams: [...match.blueTeams],
-                        opponentTeams: [...match.redTeams],
-                    }),
+                    gameData: gameDataGenerator(profile, match.matchKey),
                 };
                 
                 await saveScoutingEntry(entry);
-                recordDemoEntryStats(matchStatsMap, match.matchKey, 'blue', entry.gameData);
-                recordDemoScoutAssignment(matchScoutAssignments, match.matchKey, 'blue', teamNumber, scoutName);
                 entriesGenerated++;
             }
         }
@@ -1289,11 +624,48 @@ export async function generateDemoEvent(options: DemoDataOptions = {}): Promise<
             console.error('Failed to update custom events list:', error);
         }
         
-        await cacheAndStoreDemoSchedule(eventKey, allMatches, matchStatsMap);
-
-        if (shouldSeedFakeValidationResults) {
-            await seedFakeValidationResults(eventKey, allMatches, matchScoutAssignments);
-        }
+        // Generate and cache TBA-style match schedule
+        const tbaMatches = allMatches.map((match, index) => ({
+            key: match.matchKey,
+            comp_level: match.compLevel,
+            set_number: 1,
+            match_number: match.matchNumber,
+            alliances: {
+                red: {
+                    score: -1,
+                    team_keys: match.redTeams.map(t => `frc${t}`),
+                    surrogate_team_keys: [],
+                    dq_team_keys: []
+                },
+                blue: {
+                    score: -1,
+                    team_keys: match.blueTeams.map(t => `frc${t}`),
+                    surrogate_team_keys: [],
+                    dq_team_keys: []
+                }
+            },
+            winning_alliance: "" as "" | "red" | "blue",
+            event_key: eventKey,
+            time: Math.floor(Date.now() / 1000) + (index * 600), // 10 minutes apart
+            predicted_time: Math.floor(Date.now() / 1000) + (index * 600),
+            actual_time: 0,
+            post_result_time: 0,
+            score_breakdown: null,
+            videos: []
+        }));
+        
+        // Cache the matches (pass matches first, not eventKey)
+        await cacheTBAMatches(tbaMatches);
+        console.log(`  ✓ Cached ${tbaMatches.length} matches as TBA data`);
+        
+        // Store match data in localStorage for team selection on GameStartPage
+        const matchData = allMatches.map(match => ({
+            matchNumber: match.matchNumber,
+            redAlliance: match.redTeams,
+            blueAlliance: match.blueTeams
+        }));
+        localStorage.setItem('matchData', JSON.stringify(matchData));
+        console.log(`  ✓ Stored match schedule in localStorage for team selection`);
         
         return {
             success: true,

@@ -50,7 +50,7 @@ export function ClimbSelector({
                             selectedLevel === level && "bg-purple-600 hover:bg-purple-500"
                         )}
                     >
-                        L{level}
+                        {level}
                     </Button>
                 ))}
             </div>

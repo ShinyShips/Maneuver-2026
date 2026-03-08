@@ -5,14 +5,13 @@
  * Teleop phase: Uses TeleopFieldMap for zone-based field tracking
  */
 
-import { AutoFieldMap } from "@/game-template/components/auto-path/AutoFieldMap";
-import { TeleopFieldMap } from "@/game-template/components/teleop-path/TeleopFieldMap";
+import { AutoFieldMap } from "@/game-template/components/auto-path";
+import { TeleopFieldMap } from "@/game-template/components/teleop-path";
 
 interface ScoringSectionsProps {
   phase: 'auto' | 'teleop';
   onAddAction: (action: any) => void; // Accepts action object
   actions: any[]; // Array of timestamped action objects
-  scoutOptions?: Record<string, boolean>;
   onUndo?: () => void;
   canUndo?: boolean;
   // Navigation props (for full-screen implementations)
@@ -27,7 +26,6 @@ export function ScoringSections({
   phase,
   onAddAction,
   actions = [],
-  scoutOptions,
   onUndo,
   canUndo = false,
   matchNumber,
@@ -45,7 +43,6 @@ export function ScoringSections({
       <AutoFieldMap
         onAddAction={onAddAction}
         actions={actions}
-        scoutOptions={scoutOptions}
         onUndo={onUndo}
         canUndo={canUndo}
         matchNumber={matchNumber}
@@ -64,7 +61,6 @@ export function ScoringSections({
     <TeleopFieldMap
       onAddAction={onAddAction}
       actions={actions}
-      scoutOptions={scoutOptions}
       onUndo={onUndo}
       canUndo={canUndo}
       matchNumber={matchNumber}

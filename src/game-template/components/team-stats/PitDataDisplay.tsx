@@ -6,8 +6,6 @@ import { ScrollArea } from "@/core/components/ui/scroll-area";
 import { loadPitScoutingByTeamAndEvent, loadPitScoutingByTeam } from "@/core/db/database";
 import type { PitScoutingEntryBase } from "@/types/database";
 import { Skeleton } from "@/core/components/ui/skeleton";
-import { AutoPathsByPosition, type AutoPathListItem } from "@/game-template/components/team-stats/AutoPathsByPosition";
-import { useMemo } from "react";
 
 interface PitDataDisplayProps {
     teamNumber: string;
@@ -17,38 +15,6 @@ interface PitDataDisplayProps {
 export function PitDataDisplay({ teamNumber, selectedEvent }: PitDataDisplayProps) {
     const [entry, setEntry] = useState<PitScoutingEntryBase | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-
-    const reportedAutosByStartRaw = entry?.gameData?.reportedAutosByStart;
-    const reportedAutosByStart =
-        reportedAutosByStartRaw && typeof reportedAutosByStartRaw === 'object'
-            ? (reportedAutosByStartRaw as Record<string, unknown>)
-            : null;
-
-    const hasReportedAutos = reportedAutosByStart
-        ? Object.values(reportedAutosByStart).some((autos) => Array.isArray(autos) && autos.length > 0)
-        : false;
-
-    const pitItemsByPosition = useMemo(() => {
-        const starts = ['Left Trench', 'Left Bump', 'Hub', 'Right Bump', 'Right Trench'] as const;
-        return starts.reduce((acc, start, index) => {
-            const autos = reportedAutosByStart && Array.isArray(reportedAutosByStart[start])
-                ? reportedAutosByStart[start] as Array<{ id?: unknown; name?: unknown; actions?: unknown[] }>
-                : [];
-
-            acc[index] = autos.map((auto, itemIndex) => {
-                const actions = Array.isArray(auto.actions) ? auto.actions as any[] : [];
-                return {
-                    id: typeof auto.id === 'string' ? auto.id : `${start}-${itemIndex}`,
-                    label: typeof auto.name === 'string' && auto.name.trim() ? auto.name : `${start} Auto ${itemIndex + 1}`,
-                    actions,
-                    metricText: `${actions.length} actions`,
-                    detailText: `${start}`,
-                } satisfies AutoPathListItem;
-            });
-
-            return acc;
-        }, { 0: [], 1: [], 2: [], 3: [], 4: [] } as Record<number, AutoPathListItem[]>);
-    }, [reportedAutosByStart]);
 
     useEffect(() => {
         let isMounted = true;
@@ -107,148 +73,126 @@ export function PitDataDisplay({ teamNumber, selectedEvent }: PitDataDisplayProp
     }
 
     return (
-        <div className="space-y-6 w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-                {/* Robot Photo & Basic Info Column */}
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Robot Preview</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {entry.robotPhoto ? (
-                                <div className="aspect-video relative rounded-lg overflow-hidden bg-muted border border-border">
-                                    <img
-                                        src={entry.robotPhoto}
-                                        alt={`Team ${teamNumber} Robot`}
-                                        className="object-cover w-full h-full"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center border border-border">
-                                    <p className="text-muted-foreground">No photo available</p>
-                                </div>
-                            )}
-                            <div className="mt-4 flex flex-wrap gap-2 justify-between items-center text-sm text-muted-foreground">
-                                <span>Scouted by: <span className="font-medium text-foreground">{entry.scoutName}</span></span>
-                                <span>{new Date(entry.timestamp).toLocaleDateString()}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+            {/* Robot Photo & Basic Info Column */}
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Robot Preview</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {entry.robotPhoto ? (
+                            <div className="aspect-video relative rounded-lg overflow-hidden bg-muted border border-border">
+                                <img
+                                    src={entry.robotPhoto}
+                                    alt={`Team ${teamNumber} Robot`}
+                                    className="object-cover w-full h-full"
+                                />
                             </div>
-                        </CardContent>
-                    </Card>
+                        ) : (
+                            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center border border-border">
+                                <p className="text-muted-foreground">No photo available</p>
+                            </div>
+                        )}
+                        <div className="mt-4 flex flex-wrap gap-2 justify-between items-center text-sm text-muted-foreground">
+                            <span>Scouted by: <span className="font-medium text-foreground">{entry.scoutName}</span></span>
+                            <span>{new Date(entry.timestamp).toLocaleDateString()}</span>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Robot Specs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drivetrain</span>
-                                    <div className="font-medium text-lg capitalize">{entry.drivetrain || "Unknown"}</div>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight</span>
-                                    <div className="font-medium text-lg">{entry.weight ? `${entry.weight} lbs` : "Unknown"}</div>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Programming</span>
-                                    <div className="font-medium text-lg">{entry.programmingLanguage || "Unknown"}</div>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dimensions</span>
-                                    <div className="font-medium text-lg">
-                                        {(() => {
-                                            const maxLength = entry.gameData?.maxLength;
-                                            const maxWidth = entry.gameData?.maxWidth;
-                                            const maxHeight = entry.gameData?.maxHeight;
-                                            
-                                            if (!maxLength && !maxWidth && !maxHeight) {
-                                                return <span className="text-muted-foreground">-</span>;
-                                            }
-                                            
-                                            return (
-                                                <div className="text-sm leading-tight">
-                                                    {typeof maxLength === 'number' && <div>L: {maxLength}"</div>}
-                                                    {typeof maxWidth === 'number' && <div>W: {maxWidth}"</div>}
-                                                    {typeof maxHeight === 'number' && <div>H: {maxHeight}"</div>}
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Robot Specs</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drivetrain</span>
+                                <div className="font-medium text-lg capitalize">{entry.drivetrain || "Unknown"}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight</span>
+                                <div className="font-medium text-lg">{entry.weight ? `${entry.weight} lbs` : "Unknown"}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Programming</span>
+                                <div className="font-medium text-lg">{entry.programmingLanguage || "Unknown"}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dimensions</span>
+                                <div className="font-medium text-lg">
+                                    {(() => {
+                                        const maxLength = entry.gameData?.maxLength;
+                                        const maxWidth = entry.gameData?.maxWidth;
+                                        const maxHeight = entry.gameData?.maxHeight;
+                                        
+                                        if (!maxLength && !maxWidth && !maxHeight) {
+                                            return <span className="text-muted-foreground">-</span>;
+                                        }
+                                        
+                                        return (
+                                            <div className="text-sm leading-tight">
+                                                {typeof maxLength === 'number' && <div>L: {maxLength}"</div>}
+                                                {typeof maxWidth === 'number' && <div>W: {maxWidth}"</div>}
+                                                {typeof maxHeight === 'number' && <div>H: {maxHeight}"</div>}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Notes & Game Specific Data Column */}
-                <div className="space-y-6">
-                    <Card className="h-full flex flex-col">
-                        <CardHeader>
-                            <CardTitle>Technical Analysis</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1 flex flex-col gap-6 min-h-0">
-                            {/* Notes Section */}
-                            <div>
-                                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                    Scout Notes
-                                </h4>
-                                <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm leading-relaxed min-h-25">
-                                    {entry.notes || <span className="text-muted-foreground italic">No notes recorded.</span>}
-                                </div>
-                            </div>
-
-                            {/* Game Specific Data Section */}
-                            <div className="flex-1 flex flex-col min-h-0">
-                                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                                    Game Specific Data
-                                </h4>
-                                <ScrollArea className="flex-1 min-h-0 w-full rounded-md border p-4 bg-muted/10">
-                                    {entry.gameData && Object.keys(entry.gameData).some((key) => key !== 'reportedAutosByStart') ? (
-                                        <div className="space-y-3">
-                                            {Object.entries(entry.gameData)
-                                                .filter(([key]) => key !== 'reportedAutosByStart')
-                                                .map(([key, value]) => (
-                                                    <div key={key} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
-                                                        <span className="text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                                        <Badge variant="secondary" className="font-mono">
-                                                            {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
-                                                        </Badge>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
-                                            <p>No game-specific data found.</p>
-                                            <p className="text-xs opacity-70 mt-1">Configure PitScoutingRules to track additional metrics.</p>
-                                        </div>
-                                    )}
-                                </ScrollArea>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Reported Auto Paths (Pit Scouting)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {reportedAutosByStart && hasReportedAutos ? (
-                        <AutoPathsByPosition
-                            matchResults={[]}
-                            alliance="blue"
-                            customItemsByPosition={pitItemsByPosition}
-                            listTitle="Reported Autos"
-                        />
-                    ) : (
-                        <p className="text-sm text-muted-foreground">No reported auto paths have been recorded for this team.</p>
-                    )}
-                </CardContent>
-            </Card>
+            {/* Notes & Game Specific Data Column */}
+            <div className="space-y-6">
+                <Card className="h-full flex flex-col">
+                    <CardHeader>
+                        <CardTitle>Technical Analysis</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-1 space-y-6">
+                        {/* Notes Section */}
+                        <div>
+                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                Scout Notes
+                            </h4>
+                            <div className="bg-muted/30 p-4 rounded-lg border border-border text-sm leading-relaxed min-h-25">
+                                {entry.notes || <span className="text-muted-foreground italic">No notes recorded.</span>}
+                            </div>
+                        </div>
+
+                        {/* Game Specific Data Section */}
+                        <div>
+                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                Game Specific Data
+                            </h4>
+                            <ScrollArea className="h-50 w-full rounded-md border p-4 bg-muted/10">
+                                {entry.gameData && Object.keys(entry.gameData).length > 0 ? (
+                                    <div className="space-y-2">
+                                        {Object.entries(entry.gameData).map(([key, value]) => (
+                                            <div key={key} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
+                                                <span className="text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                <Badge variant="secondary" className="font-mono">
+                                                    {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                                                </Badge>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
+                                        <p>No game-specific data found.</p>
+                                        <p className="text-xs opacity-70 mt-1">Configure PitScoutingRules to track additional metrics.</p>
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

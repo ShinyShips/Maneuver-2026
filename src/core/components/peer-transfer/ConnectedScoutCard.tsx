@@ -8,7 +8,6 @@ import { Badge } from '@/core/components/ui/badge';
 import { AlertCircle, CheckCircle2, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { TransferDataType } from '@/core/contexts/WebRTCContext';
-import { buildPitAssignmentsTransferPayload } from '@/core/lib/pitAssignmentTransfer';
 import { debugLog } from '@/core/lib/peerTransferUtils';
 
 interface ReceivedDataEntry {
@@ -79,17 +78,6 @@ export function ConnectedScoutCard({
                     };
                     break;
                 }
-                case 'pit-assignments': {
-                    const eventKey = localStorage.getItem('eventKey') || localStorage.getItem('eventName') || '';
-                    const sourceScoutName = localStorage.getItem('currentScout') || 'Lead Scout';
-
-                    if (!eventKey) {
-                        throw new Error('No active event found for pit assignment transfer');
-                    }
-
-                    data = buildPitAssignmentsTransferPayload(eventKey, sourceScoutName);
-                    break;
-                }
                 case 'match': {
                     const matchDataStr = localStorage.getItem('matchData');
                     const matches = matchDataStr ? JSON.parse(matchDataStr) : [];
@@ -150,8 +138,8 @@ export function ConnectedScoutCard({
     };
 
     return (
-        <div className="flex flex-col gap-3 p-3 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-1 flex-1 min-w-0">
+        <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex flex-col gap-1 flex-1">
                 <div className="flex items-center gap-2">
                     {isRequesting ? (
                         <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
@@ -177,13 +165,12 @@ export function ConnectedScoutCard({
                     )}
                 </div>
             </div>
-            <div className="flex w-full gap-2 sm:w-auto sm:flex-none">
+            <div className="flex gap-2">
                 <Button
                     size="sm"
                     variant="default"
                     onClick={() => onRequestData(scout.id)}
                     disabled={!isReady || isRequesting}
-                    className="flex-1 sm:flex-none"
                 >
                     {isRequesting ? '...' : 'Request'}
                 </Button>
@@ -192,7 +179,6 @@ export function ConnectedScoutCard({
                     variant="outline"
                     onClick={handlePush}
                     disabled={!isReady || isPushing}
-                    className="flex-1 sm:flex-none"
                 >
                     {isPushing ? '...' : 'Push'}
                 </Button>

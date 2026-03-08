@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from "react";
 
 // Maximum number of undo states to keep in history
 const MAX_UNDO_HISTORY_LENGTH = 20;
-const READBACK_CONTEXT_OPTIONS: CanvasRenderingContext2DSettings = { willReadFrequently: true };
 
 interface Point {
   x: number;
@@ -15,7 +14,6 @@ interface UseCanvasDrawingProps {
   brushColor: string;
   isErasing: boolean;
   onSave: () => void;
-  onTap?: (point: Point) => void;
   selectedTeams?: (number | null)[]; // Kept for API compatibility, but no longer used
 }
 
@@ -25,7 +23,6 @@ export const useCanvasDrawing = ({
   brushColor,
   isErasing,
   onSave,
-  onTap,
 }: UseCanvasDrawingProps) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState<Point | null>(null);
@@ -37,8 +34,6 @@ export const useCanvasDrawing = ({
   // etc.
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef(0);
-  const startPointRef = useRef<Point | null>(null);
-  const hasMovedRef = useRef(false);
 
   const getPointFromEvent = useCallback((e: React.MouseEvent | React.PointerEvent): Point => {
     const canvas = canvasRef.current;
@@ -84,7 +79,7 @@ export const useCanvasDrawing = ({
     const dataURL = canvas.toDataURL();
 
     // Check if canvas has any content (non-transparent pixels)
-    const ctx = canvas.getContext('2d', READBACK_CONTEXT_OPTIONS);
+    const ctx = canvas.getContext('2d');
     const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
     const hasContent = imageData?.data.some((val, i) => i % 4 === 3 && val > 0) ?? false;
     console.log('[SaveToHistory] Saving state - has visible content:', hasContent, 'canvas size:', canvas.width, 'x', canvas.height);
@@ -122,7 +117,7 @@ export const useCanvasDrawing = ({
     console.log('[Undo] Going from index', oldIndex, 'to', historyIndexRef.current, '- history length:', historyRef.current.length);
 
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d', READBACK_CONTEXT_OPTIONS);
+    const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx || !previousState) {
       console.log('[Undo] Missing canvas, ctx, or previousState');
       return;
@@ -164,8 +159,6 @@ export const useCanvasDrawing = ({
     setIsDrawing(true);
     const point = getPointFromEvent(e);
     setLastPoint(point);
-    startPointRef.current = point;
-    hasMovedRef.current = false;
   }, [getPointFromEvent]);
 
   const draw = useCallback((e: React.MouseEvent | React.PointerEvent) => {
@@ -175,17 +168,10 @@ export const useCanvasDrawing = ({
     if (!isDrawing || !lastPoint) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d', READBACK_CONTEXT_OPTIONS);
+    const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
     const currentPoint = getPointFromEvent(e);
-
-    if (!hasMovedRef.current) {
-      const distanceFromStart = Math.hypot(currentPoint.x - lastPoint.x, currentPoint.y - lastPoint.y);
-      if (distanceFromStart > 4) {
-        hasMovedRef.current = true;
-      }
-    }
 
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
@@ -225,20 +211,13 @@ export const useCanvasDrawing = ({
     }
 
     if (isDrawing) {
-      const startedAt = startPointRef.current;
-      if (!hasMovedRef.current && startedAt) {
-        onTap?.(startedAt);
-      } else {
-        // Save state AFTER stroke completes
-        saveToHistory();
-        onSave();
-      }
+      // Save state AFTER stroke completes
+      saveToHistory();
+      onSave();
     }
     setIsDrawing(false);
     setLastPoint(null);
-    startPointRef.current = null;
-    hasMovedRef.current = false;
-  }, [isDrawing, onSave, saveToHistory, onTap]);
+  }, [isDrawing, onSave, saveToHistory]);
 
   const canvasStyle: React.CSSProperties = {
     userSelect: 'none',

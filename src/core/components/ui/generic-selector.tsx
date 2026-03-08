@@ -1,6 +1,6 @@
 import { Button } from "@/core/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/core/components/ui/select";
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/core/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/core/components/ui/sheet";
 import { ChevronDownIcon } from "lucide-react";
 import { useIsMobile } from "@/core/hooks/use-mobile";
 import { cn } from "@/core/lib/utils";
@@ -53,9 +53,6 @@ export const GenericSelector = ({
           <div className="px-6 pt-5 pb-1">
             <SheetHeader className="text-left">
               <SheetTitle className="text-xl font-bold tracking-tight text-foreground">{label}</SheetTitle>
-              <SheetDescription className="sr-only">
-                Choose an option for {label}.
-              </SheetDescription>
             </SheetHeader>
           </div>
           <div className="flex-1 overflow-y-auto px-5 pb-10 mt-3">

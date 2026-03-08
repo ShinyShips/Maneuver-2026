@@ -26,7 +26,6 @@ export function DataTransferControls({
         switch (type) {
             case 'scouting': return 'Scouting';
             case 'pit-scouting': return 'Pit Scouting';
-            case 'pit-assignments': return 'Pit Assignments';
             case 'match': return 'Match';
             case 'scout': return 'Scout Profile';
             case 'combined': return 'Combined';
@@ -52,7 +51,6 @@ export function DataTransferControls({
                         <SelectContent>
                             <SelectItem value="scouting">Scouting Data</SelectItem>
                             <SelectItem value="pit-scouting">Pit Scouting</SelectItem>
-                            <SelectItem value="pit-assignments">Pit Assignments</SelectItem>
                             <SelectItem value="match">Match Schedule</SelectItem>
                             <SelectItem value="scout">Scout Profiles</SelectItem>
                             <SelectItem value="combined">Combined (Scouting + Profiles)</SelectItem>
@@ -63,26 +61,22 @@ export function DataTransferControls({
                 <Button
                     onClick={onRequestData}
                     disabled={disabled || readyScoutsCount === 0}
-                    className="h-auto w-full whitespace-normal py-3"
+                    className="w-full"
                     size="lg"
                 >
-                    <Download className="mr-2 h-5 w-5 shrink-0 self-start sm:self-center" />
-                    <span className="text-left leading-tight">
-                        Request {getDataTypeLabel(dataType)} Data ({readyScoutsCount} scouts)
-                    </span>
+                    <Download className="h-5 w-5 mr-2" />
+                    Request {getDataTypeLabel(dataType)} Data ({readyScoutsCount} scouts)
                 </Button>
 
                 <Button
                     onClick={onPushData}
                     disabled={disabled || readyScoutsCount === 0}
-                    className="h-auto w-full whitespace-normal py-3"
+                    className="w-full"
                     variant="outline"
                     size="lg"
                 >
-                    <Upload className="mr-2 h-5 w-5 shrink-0 self-start sm:self-center" />
-                    <span className="text-left leading-tight">
-                        Push {getDataTypeLabel(dataType)} Data to Scouts
-                    </span>
+                    <Upload className="h-5 w-5 mr-2" />
+                    Push {getDataTypeLabel(dataType)} Data to Scouts
                 </Button>
             </CardContent>
         </Card>

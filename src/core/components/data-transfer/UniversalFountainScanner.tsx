@@ -18,7 +18,17 @@ import { createDecoder, binaryToBlock } from "luby-transform";
 import { toUint8Array } from "js-base64";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import * as pako from 'pako';
-import { parseScannedFountainPacket, type FountainPacket } from "@/core/lib/fountainPacket";
+
+interface FountainPacket {
+  type: string;
+  sessionId: string;
+  packetId: number;
+  k: number;
+  bytes: number;
+  checksum: string;
+  indices: number[];
+  data: string; // Base64 encoded binary data
+}
 
 export interface UniversalFountainScannerProps {
   onBack: () => void;
@@ -144,8 +154,10 @@ export const UniversalFountainScanner = ({
       }
 
       // Try to parse the QR code - if it's not valid JSON, it's not a fountain code
-      const packet = parseScannedFountainPacket(result[0].rawValue);
-      if (!packet) {
+      let packet: FountainPacket;
+      try {
+        packet = JSON.parse(result[0].rawValue);
+      } catch {
         // Not a fountain code QR - silently ignore (could be a URL, text, etc.)
         addDebugMsg(`⚠️ Not a fountain code QR (invalid JSON)`);
         return;
@@ -157,8 +169,7 @@ export const UniversalFountainScanner = ({
         return;
       }
 
-      const indexPreview = packet.indices ? packet.indices.join(',') : 'compact';
-      addDebugMsg(`🎯 Scanned packet ${packet.packetId} with indices [${indexPreview}]`);
+      addDebugMsg(`🎯 Scanned packet ${packet.packetId} with indices [${packet.indices.join(',')}]`);
       addDebugMsg(`🆔 Session: ${packet.sessionId.slice(-8)}`);
 
       if (packet.type !== expectedPacketType) {
@@ -187,7 +198,7 @@ export const UniversalFountainScanner = ({
       // Check if we already have this packet
       if (packetsRef.current.has(packet.packetId) && !allowDuplicates) {
         addDebugMsg(`🔁 Duplicate packet ${packet.packetId} ignored`);
-        addDebugMsg(`🔍 Current: indices [${indexPreview}]`);
+        addDebugMsg(`🔍 Current: indices [${packet.indices.join(',')}]`);
         return;
       }
 
@@ -275,8 +286,7 @@ export const UniversalFountainScanner = ({
 
       // Update progress estimate
       const received = packetsRef.current.size;
-      const packetK = typeof packet.k === 'number' ? packet.k : 0;
-      const baseEstimate = Math.max(packetK + 3, 10);
+      const baseEstimate = Math.max(packet.k + 3, 10);
 
       // Track the highest estimate we've seen using REF, avoiding state dependency
       if (baseEstimate > neededPacketsRef.current) {
@@ -297,8 +307,8 @@ export const UniversalFountainScanner = ({
       });
 
       // Calculate and update missing packets - THROTTLED to avoid re-renders
-      if (packetK > 0 && received > packetK && progressPercentage > 90) {
-        addDebugMsg(`🔍 High packet count but no completion yet: k=${packetK}, received=${received}`);
+      // Update missing packets every 500ms
+      if (Date.now() - lastMissingUpdateRef.current > 500) {
         const missing = calculateMissingPackets();
 
         // Log missing packets info (only when we calculate them)
@@ -323,8 +333,8 @@ export const UniversalFountainScanner = ({
       }
 
       // Add debugging when we're getting close to completion but decoder isn't ready
-      if (packetK > 0 && received > packetK && progressPercentage > 90) {
-        addDebugMsg(`🔍 High packet count but no completion yet: k=${packetK}, received=${received}`);
+      if (received > packet.k && progressPercentage > 90) {
+        addDebugMsg(`🔍 High packet count but no completion yet: k=${packet.k}, received=${received}`);
         addDebugMsg(`🔍 Decoder state check needed - may need more packets than theoretical minimum`);
 
         // Alert user if we've scanned significantly more than expected

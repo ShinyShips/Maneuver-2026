@@ -1,1 +1,0 @@
-export { GameSpecificScoutOptions } from './ScoutOptions';

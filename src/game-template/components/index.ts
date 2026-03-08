@@ -21,9 +21,6 @@ export { AutoFieldMap } from './auto-path';
 // Teleop Field Map
 export { TeleopFieldMap } from './teleop-path';
 
-// Game Start Page Components
-export { GameSpecificScoutOptions } from './game-start';
-
 // Pit Scouting Page Components
 export { GameSpecificQuestions } from './pit-scouting';
 

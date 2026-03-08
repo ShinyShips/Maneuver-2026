@@ -1,7 +1,7 @@
 // Nexus API utilities for FRC scouting integration
 // Documentation: https://frc.nexus/api/v1/docs
 
-import { proxyGetJson } from './apiProxy';
+const NEXUS_BASE_URL = 'https://frc.nexus/api/v1';
 
 // Types based on Nexus API documentation
 export interface NexusPitAddresses {
@@ -81,10 +81,26 @@ export interface NexusEventStatus {
  * Make a request to the Nexus API
  */
 const makeNexusRequest = async (endpoint: string, apiKey: string): Promise<unknown> => {
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return proxyGetJson('nexus', normalizedEndpoint, {
-    apiKeyOverride: apiKey || undefined,
+  const response = await fetch(`${NEXUS_BASE_URL}${endpoint}`, {
+    headers: {
+      'Nexus-Api-Key': apiKey,
+      'Accept': 'application/json',
+    },
   });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Invalid Nexus API key. Get your key from frc.nexus/api');
+    } else if (response.status === 403) {
+      throw new Error('Nexus API key access denied. Check your key at frc.nexus/api');
+    } else if (response.status === 404) {
+      throw new Error('Event not found or does not have this data type');
+    } else {
+      throw new Error(`Nexus API Error: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  return response.json();
 };
 
 /**

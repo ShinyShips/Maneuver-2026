@@ -10,7 +10,7 @@
 
 import { createContext, useContext, useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { useScoring, ScoringProvider, type ScoringProviderProps } from './ScoringContext';
-import type { ZoneType, ClimbLevel, ClimbResult, ClimbLocation } from '../components/field-map';
+import type { ZoneType, ClimbLevel, ClimbResult } from '../components/field-map';
 
 // =============================================================================
 // TYPES
@@ -24,8 +24,6 @@ export interface TeleopPathContextValue {
     // Climb with level selection
     climbLevel: ClimbLevel | undefined;
     setClimbLevel: (level: ClimbLevel | undefined) => void;
-    climbLocation: ClimbLocation | undefined;
-    setClimbLocation: (location: ClimbLocation | undefined) => void;
     climbResult: ClimbResult;
     setClimbResult: (result: ClimbResult) => void;
     showPostClimbProceed: boolean;
@@ -89,7 +87,7 @@ export function TeleopPathProvider({
 }: TeleopPathProviderProps) {
     return (
         <ScoringProvider {...scoringProps}>
-            <TeleopPathProviderInner
+            <TeleopPathProviderInner 
                 robotStatus={robotStatusProp}
                 onRobotStatusUpdate={onRobotStatusUpdate}
             >
@@ -99,32 +97,26 @@ export function TeleopPathProvider({
     );
 }
 
-function TeleopPathProviderInner({
-    children,
-    robotStatus: robotStatusProp = {},
-    onRobotStatusUpdate
-}: {
+function TeleopPathProviderInner({ 
+    children, 
+    robotStatus: robotStatusProp = {}, 
+    onRobotStatusUpdate 
+}: { 
     children: ReactNode;
     robotStatus?: any;
     onRobotStatusUpdate?: (updates: Partial<any>) => void;
 }) {
-    // Access stuck state from ScoringContext to auto-select zone if stuck from Auto
-    const { isAnyStuck } = useScoring();
-
-    // Zone selection - auto-select alliance zone if robot is stuck (carried over from Auto)
-    const [activeZone, setActiveZone] = useState<ZoneType | null>(() =>
-        isAnyStuck ? 'allianceZone' : null
-    );
+    // Zone selection
+    const [activeZone, setActiveZone] = useState<ZoneType | null>(null);
 
     // Climb with level
     const [climbLevel, setClimbLevel] = useState<ClimbLevel | undefined>(undefined);
-    const [climbLocation, setClimbLocation] = useState<ClimbLocation | undefined>(undefined);
     const [climbResult, setClimbResult] = useState<ClimbResult>('success');
     const [showPostClimbProceed, setShowPostClimbProceed] = useState(false);
 
     // Robot status - use prop if provided
     const robotStatus = robotStatusProp;
-    const updateRobotStatus = onRobotStatusUpdate || (() => { });
+    const updateRobotStatus = onRobotStatusUpdate || (() => {});
 
     // Container ref for dimensions
     const containerRef = useRef<HTMLDivElement>(null);
@@ -158,8 +150,6 @@ function TeleopPathProviderInner({
         setActiveZone,
         climbLevel,
         setClimbLevel,
-        climbLocation,
-        setClimbLocation,
         climbResult,
         setClimbResult,
         showPostClimbProceed,
@@ -177,7 +167,6 @@ function TeleopPathProviderInner({
     }), [
         activeZone,
         climbLevel,
-        climbLocation,
         climbResult,
         showPostClimbProceed,
         robotStatus,

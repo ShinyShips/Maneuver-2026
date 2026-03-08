@@ -9,8 +9,6 @@
 
 import { actions, gameConstants } from "./game-schema";
 
-const MILLISECONDS_PER_SECOND = 1000;
-
 // Re-export point values derived from schema
 export const AUTO_POINTS = {
     FUEL_SCORED: actions.fuelScored.points.auto ?? 0,
@@ -48,6 +46,3 @@ export const ROBOT_RESTRICTIONS = {
     MAX_EXTENSION: gameConstants.maxExtension,
     TRENCH_CLEARANCE: gameConstants.trenchClearance,
 } as const;
-
-export const AUTO_PHASE_DURATION_MS = gameConstants.autoDuration * MILLISECONDS_PER_SECOND;
-export const TELEOP_PHASE_DURATION_MS = gameConstants.teleopDuration * MILLISECONDS_PER_SECOND;

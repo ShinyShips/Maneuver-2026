@@ -6,20 +6,18 @@
  * Supports multiple data types with conflict resolution.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/core/components/ui/button";
 import { Separator } from "@/core/components/ui/separator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/core/components/ui/select";
 import { UniversalFountainGenerator } from "@/core/components/data-transfer/UniversalFountainGenerator";
 import { UniversalFountainScanner } from "@/core/components/data-transfer/UniversalFountainScanner";
-import { DataFilteringControls } from "@/core/components/data-transfer/DataFilteringControls";
 import { exportScoutingData } from "@/core/db/database";
 import { loadPitScoutingData } from "@/core/lib/pitScoutingUtils";
 import { pitDB } from "@/core/db/database";
 import { gamificationDB } from "@/game-template/gamification/database";
 import { handleScoutingDataUpload } from "@/core/lib/uploadHandlers/scoutingDataUploadHandler";
-import { applyFilters, createDefaultFilters, type DataFilters, type ScoutingDataCollection } from "@/core/lib/dataFiltering";
 import { useConflictResolution } from "@/core/hooks/useConflictResolution";
 import ConflictResolutionDialog from "@/core/components/data-transfer/ConflictResolutionDialog";
 import { BatchConflictDialog } from "@/core/components/data-transfer/BatchConflictDialog";
@@ -44,9 +42,6 @@ interface DataTypeConfig {
 const QRDataTransferPage = () => {
     const [mode, setMode] = useState<'select' | 'generate' | 'scan'>('select');
     const [dataType, setDataType] = useState<DataType>('scouting');
-    const [filters, setFilters] = useState<DataFilters>(createDefaultFilters());
-    const [appliedFilters, setAppliedFilters] = useState<DataFilters>(createDefaultFilters());
-    const [filterPreviewData, setFilterPreviewData] = useState<ScoutingDataCollection | null>(null);
 
     // Batch review state (for scouting data conflicts)
     const [showBatchDialog, setShowBatchDialog] = useState(false);
@@ -141,45 +136,11 @@ const QRDataTransferPage = () => {
         setMode('select');
     }, [setCurrentConflicts, setCurrentConflictIndex, setConflictResolutions, setShowConflictDialog]);
 
-    // Load scouting data for filter preview when relevant
-    useEffect(() => {
-        if (dataType !== 'scouting' && dataType !== 'combined') {
-            setFilterPreviewData(null);
-            return;
-        }
-
-        let isMounted = true;
-        const loadFilterPreviewData = async () => {
-            try {
-                const scoutingData = await exportScoutingData();
-                if (isMounted) {
-                    setFilterPreviewData(scoutingData);
-                }
-            } catch {
-                if (isMounted) {
-                    setFilterPreviewData(null);
-                }
-            }
-        };
-
-        loadFilterPreviewData();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [dataType]);
-
-    const handleApplyFilters = useCallback(() => {
-        setAppliedFilters(filters);
-        toast.success('Filters applied to QR generation');
-    }, [filters]);
-
     // Configuration for each data type
     const dataTypeConfigs: Record<DataType, DataTypeConfig> = {
         'scouting': {
             loadData: async () => {
-                const scoutingData = await exportScoutingData();
-                return applyFilters(scoutingData, appliedFilters);
+                return await exportScoutingData();
             },
             saveData: saveScoutingDataWithConflicts,
             validateData: (data: unknown): boolean => {
@@ -307,11 +268,8 @@ const QRDataTransferPage = () => {
                 const scoutingData = await exportScoutingData();
                 const scouts = await gamificationDB.scouts.toArray();
                 const predictions = await gamificationDB.predictions.toArray();
-
-                const filteredScoutingData = applyFilters(scoutingData, appliedFilters);
-
                 return {
-                    entries: filteredScoutingData.entries,
+                    entries: scoutingData.entries,
                     scoutProfiles: { scouts, predictions },
                     metadata: {
                         exportedAt: new Date().toISOString(),
@@ -400,24 +358,6 @@ const QRDataTransferPage = () => {
                 title={config.title}
                 description={config.description}
                 noDataMessage={config.noDataMessage}
-                settingsContent={
-                    (dataType === 'scouting' || dataType === 'combined') ? (
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-sm font-medium">Filter Data for Generation (Optional)</p>
-                                <p className="text-xs text-muted-foreground">
-                                    These filters are applied when generating QR fountain codes.
-                                </p>
-                            </div>
-                            <DataFilteringControls
-                                data={filterPreviewData || undefined}
-                                filters={filters}
-                                onFiltersChange={setFilters}
-                                onApplyFilters={handleApplyFilters}
-                            />
-                        </div>
-                    ) : undefined
-                }
             />
         );
     }

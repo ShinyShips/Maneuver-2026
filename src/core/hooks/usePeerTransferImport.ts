@@ -6,22 +6,8 @@
 import { useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { detectConflicts, type ConflictInfo } from '@/core/lib/scoutingDataUtils';
-import { importPitAssignmentsPayload, type PitAssignmentTransferPayload } from '@/core/lib/pitAssignmentTransfer';
 import type { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import { debugLog } from '@/core/lib/peerTransferUtils';
-import { db, pitDB, saveScoutingEntry } from '@/core/db/database';
-
-const getSafeJsonSize = (value: unknown): number => {
-    const seen = new WeakSet<object>();
-    const serialized = JSON.stringify(value, (_key, currentValue) => {
-        if (typeof currentValue === 'object' && currentValue !== null) {
-            if (seen.has(currentValue)) return '[Circular]';
-            seen.add(currentValue);
-        }
-        return currentValue;
-    });
-    return serialized?.length ?? 0;
-};
 
 interface ReceivedDataEntry {
     scoutName: string;
@@ -103,6 +89,7 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
 
     const importPitScoutingData = useCallback(async (pitData: { entries?: unknown[] }, scoutName: string) => {
         if (pitData.entries && Array.isArray(pitData.entries)) {
+            const { pitDB } = await import('@/core/db/database');
             await pitDB.pitScoutingData.bulkPut(pitData.entries as never[]);
             toast.success(`Imported ${pitData.entries.length} pit scouting entries from ${scoutName}`);
         }
@@ -128,6 +115,7 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
         }
 
         // Check local database before conflict detection
+        const { db } = await import('@/core/db/database');
         const localCount = await db.scoutingData.count();
         console.log('📊 Local database count BEFORE import:', localCount);
 
@@ -145,6 +133,7 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
             conflicts: conflictResult.conflicts.length
         });
 
+        const { saveScoutingEntry } = await import('@/core/db/database');
         const results = { added: 0, replaced: 0, conflictsToReview: 0 };
 
         // Auto-import: Save new entries
@@ -273,7 +262,7 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
             const receivedDataType = (latest as { dataType?: string }).dataType;
 
             console.log(`✅ Received data from ${latest.scoutName}, type: ${receivedDataType}:`, receivedDataObj);
-            console.log('Received data size:', getSafeJsonSize(receivedDataObj), 'characters');
+            console.log('Received data size:', JSON.stringify(receivedDataObj).length, 'characters');
 
             // Clear requesting state for this scout
             const scoutId = connectedScouts.find(s => s.name === latest.scoutName)?.id;
@@ -311,30 +300,6 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
 
                     if (receivedDataType === 'pit-scouting') {
                         await importPitScoutingData(receivedDataObj as { entries?: unknown[] }, latest.scoutName);
-                        setImportedDataCount(receivedData.length);
-                        return;
-                    }
-
-                    if (receivedDataType === 'pit-assignments') {
-                        const currentScout = localStorage.getItem('currentScout') || '';
-                        if (!currentScout.trim()) {
-                            toast.error('Select a scout profile before importing pit assignments');
-                            setImportedDataCount(receivedData.length);
-                            return;
-                        }
-
-                        const result = importPitAssignmentsPayload(
-                            receivedDataObj as PitAssignmentTransferPayload,
-                            currentScout,
-                            'merge',
-                        );
-
-                        if (result.strategy === 'cancel') {
-                            toast.info(`Skipped pit assignments from ${latest.scoutName}`);
-                        } else {
-                            toast.success(`Imported ${result.importedCount} pit assignments from ${latest.scoutName}`);
-                        }
-
                         setImportedDataCount(receivedData.length);
                         return;
                     }

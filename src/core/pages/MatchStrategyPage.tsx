@@ -14,7 +14,7 @@
  * - Config-driven stats display (via props)
  */
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MatchHeader } from "@/core/components/MatchStrategy/MatchHeader";
 import { FieldStrategy } from "@/core/components/MatchStrategy/FieldStrategy";
 import { TeamAnalysis } from "@/core/components/MatchStrategy/TeamAnalysis";
@@ -34,11 +34,6 @@ interface MatchStrategyPageProps {
     fieldImage?: string;
 }
 
-interface TeamSlotSpotVisibility {
-    showShooting: boolean;
-    showPassing: boolean;
-}
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -48,9 +43,6 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
     
     const [activeTab, setActiveTab] = useState("autonomous");
     const [activeStatsTab, setActiveStatsTab] = useState("overall");
-    const [teamSlotSpotVisibility, setTeamSlotSpotVisibility] = useState<TeamSlotSpotVisibility[]>(
-        Array.from({ length: 6 }, () => ({ showShooting: true, showPassing: true }))
-    );
 
     const {
         selectedTeams,
@@ -61,74 +53,14 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
         selectedBlueAlliance,
         selectedRedAlliance,
         getTeamStats,
-        getTeamSpots,
-        getTeamAutoRoutines,
-        getSelectedAutoRoutineForSlot,
-        getSelectedAutoRoutineSelectionForSlot,
-        setSelectedAutoRoutineForSlot,
-        addReportedAutoForTeam,
-        updateReportedAutoForTeam,
-        deleteReportedAutoForTeam,
         handleTeamChange,
         applyAllianceToRed,
         applyAllianceToBlue,
         setMatchNumber
     } = useMatchStrategy();
 
-    const selectedAutoRoutinesBySlot = useMemo(
-        () => Array.from({ length: 6 }, (_, slotIndex) => getSelectedAutoRoutineForSlot(slotIndex)),
-        [getSelectedAutoRoutineForSlot]
-    );
-
-    const handleTeamChangeWithSpotDefaults = (index: number, teamNumber: number | null) => {
-        handleTeamChange(index, teamNumber);
-        setTeamSlotSpotVisibility((prev) => {
-            const next = [...prev];
-            next[index] = { showShooting: true, showPassing: true };
-            return next;
-        });
-    };
-
-    const handleTeamSlotSpotToggle = (index: number, type: 'shooting' | 'passing') => {
-        setTeamSlotSpotVisibility((prev) => {
-            const next = [...prev];
-            const current = next[index] ?? { showShooting: true, showPassing: true };
-
-            next[index] = {
-                ...current,
-                showShooting: type === 'shooting' ? !current.showShooting : current.showShooting,
-                showPassing: type === 'passing' ? !current.showPassing : current.showPassing,
-            };
-
-            return next;
-        });
-    };
-
-    const handleSetAllSpotVisibility = (type: 'shooting' | 'passing', enabled: boolean) => {
-        setTeamSlotSpotVisibility((prev) => {
-            const next = [...prev];
-
-            selectedTeams.forEach((teamNumber, index) => {
-                if (!teamNumber) return;
-
-                const current = next[index] ?? { showShooting: true, showPassing: true };
-                next[index] = {
-                    ...current,
-                    showShooting: type === 'shooting' ? enabled : current.showShooting,
-                    showPassing: type === 'passing' ? enabled : current.showPassing,
-                };
-            });
-
-            return next;
-        });
-    };
-
     const handleClearAll = () => clearAllStrategies(setActiveTab, activeTab);
-    const handleSaveAll = () => saveAllStrategyCanvases(matchNumber, selectedTeams, fieldImage, {
-        teamSlotSpotVisibility,
-        getTeamSpots,
-        selectedAutoRoutinesBySlot,
-    });
+    const handleSaveAll = () => saveAllStrategyCanvases(matchNumber, selectedTeams, fieldImage);
 
     return (
         <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24">
@@ -149,9 +81,6 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
                         fieldImagePath={fieldImage}
                         activeTab={activeTab}
                         selectedTeams={selectedTeams}
-                        teamSlotSpotVisibility={teamSlotSpotVisibility}
-                        getTeamSpots={getTeamSpots}
-                        selectedAutoRoutinesBySlot={selectedAutoRoutinesBySlot}
                         onTabChange={setActiveTab}
                     />
 
@@ -163,17 +92,7 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
                         selectedBlueAlliance={selectedBlueAlliance}
                         selectedRedAlliance={selectedRedAlliance}
                         getTeamStats={getTeamStats}
-                        teamSlotSpotVisibility={teamSlotSpotVisibility}
-                        onTeamSlotSpotToggle={handleTeamSlotSpotToggle}
-                        onSetAllSpotVisibility={handleSetAllSpotVisibility}
-                        onTeamChange={handleTeamChangeWithSpotDefaults}
-                        getTeamAutoRoutines={getTeamAutoRoutines}
-                        getSelectedAutoRoutineForSlot={getSelectedAutoRoutineForSlot}
-                        getSelectedAutoRoutineSelectionForSlot={getSelectedAutoRoutineSelectionForSlot}
-                        onSelectAutoRoutineForSlot={setSelectedAutoRoutineForSlot}
-                        onAddReportedAutoForTeam={addReportedAutoForTeam}
-                        onUpdateReportedAutoForTeam={updateReportedAutoForTeam}
-                        onDeleteReportedAutoForTeam={deleteReportedAutoForTeam}
+                        onTeamChange={handleTeamChange}
                         onStatsTabChange={setActiveStatsTab}
                         onBlueAllianceChange={applyAllianceToBlue}
                         onRedAllianceChange={applyAllianceToRed}

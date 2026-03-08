@@ -2,7 +2,7 @@
  * AutoActionLog Component
  * 
  * Displays action history in a sidebar sheet with timestamps.
- * Extracted from AutoFieldMap for better organization.
+ * Extracted from AutoPathTracker for better organization.
  */
 
 import { Badge } from '@/core/components/ui/badge';
@@ -32,21 +32,21 @@ function getActionDisplay(action: PathWaypoint): { label: string; points: number
     // Find matching action in schema
     const schemaAction = Object.entries(schemaActions).find(([key, def]) => {
         if (def.pathType !== action.type) return false;
-
+        
         // For climb, match autoClimb
         if (action.type === 'climb' && action.action === 'climb-success') {
             return key === 'autoClimb';
         }
-
+        
         // For collect, match by pathAction
         if (action.type === 'collect' && 'pathAction' in def && def.pathAction) {
             return def.pathAction === action.action;
         }
-
+        
         // For other actions, just match by pathType
         return true;
     });
-
+    
     if (schemaAction) {
         const [, def] = schemaAction;
         return {
@@ -54,7 +54,7 @@ function getActionDisplay(action: PathWaypoint): { label: string; points: number
             points: def.points.auto || 0
         };
     }
-
+    
     // Fallback
     return {
         label: action.type.charAt(0).toUpperCase() + action.type.slice(1),

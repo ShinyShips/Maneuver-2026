@@ -6,16 +6,9 @@
 import { useState } from 'react';
 import { Upload, Info } from 'lucide-react';
 import { useWebRTC } from '@/core/contexts/WebRTCContext';
-import {
-  hasPitAssignmentImportConflict,
-  importPitAssignmentsPayload,
-  type PitAssignmentImportStrategy,
-  type PitAssignmentTransferPayload,
-} from '@/core/lib/pitAssignmentTransfer';
 import { pitDB, saveScoutingEntries } from '@/core/db/database';
 import { gamificationDB as gameDB } from '@/game-template/gamification';
 import { toast } from 'sonner';
-import { Button } from '@/core/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,17 +24,11 @@ export function WebRTCPushedDataDialog() {
   const context = useWebRTC();
   const { dataPushed, setDataPushed, pushedData, pushedDataType, sendControlMessage } = context;
   const [importStatus, setImportStatus] = useState<string>('');
-  const [pitImportChoiceOpen, setPitImportChoiceOpen] = useState(false);
-
-  const isImportStrategy = (value: unknown): value is PitAssignmentImportStrategy => {
-    return value === 'replace' || value === 'merge' || value === 'cancel';
-  };
 
   const getDataTypeLabel = (dataType: string | null) => {
     switch (dataType) {
       case 'scouting': return 'Scouting Data';
       case 'pit-scouting': return 'Pit Scouting Data';
-      case 'pit-assignments': return 'Pit Assignments';
       case 'match': return 'Match Schedule';
       case 'scout': return 'Scout Profiles';
       case 'combined': return 'Combined Data';
@@ -66,13 +53,6 @@ export function WebRTCPushedDataDialog() {
         if (data.entries && Array.isArray(data.entries)) {
           parts.push(`${data.entries.length} entries`);
         }
-      } else if (pushedDataType === 'pit-assignments') {
-        if (data.assignments && Array.isArray(data.assignments)) {
-          parts.push(`${data.assignments.length} assignments`);
-        }
-        if (data.eventKey) {
-          parts.push(`event ${data.eventKey}`);
-        }
       } else if (pushedDataType === 'match') {
         // Match data
         if (data.matches) parts.push(`${Array.isArray(data.matches) ? data.matches.length : 0} matches`);
@@ -89,10 +69,7 @@ export function WebRTCPushedDataDialog() {
     }
   };
 
-  const handleAcceptPushedData = async (pitStrategy?: unknown) => {
-    const resolvedPitStrategy: PitAssignmentImportStrategy | undefined = isImportStrategy(pitStrategy)
-      ? pitStrategy
-      : undefined;
+  const handleAcceptPushedData = async () => {
     setImportStatus('Importing data...');
     try {
       let importedCount = 0;
@@ -188,33 +165,6 @@ export function WebRTCPushedDataDialog() {
           console.log('✅ Imported', importedCount, 'pit scouting entries');
         }
 
-      } else if (pushedDataType === 'pit-assignments') {
-        const currentScoutName = localStorage.getItem('currentScout') || '';
-        if (!currentScoutName.trim()) {
-          throw new Error('Select a scout profile before importing pit assignments');
-        }
-
-        const payload = pushedData as PitAssignmentTransferPayload;
-        if (!resolvedPitStrategy && hasPitAssignmentImportConflict(payload)) {
-          setImportStatus('');
-          setPitImportChoiceOpen(true);
-          return;
-        }
-
-        const result = importPitAssignmentsPayload(payload, currentScoutName, resolvedPitStrategy);
-
-        if (result.strategy === 'cancel') {
-          setImportStatus('Import canceled');
-          setTimeout(() => {
-            setImportStatus('');
-            setDataPushed(false);
-          }, 1200);
-          return;
-        }
-
-        importedCount = result.importedCount;
-        console.log('✅ Imported pit assignments:', result);
-
       } else if (pushedDataType === 'match') {
         // Import match data
         const data = pushedData as any;
@@ -279,17 +229,11 @@ export function WebRTCPushedDataDialog() {
     toast.info('Declined data from lead');
     setDataPushed(false);
     setImportStatus('');
-    setPitImportChoiceOpen(false);
-  };
-
-  const handlePitImportChoice = (strategy: PitAssignmentImportStrategy) => {
-    setPitImportChoiceOpen(false);
-    void handleAcceptPushedData(strategy);
   };
 
   return (
     <>
-      <AlertDialog open={dataPushed && !importStatus && !pitImportChoiceOpen}>
+      <AlertDialog open={dataPushed && !importStatus}>
         <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -301,7 +245,7 @@ export function WebRTCPushedDataDialog() {
 
               <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
                     <p className="font-medium text-blue-900 dark:text-blue-100">
                       {getDataTypeLabel(pushedDataType)}
@@ -314,13 +258,13 @@ export function WebRTCPushedDataDialog() {
               </div>
 
               <p className="text-sm text-muted-foreground">
-                Accepting will import this data now. Pit assignments will prompt you to replace or merge when needed.
+                Accepting will merge this data with your existing data. Any conflicts will use the newest data.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleDecline} className='p-2'>Decline</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { void handleAcceptPushedData(); }} className='p-2'>Accept & Import</AlertDialogAction>
+            <AlertDialogAction onClick={handleAcceptPushedData} className='p-2'>Accept & Import</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -339,23 +283,6 @@ export function WebRTCPushedDataDialog() {
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={pitImportChoiceOpen}>
-        <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Pit Assignments Already Exist</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>You already have pit assignments for this event.</p>
-              <p>Choose how to import incoming assignments:</p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button className="p-2" onClick={() => handlePitImportChoice('replace')}>Replace</Button>
-            <Button variant="secondary" className="p-2" onClick={() => handlePitImportChoice('merge')}>Merge</Button>
-            <Button variant="outline" className="p-2" onClick={() => handlePitImportChoice('cancel')}>Cancel</Button>
-          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

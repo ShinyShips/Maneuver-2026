@@ -52,8 +52,7 @@ export interface ScoringContextValue {
 
     // Navigation
     onBack?: () => void;
-    onProceed?: (finalActions?: PathWaypoint[]) => void;
-    enableNoShow?: boolean;
+    onProceed?: () => void;
 
     // Helpers
     generateId: () => string;
@@ -80,8 +79,7 @@ export interface ScoringProviderProps {
     matchType?: 'qm' | 'sf' | 'f';
     teamNumber?: string | number;
     onBack?: () => void;
-    onProceed?: (finalActions?: PathWaypoint[]) => void;
-    enableNoShow?: boolean;
+    onProceed?: () => void;
 }
 
 // =============================================================================
@@ -114,7 +112,6 @@ export function ScoringProvider({
     teamNumber,
     onBack,
     onProceed,
-    enableNoShow,
 }: ScoringProviderProps) {
     // Pending waypoint state
     const [pendingWaypoint, setPendingWaypoint] = useState<PathWaypoint | null>(null);
@@ -130,7 +127,7 @@ export function ScoringProvider({
     };
 
     const [stuckStarts, setStuckStartsState] = useState<Record<string, number>>(getStoredStuckState);
-
+    
     const setStuckStarts = useCallback((value: React.SetStateAction<Record<string, number>>) => {
         setStuckStartsState(prev => {
             const newValue = typeof value === 'function' ? value(prev) : value;
@@ -138,7 +135,7 @@ export function ScoringProvider({
             return newValue;
         });
     }, []);
-
+    
     const isAnyStuck = Object.keys(stuckStarts).length > 0;
 
     // Field orientation (persisted in localStorage)
@@ -264,7 +261,6 @@ export function ScoringProvider({
         // Navigation
         onBack,
         onProceed,
-        enableNoShow,
 
         // Helpers
         generateId,

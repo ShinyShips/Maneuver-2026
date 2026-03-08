@@ -44,13 +44,6 @@ import AchievementsPage from "@/core/pages/AchievementsPage";
 import DevUtilitiesPage from "@/core/pages/DevUtilitiesPage";
 import { MatchValidationPage } from "@/core/pages/MatchValidationPage";
 import PitAssignmentsPage from "@/core/pages/PitAssignmentsPage";
-import TestLandingPage from "@/core/pages/test/TestLandingPage";
-import TestVisualScoutingPage from "@/core/pages/test/TestVisualScoutingPage";
-import TestFormScoutingPage from "@/core/pages/test/TestFormScoutingPage";
-import TestTLXPage from "@/core/pages/test/TestTLXPage";
-import TestPreferencePage from "@/core/pages/test/TestPreferencePage";
-import TestAnswerKeyPage from "@/core/pages/test/TestAnswerKeyPage";
-import TestResultsPage from "@/core/pages/test/TestResultsPage";
 import { InstallPrompt } from '@/core/components/pwa/InstallPrompt';
 import { PWAUpdatePrompt } from '@/core/components/pwa/PWAUpdatePrompt';
 import { StatusBarSpacer } from '@/core/components/StatusBarSpacer';
@@ -65,16 +58,11 @@ import { GameProvider } from "@/core/contexts/GameContext";
 import { strategyAnalysis } from "@/game-template/analysis";
 import { scoringCalculations } from "@/game-template/scoring";
 import { gameDataTransformation } from "@/game-template/transformation";
-import {
-  StatusToggles,
-  GameSpecificQuestions,
-  GameSpecificScoutOptions,
-} from "@/game-template/components";
+import { StatusToggles, GameSpecificQuestions } from "@/game-template/components";
 import logo from "../src/assets/Maneuver Wordmark Vertical.png";
-import { generateDemoEvent, generateDemoEventScheduleOnly } from "@/core/lib/demoDataGenerator";
+import { generateDemoEvent } from "@/core/lib/demoDataGenerator";
 import { generate2026GameData } from "@/game-template/demoDataGenerator2026";
 import { db, pitDB, gameDB } from "@/db";
-import { clearEventCache, clearEventValidationResults, getCachedTBAEventMatches } from "@/core/lib/tbaCache";
 
 // Mock implementations for missing template parts
 const mockConfig = { year: 2026, gameName: "REBUILT", scoring: { auto: {}, teleop: {}, endgame: {} } };
@@ -93,7 +81,6 @@ const loadDemoData = async () => {
     clearExisting: true,
     gameDataGenerator: generate2026GameData,
     includePlayoffs: true,
-    seedFakeValidationResults: false,
   });
   
   // Update local storage for demo event
@@ -113,25 +100,6 @@ const loadDemoData = async () => {
   console.log('✅ Demo data loaded successfully!');
 };
 
-const loadDemoScheduleOnly = async () => {
-  console.log('🗓️ Loading demo schedule only...');
-
-  await generateDemoEventScheduleOnly({
-    eventKey: DEMO_EVENT_KEY,
-    clearExisting: true,
-  });
-
-  localStorage.setItem('eventName', DEMO_EVENT_KEY);
-
-  const eventsList = JSON.parse(localStorage.getItem('eventsList') || '[]');
-  if (!eventsList.includes(DEMO_EVENT_KEY)) {
-    eventsList.push(DEMO_EVENT_KEY);
-    localStorage.setItem('eventsList', JSON.stringify(eventsList));
-  }
-
-  console.log('✅ Demo schedule loaded successfully!');
-};
-
 const clearDemoData = async () => {
   console.log('🗑️ Clearing demo data...');
   
@@ -141,8 +109,6 @@ const clearDemoData = async () => {
   await gameDB.scouts.clear();
   await gameDB.predictions.where('eventKey').equals(DEMO_EVENT_KEY).delete();
   await gameDB.scoutAchievements.clear();
-  await clearEventCache(DEMO_EVENT_KEY);
-  await clearEventValidationResults(DEMO_EVENT_KEY);
   
   // Clear from local storage
   const eventsList = JSON.parse(localStorage.getItem('eventsList') || '[]');
@@ -152,24 +118,14 @@ const clearDemoData = async () => {
   if (localStorage.getItem('eventName') === DEMO_EVENT_KEY) {
     localStorage.removeItem('eventName');
   }
-
-  if (localStorage.getItem('eventKey') === DEMO_EVENT_KEY) {
-    localStorage.removeItem('eventKey');
-  }
-
-  const customEvents = JSON.parse(localStorage.getItem('customEventsList') || '[]');
-  const filteredCustomEvents = customEvents.filter((e: string) => e !== DEMO_EVENT_KEY);
-  localStorage.setItem('customEventsList', JSON.stringify(filteredCustomEvents));
-
-  localStorage.removeItem('matchData');
   
   console.log('✅ Demo data cleared successfully!');
 };
 
 const checkDemoData = async (): Promise<boolean> => {
   const entryCount = await db.scoutingData.where('eventKey').equals(DEMO_EVENT_KEY).count();
-  const cachedMatches = await getCachedTBAEventMatches(DEMO_EVENT_KEY);
-  return entryCount > 0 || cachedMatches.length > 0;
+  const scoutCount = await gameDB.scouts.count();
+  return entryCount > 0 || scoutCount > 0;
 };
 
 function App() {
@@ -184,12 +140,7 @@ function App() {
             validation={mockValidation as any}
             analysis={strategyAnalysis as any}
             transformation={gameDataTransformation as any}
-            ui={{
-              ...mockUI,
-              StatusToggles,
-              PitScoutingQuestions: GameSpecificQuestions,
-              ScoutOptionsContent: GameSpecificScoutOptions,
-            } as any}
+            ui={{ ...mockUI, StatusToggles, PitScoutingQuestions: GameSpecificQuestions } as any}
           >
             <MainLayout />
           </GameProvider>
@@ -201,14 +152,12 @@ function App() {
             <HomePage 
               logo={logo} 
               appName="Maneuver 2026"
-              version="2026.1.1"
+              version="2026.0.1"
               onLoadDemoData={loadDemoData}
-              onLoadDemoScheduleOnly={loadDemoScheduleOnly}
               onClearData={clearDemoData}
               checkExistingData={checkDemoData}
               demoDataDescription="Load sample data for 30 teams, 60 matches, 8 scouts with predictions, and pit scouting to explore all features"
               demoDataStats="Demo data loaded! 30 teams, 60 matches, 8 scouts"
-              demoScheduleStats="Demo schedule loaded! 30 teams, 60 matches"
             />
           } 
         />
@@ -243,13 +192,6 @@ function App() {
         <Route path="/achievements" element={<AchievementsPage />} />
         <Route path="/match-validation" element={<MatchValidationPage />} />
         <Route path="/dev-utilities" element={<DevUtilitiesPage />} />
-        <Route path="/test" element={<TestLandingPage />} />
-        <Route path="/test/interface/visual" element={<TestVisualScoutingPage />} />
-        <Route path="/test/interface/form" element={<TestFormScoutingPage />} />
-        <Route path="/test/tlx" element={<TestTLXPage />} />
-        <Route path="/test/preferences" element={<TestPreferencePage />} />
-        <Route path="/test/answer-key" element={<TestAnswerKeyPage />} />
-        <Route path="/test/results" element={<TestResultsPage />} />
 
 
         {/* Add more routes as needed */}
@@ -300,13 +242,21 @@ function App() {
           console.log('🧪 Dev utilities available on window.dev');
         });
 
+        // Make team scouts initialization available globally
+        import('@/core/lib/teamScouts').then(teamScouts => {
+          (window as any).team = {
+            initScouts: teamScouts.initializeTeamScouts,
+            scoutsList: teamScouts.TEAM_SCOUTS
+          };
+          console.log('👥 Team utilities available on window.team');
+        });
+
         // Make databases available for debugging
         import('@/db').then(db => {
           (window as any).dbs = {
             main: db.db,
             pit: db.pitDB,
-            game: db.gameDB,
-            experiment: db.experimentDB,
+            game: db.gameDB
           };
           console.log('🗄️ Databases available at window.dbs');
         });

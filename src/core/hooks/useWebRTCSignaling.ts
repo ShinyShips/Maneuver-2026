@@ -32,16 +32,11 @@ export function useWebRTCSignaling({
   enabled,
   onMessage,
 }: UseWebRTCSignalingOptions) {
-  const BASE_POLL_INTERVAL_MS = 2000;
-  const MAX_POLL_INTERVAL_MS = 15000;
-
   console.log('🎣 useWebRTCSignaling hook called:', { roomId, peerId, peerName, role, enabled });
 
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollInFlightRef = useRef(false);
-  const currentPollIntervalRef = useRef(BASE_POLL_INTERVAL_MS);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const functionsAvailableRef = useRef<boolean | null>(null);
 
   // Determine the signaling server URL
@@ -79,9 +74,6 @@ export function useWebRTCSignaling({
         if (!response.ok) {
           throw new Error(`Signaling failed: ${response.statusText}`);
         }
-
-        // Keep polling responsive right after outbound signaling activity
-        currentPollIntervalRef.current = BASE_POLL_INTERVAL_MS;
 
         return await response.json();
       } catch (err) {
@@ -176,12 +168,6 @@ export function useWebRTCSignaling({
       return;
     }
 
-    if (document.hidden || !navigator.onLine || pollInFlightRef.current) {
-      return;
-    }
-
-    pollInFlightRef.current = true;
-
     // console.log(`🔄 Polling room ${roomId} as ${peerId.substring(0, 8)}...`);
 
     try {
@@ -200,8 +186,6 @@ export function useWebRTCSignaling({
 
       // Process new messages
       if (data.messages && Array.isArray(data.messages)) {
-        const messageCount = data.messages.length;
-
         if (data.messages.length > 0) {
           console.log(`📨 Received ${data.messages.length} messages:`, data.messages.map((m: { type: string; peerName?: string }) => `${m.type} from ${m.peerName}`).join(', '));
         }
@@ -212,83 +196,32 @@ export function useWebRTCSignaling({
           console.log(`✅ Processing message: ${message.type} from ${message.peerName || message.peerId}`);
           onMessage?.(message);
         }
-
-        currentPollIntervalRef.current = messageCount > 0
-          ? BASE_POLL_INTERVAL_MS
-          : Math.min(MAX_POLL_INTERVAL_MS, Math.floor(currentPollIntervalRef.current * 1.5));
       }
     } catch (err) {
       // Polling errors are expected when disconnecting, only log in dev
       if (import.meta.env.DEV) {
         console.error('Polling error:', err);
       }
-
-      currentPollIntervalRef.current = Math.min(
-        MAX_POLL_INTERVAL_MS,
-        Math.floor(currentPollIntervalRef.current * 2)
-      );
-
       // Don't set error state for polling failures, just log them
-    } finally {
-      pollInFlightRef.current = false;
     }
   }, [roomId, peerId, enabled, connected, signalingUrl, onMessage]);
 
   // Start polling when connected
   useEffect(() => {
     if (connected && enabled) {
-      let cancelled = false;
+      // Poll immediately
+      poll();
 
-      currentPollIntervalRef.current = BASE_POLL_INTERVAL_MS;
-
-      const scheduleNextPoll = () => {
-        if (cancelled) return;
-
-        if (pollingTimerRef.current) {
-          clearTimeout(pollingTimerRef.current);
-        }
-
-        pollingTimerRef.current = setTimeout(async () => {
-          await poll();
-          scheduleNextPoll();
-        }, currentPollIntervalRef.current);
-      };
-
-      // Poll immediately once, then continue with adaptive interval
-      poll().finally(scheduleNextPoll);
+      // Then poll every 2 seconds
+      pollingIntervalRef.current = setInterval(poll, 2000);
 
       return () => {
-        cancelled = true;
-        pollInFlightRef.current = false;
-        if (pollingTimerRef.current) {
-          clearTimeout(pollingTimerRef.current);
-          pollingTimerRef.current = null;
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
         }
       };
     }
     return undefined;
-  }, [connected, enabled, poll]);
-
-  // Poll immediately when page becomes visible or focused again
-  useEffect(() => {
-    if (!connected || !enabled) return;
-
-    const refreshPolling = () => {
-      if (!document.hidden && navigator.onLine) {
-        currentPollIntervalRef.current = BASE_POLL_INTERVAL_MS;
-        void poll();
-      }
-    };
-
-    document.addEventListener('visibilitychange', refreshPolling);
-    window.addEventListener('focus', refreshPolling);
-    window.addEventListener('online', refreshPolling);
-
-    return () => {
-      document.removeEventListener('visibilitychange', refreshPolling);
-      window.removeEventListener('focus', refreshPolling);
-      window.removeEventListener('online', refreshPolling);
-    };
   }, [connected, enabled, poll]);
 
   // Join on mount if enabled

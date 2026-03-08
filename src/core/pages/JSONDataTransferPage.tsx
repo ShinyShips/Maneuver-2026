@@ -6,28 +6,14 @@ import { convertArrayOfArraysToCSV } from "@/core/lib/utils";
 import { loadScoutingData } from "@/core/lib/scoutingDataUtils";
 import { loadPitScoutingData, exportPitScoutingToCSV, downloadPitScoutingImagesOnly } from "@/core/lib/pitScoutingUtils";
 import { gamificationDB as gameDB } from "@/game-template/gamification";
-import { csvExcludedFields, pitCsvExcludedFields } from "@/game-template/transformation";
 import { Separator } from "@/core/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/core/components/ui/select";
-import { createMatchSchedulePayload } from "@/core/lib/matchScheduleTransfer";
-
-const getSortableMatchNumber = (matchNumber: unknown, matchKey: unknown): number => {
-  if (typeof matchNumber === 'number' && Number.isFinite(matchNumber)) return matchNumber;
-
-  const fromMatchNumber = Number.parseInt(String(matchNumber ?? ''), 10);
-  if (Number.isFinite(fromMatchNumber)) return fromMatchNumber;
-
-  const key = String(matchKey ?? '');
-  const keyPart = key.includes('_') ? (key.split('_')[1] || key) : key;
-  const parsedFromKey = Number.parseInt(keyPart.replace(/\D/g, ''), 10);
-  return Number.isFinite(parsedFromKey) ? parsedFromKey : Number.MAX_SAFE_INTEGER;
-};
 
 
 
 const JSONDataTransferPage = () => {
   const [mode, setMode] = useState<'select' | 'upload'>('select');
-  const [dataType, setDataType] = useState<'scouting' | 'scoutProfiles' | 'pitScouting' | 'pitScoutingImagesOnly' | 'matchSchedule'>('scouting');
+  const [dataType, setDataType] = useState<'scouting' | 'scoutProfiles' | 'pitScouting' | 'pitScoutingImagesOnly'>('scouting');
 
   if (mode === 'upload') {
     return (
@@ -45,19 +31,6 @@ const JSONDataTransferPage = () => {
       switch (dataType) {
         case 'scouting': {
           const scoutingEntries = await loadScoutingData();
-          const sortedScoutingEntries = [...scoutingEntries].sort((a, b) => {
-            const matchA = getSortableMatchNumber(a.matchNumber, a.matchKey);
-            const matchB = getSortableMatchNumber(b.matchNumber, b.matchKey);
-            if (matchA !== matchB) return matchA - matchB;
-
-            if (a.teamNumber !== b.teamNumber) return a.teamNumber - b.teamNumber;
-
-            if (a.allianceColor !== b.allianceColor) {
-              return a.allianceColor === 'red' ? -1 : 1;
-            }
-
-            return a.timestamp - b.timestamp;
-          });
 
           if (scoutingEntries.length === 0) {
             alert("No scouting data found.");
@@ -71,9 +44,6 @@ const JSONDataTransferPage = () => {
           const endgameFieldsSet = new Set<string>();
           const otherFieldsSet = new Set<string>();
 
-          // Game-specific fields to exclude from CSV (e.g. large visualization arrays)
-          const excludedFields = new Set(csvExcludedFields);
-
           // Helper function to recursively flatten nested objects
           const flattenObject = (obj: Record<string, any>, prefix = ''): Record<string, any> => {
             const flattened: Record<string, any> = {};
@@ -81,17 +51,9 @@ const JSONDataTransferPage = () => {
               const value = obj[key];
               const newKey = prefix ? `${prefix}.${key}` : key;
 
-              // Skip excluded visualization fields
-              if (excludedFields.has(newKey)) {
-                continue;
-              }
-
               if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
                 // Recursively flatten nested objects
                 Object.assign(flattened, flattenObject(value, newKey));
-              } else if (Array.isArray(value)) {
-                // Convert arrays to JSON strings to prevent [object Object] in CSV
-                flattened[newKey] = JSON.stringify(value);
               } else {
                 flattened[newKey] = value;
               }
@@ -100,7 +62,7 @@ const JSONDataTransferPage = () => {
           };
 
           // First pass: collect all unique flattened gameData fields, organized by phase
-          for (const entry of sortedScoutingEntries) {
+          for (const entry of scoutingEntries) {
             if (entry.gameData) {
               const flattened = flattenObject(entry.gameData as Record<string, any>);
               for (const key of Object.keys(flattened)) {
@@ -134,7 +96,7 @@ const JSONDataTransferPage = () => {
 
           // Second pass: convert entries to arrays using pre-built header
           const dataArrays: (string | number)[][] = [];
-          for (const entry of sortedScoutingEntries) {
+          for (const entry of scoutingEntries) {
             const row: (string | number)[] = [];
             const entryAsRecord = entry as unknown as Record<string, unknown>;
 
@@ -149,16 +111,7 @@ const JSONDataTransferPage = () => {
               const flattened = flattenObject(entry.gameData as Record<string, any>);
               for (const field of gameDataFields) {
                 const value = flattened[field];
-                if (value === undefined || value === null) {
-                  row.push('');
-                } else if (typeof value === 'string' || typeof value === 'number') {
-                  row.push(value);
-                } else if (typeof value === 'boolean') {
-                  row.push(value ? 'true' : 'false');
-                } else {
-                  // Safety fallback: stringify any remaining objects/arrays
-                  row.push(JSON.stringify(value));
-                }
+                row.push(value !== undefined ? value as string | number : '');
               }
             } else {
               // Fill with empty strings if no gameData
@@ -181,7 +134,7 @@ const JSONDataTransferPage = () => {
           break;
         }
         case 'pitScouting': {
-          csv = await exportPitScoutingToCSV(pitCsvExcludedFields);
+          csv = await exportPitScoutingToCSV();
           if (!csv || csv.split('\n').length <= 1) {
             alert("No pit scouting data found.");
             return;
@@ -192,30 +145,6 @@ const JSONDataTransferPage = () => {
         case 'pitScoutingImagesOnly': {
           alert("CSV export not available for images-only data. Use JSON or Wifi download instead.");
           return;
-        }
-        case 'matchSchedule': {
-          const matchDataStr = localStorage.getItem('matchData');
-          const matches = matchDataStr ? JSON.parse(matchDataStr) : [];
-          const eventKey = localStorage.getItem('eventKey') || '';
-          const payload = createMatchSchedulePayload(matches, eventKey);
-
-          if (!payload) {
-            alert("No match schedule data found.");
-            return;
-          }
-
-          const header: (string | number)[] = ['matchNum', 'redAlliance', 'blueAlliance'];
-          const rows: (string | number)[][] = payload.matches.map((match) => {
-            const matchNum = match.matchNum;
-            const redAlliance = match.redAlliance.join(',');
-            const blueAlliance = match.blueAlliance.join(',');
-
-            return [matchNum, redAlliance, blueAlliance];
-          });
-
-          csv = convertArrayOfArraysToCSV([header, ...rows]);
-          filename = `ManeuverMatchSchedule-${new Date().toLocaleTimeString()}-local.csv`;
-          break;
         }
         case 'scoutProfiles': {
           // CSV export for scout profiles
@@ -280,7 +209,7 @@ const JSONDataTransferPage = () => {
         <div className="flex flex-col gap-4 w-full">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Data Type to Export:</label>
-            <Select value={dataType} onValueChange={(value: 'scouting' | 'scoutProfiles' | 'pitScouting' | 'pitScoutingImagesOnly' | 'matchSchedule') => setDataType(value)}>
+            <Select value={dataType} onValueChange={(value: 'scouting' | 'scoutProfiles' | 'pitScouting' | 'pitScoutingImagesOnly') => setDataType(value)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select data type" />
               </SelectTrigger>
@@ -289,7 +218,6 @@ const JSONDataTransferPage = () => {
                 <SelectItem value="scoutProfiles">Scout Profiles</SelectItem>
                 <SelectItem value="pitScouting">Pit Scouting Data</SelectItem>
                 <SelectItem value="pitScoutingImagesOnly">Pit Scouting Images Only</SelectItem>
-                <SelectItem value="matchSchedule">Match Schedule</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -335,21 +263,6 @@ const JSONDataTransferPage = () => {
                       return;
                     }
                   }
-                  case 'matchSchedule': {
-                    const matchDataStr = localStorage.getItem('matchData');
-                    const matches = matchDataStr ? JSON.parse(matchDataStr) : [];
-                    const eventKey = localStorage.getItem('eventKey') || '';
-                    const payload = createMatchSchedulePayload(matches, eventKey);
-
-                    if (!payload) {
-                      alert("No match schedule data found.");
-                      return;
-                    }
-
-                    dataToExport = payload;
-                    filename = `ManeuverMatchSchedule-${new Date().toLocaleTimeString()}.json`;
-                    break;
-                  }
                   case 'scoutProfiles': {
                     const scoutsData = await gameDB.scouts.toArray();
                     const predictionsData = await gameDB.predictions.toArray();
@@ -390,7 +303,7 @@ const JSONDataTransferPage = () => {
             }}
             className="w-full h-16 text-xl"
           >
-            Download {dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : dataType === 'pitScoutingImagesOnly' ? 'Pit Scouting Images' : dataType === 'matchSchedule' ? 'Match Schedule' : 'Scout Profiles'} as JSON
+            Download {dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : dataType === 'pitScoutingImagesOnly' ? 'Pit Scouting Images' : 'Scout Profiles'} as JSON
           </Button>
 
           <div className="flex items-center gap-4">
@@ -408,7 +321,7 @@ const JSONDataTransferPage = () => {
             >
               {dataType === 'pitScoutingImagesOnly'
                 ? 'Images Cannot Be Downloaded as CSV'
-                : `Download ${dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : dataType === 'matchSchedule' ? 'Match Schedule' : 'Scout Profiles'} as CSV`
+                : `Download ${dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : 'Scout Profiles'} as CSV`
               }
             </Button>
             {dataType === 'pitScouting' && (
@@ -445,7 +358,6 @@ const JSONDataTransferPage = () => {
           <p>• Scout Profiles: User achievements and predictions</p>
           <p>• Pit Scouting: Team technical specifications and capabilities</p>
           <p>• Pit Scouting Images Only: Robot photos for merging with existing data (requires text data first)</p>
-          <p>• Match Schedule: Qualification match lineups loaded from TBA</p>
         </div>
       </div>
     </div>

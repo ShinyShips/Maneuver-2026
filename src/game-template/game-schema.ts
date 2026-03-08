@@ -94,7 +94,7 @@ export type ZoneKey = keyof typeof zones;
 // =============================================================================
 
 /**
- * Actions tracked from AutoFieldMap waypoints.
+ * Actions tracked from AutoPathTracker waypoints.
  * Each action has a pathType that maps to PathWaypoint.type.
  */
 export const actions = {
@@ -103,18 +103,6 @@ export const actions = {
         label: "Fuel Scored",
         description: "Fuel deposited into alliance HUB",
         points: { auto: 1, teleop: 1 },
-        pathType: 'score',
-    },
-    shotOnTheMove: {
-        label: "Shot On The Move",
-        description: "Scored shot while robot was moving",
-        points: { auto: 0, teleop: 0 },
-        pathType: 'score',
-    },
-    shotStationary: {
-        label: "Shot Stationary",
-        description: "Scored shot while robot was stationary",
-        points: { auto: 0, teleop: 0 },
         pathType: 'score',
     },
     // Collection from depot (pathType: 'collect', action: 'depot')
@@ -235,7 +223,7 @@ export const toggles = {
             description: "Stole fuel from opponent zone",
             group: "roleActive",
         },
-
+        
         // Inactive Phase Role toggles (multi-select, group: "roleInactive")
         roleInactiveCleanUp: {
             label: "Clean Up",
@@ -262,36 +250,19 @@ export const toggles = {
             description: "Stole fuel from opponent zone",
             group: "roleInactive",
         },
-
+        
         // Passing zones (multi-select, group: "passingZone")
-        passedToAllianceFromNeutral: {
-            label: "Neutral → Alliance",
-            description: "Passed fuel from neutral zone to alliance zone",
-            group: "passingZone",
-        },
-        passedToAllianceFromOpponent: {
-            label: "Opponent → Alliance",
-            description: "Passed fuel from opponent zone to alliance zone",
+        passedToAlliance: {
+            label: "Alliance Zone",
+            description: "Passed fuel to alliance zone",
             group: "passingZone",
         },
         passedToNeutral: {
-            label: "Opponent → Neutral Zone",
-            description: "Passed fuel from opponent zone to neutral zone",
+            label: "Neutral Zone",
+            description: "Passed fuel to neutral zone",
             group: "passingZone",
         },
-
-        // Teleop traversal confirmation (post-match)
-        usedTrenchInTeleop: {
-            label: "Used Trench in Teleop",
-            description: "Robot used the trench during teleop",
-            group: "teleopTraversal",
-        },
-        usedBumpInTeleop: {
-            label: "Used Bump in Teleop",
-            description: "Robot used the bump during teleop",
-            group: "teleopTraversal",
-        },
-
+        
         // Qualitative accuracy (mutually exclusive, group: "accuracy")
         accuracyAll: {
             label: "All (>90%)",
@@ -318,7 +289,7 @@ export const toggles = {
             description: "Missed most shots",
             group: "accuracy",
         },
-
+        
         // Corral usage (independent)
         usedCorral: {
             label: "Used Corral",
@@ -349,81 +320,28 @@ export const strategyColumns = {
         "rawValues.autoPoints": { label: "Auto Points", visible: true, numeric: true },
         "rawValues.teleopPoints": { label: "Teleop Points", visible: true, numeric: true },
         "rawValues.endgamePoints": { label: "Endgame Points", visible: true, numeric: true },
-        "rawValues.scaledTotalFuel": { label: "Scaled Fuel (Total)", visible: true, numeric: true },
-        "fuelTotalOPR": { label: "Fuel OPR (Total)", visible: true, numeric: true },
-        "statboticsTotalPoints": { label: "Statbotics EPA (Total Points)", visible: false, numeric: true },
-        "statboticsAutoPoints": { label: "Statbotics EPA (Auto Points)", visible: false, numeric: true },
-        "statboticsTeleopPoints": { label: "Statbotics EPA (Teleop Points)", visible: false, numeric: true },
-        "statboticsEndgamePoints": { label: "Statbotics EPA (Endgame Points)", visible: false, numeric: true },
-        "coprTotalPoints": { label: "TBA COPR (Total Points)", visible: false, numeric: true },
-        "coprTotalTeleopPoints": { label: "TBA COPR (Teleop Points)", visible: false, numeric: true },
-        "coprTotalAutoPoints": { label: "TBA COPR (Auto Points)", visible: false, numeric: true },
-        "coprTotalTowerPoints": { label: "TBA COPR (Tower Points)", visible: false, numeric: true },
     },
     // Overall stats (use rawValues for user-selectable aggregation)
     overall: {
         "rawValues.totalFuel": { label: "Fuel Scored", visible: true, numeric: true },
         "rawValues.totalFuelPassed": { label: "Fuel Passed", visible: false, numeric: true },
-        "statboticsTotalFuel": { label: "Statbotics EPA (Fuel Total)", visible: false, numeric: true },
-        "statboticsTotalTower": { label: "Statbotics EPA (Tower Total)", visible: false, numeric: true },
-        "coprHubTotalPoints": { label: "TBA COPR (Hub Total)", visible: false, numeric: true },
     },
     // Auto stats (use rawValues for user-selectable aggregation)
     auto: {
         "rawValues.autoFuel": { label: "Auto Fuel", visible: true, numeric: true },
-        "rawValues.scaledAutoFuel": { label: "Scaled Auto Fuel", visible: true, numeric: true },
-        "fuelAutoOPR": { label: "Fuel OPR (Auto)", visible: true, numeric: true },
-        "statboticsAutoFuel": { label: "Statbotics EPA (Auto Fuel)", visible: false, numeric: true },
-        "statboticsAutoTower": { label: "Statbotics EPA (Auto Tower)", visible: false, numeric: true },
-        "coprHubAutoPoints": { label: "TBA COPR (Hub Auto)", visible: false, numeric: true },
-        "coprAutoTowerPoints": { label: "TBA COPR (Auto Tower)", visible: false, numeric: true },
-        "autoShotOnTheMoveRate": { label: "Auto Shot On Move %", visible: true, numeric: true, percentage: true },
-        "autoShotStationaryRate": { label: "Auto Shot Stationary %", visible: true, numeric: true, percentage: true },
         "autoClimbRate": { label: "Auto Climb %", visible: true, numeric: true, percentage: true },
-        "autoClimbAttempts": { label: "Auto Climb Attempts", visible: true, numeric: true },
-        "autoClimbFromSideRate": { label: "Auto Climb From Side %", visible: true, numeric: true, percentage: true },
-        "autoClimbFromMiddleRate": { label: "Auto Climb From Middle %", visible: true, numeric: true, percentage: true },
-        "rawValues.autoClimbStartTimeSec": { label: "Auto Climb Start (s)", visible: true, numeric: true },
-        "rawValues.autoTrenchStuckDuration": { label: "Auto Trench Stuck", visible: false, numeric: true },
-        "rawValues.autoBumpStuckDuration": { label: "Auto Bump Stuck", visible: false, numeric: true },
     },
     // Teleop stats (use rawValues for user-selectable aggregation)
     teleop: {
         "rawValues.teleopFuel": { label: "Teleop Fuel", visible: true, numeric: true },
-        "rawValues.scaledTeleopFuel": { label: "Scaled Teleop Fuel", visible: true, numeric: true },
-        "fuelTeleopOPR": { label: "Fuel OPR (Teleop)", visible: true, numeric: true },
-        "statboticsTeleopFuel": { label: "Statbotics EPA (Teleop+Endgame Fuel)", visible: false, numeric: true },
-        "coprHubTeleopPoints": { label: "TBA COPR (Hub Teleop)", visible: false, numeric: true },
-        "defenseEffectivenessScore": { label: "Defense Effectiveness %", visible: true, numeric: true, percentage: true },
-        "defenseVeryEffectiveRate": { label: "Defense Very %", visible: false, numeric: true, percentage: true },
-        "defenseSomewhatEffectiveRate": { label: "Defense Some %", visible: false, numeric: true, percentage: true },
-        "defenseNotEffectiveRate": { label: "Defense No Impact %", visible: false, numeric: true, percentage: true },
-        "teleopShotOnTheMoveRate": { label: "Teleop Shot On Move %", visible: true, numeric: true, percentage: true },
-        "teleopShotStationaryRate": { label: "Teleop Shot Stationary %", visible: true, numeric: true, percentage: true },
         "rawValues.teleopFuelPassed": { label: "Teleop Passed", visible: false, numeric: true },
         "teleop.defenseRate": { label: "Defense %", visible: false, numeric: true, percentage: true },
-        "endgame.usedTrenchInTeleopRate": { label: "Used Trench %", visible: false, numeric: true, percentage: true },
-        "endgame.usedBumpInTeleopRate": { label: "Used Bump %", visible: false, numeric: true, percentage: true },
-        "endgame.passedToAllianceFromNeutralRate": { label: "Passed Neutral → Alliance %", visible: false, numeric: true, percentage: true },
-        "endgame.passedToAllianceFromOpponentRate": { label: "Passed Opponent → Alliance %", visible: false, numeric: true, percentage: true },
-        "endgame.passedToNeutralRate": { label: "Passed Opponent → Neutral %", visible: false, numeric: true, percentage: true },
-        "rawValues.teleopTrenchStuckDuration": { label: "Trench Stuck (s)", visible: true, numeric: true },
-        "rawValues.teleopBumpStuckDuration": { label: "Bump Stuck (s)", visible: true, numeric: true },
     },
     // Endgame stats (climb rates are percentages, keep as-is)
     endgame: {
-        "rawValues.endgameClimbStartTimeSec": { label: "Endgame Climb Start (s)", visible: true, numeric: true },
-        "statboticsEndgameTower": { label: "Statbotics EPA (Endgame Tower)", visible: false, numeric: true },
-        "coprEndgameTowerPoints": { label: "TBA COPR (Endgame Tower)", visible: false, numeric: true },
         "endgame.climbL1Rate": { label: "L1 Climb %", visible: false, numeric: true, percentage: true },
-        "endgame.climbL1Attempts": { label: "L1 Climb Attempts", visible: true, numeric: true },
         "endgame.climbL2Rate": { label: "L2 Climb %", visible: true, numeric: true, percentage: true },
-        "endgame.climbL2Attempts": { label: "L2 Climb Attempts", visible: true, numeric: true },
         "endgame.climbL3Rate": { label: "L3 Climb %", visible: true, numeric: true, percentage: true },
-        "endgame.climbL3Attempts": { label: "L3 Climb Attempts", visible: true, numeric: true },
-        "endgame.climbAttempts": { label: "Total Climb Attempts", visible: true, numeric: true },
-        "endgame.climbFromSideRate": { label: "Endgame Climb From Side %", visible: true, numeric: true, percentage: true },
-        "endgame.climbFromMiddleRate": { label: "Endgame Climb From Middle %", visible: true, numeric: true, percentage: true },
         "endgame.climbSuccessRate": { label: "Climb Success %", visible: true, numeric: true, percentage: true },
     },
 } as const;
@@ -432,10 +350,10 @@ export const strategyColumns = {
  * Strategy presets for quick column selection
  */
 export const strategyPresets: Record<string, string[]> = {
-    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.scaledTotalFuel", "fuelTotalOPR", "endgame.climbSuccessRate"],
-    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "rawValues.scaledAutoFuel", "fuelAutoOPR", "autoShotOnTheMoveRate", "autoShotStationaryRate", "autoClimbRate", "autoClimbAttempts", "autoClimbFromSideRate", "autoClimbFromMiddleRate", "rawValues.autoClimbStartTimeSec"],
-    teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.scaledTeleopFuel", "fuelTeleopOPR", "defenseEffectivenessScore", "teleopShotOnTheMoveRate", "teleopShotStationaryRate", "rawValues.teleopFuelPassed", "endgame.usedTrenchInTeleopRate", "endgame.usedBumpInTeleopRate", "endgame.passedToAllianceFromNeutralRate", "endgame.passedToAllianceFromOpponentRate", "endgame.passedToNeutralRate"],
-    endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "rawValues.endgameClimbStartTimeSec", "endgame.climbAttempts", "endgame.climbL1Rate", "endgame.climbL1Attempts", "endgame.climbL2Rate", "endgame.climbL2Attempts", "endgame.climbL3Rate", "endgame.climbL3Attempts", "endgame.climbFromSideRate", "endgame.climbFromMiddleRate"],
+    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.totalFuel", "endgame.climbSuccessRate"],
+    auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "autoClimbRate"],
+    teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.teleopFuelPassed"],
+    endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "endgame.climbL1Rate", "endgame.climbL2Rate", "endgame.climbL3Rate"],
     basic: ["teamNumber", "eventKey", "matchCount"],
 };
 
@@ -447,10 +365,9 @@ export const strategyPresets: Record<string, string[]> = {
  * Mapping types for TBA validation.
  * - 'count': Direct numeric comparison
  * - 'countMatching': Count occurrences matching a specific value
- * - 'countMatchingAny': Count occurrences matching any value in a list
  * - 'boolean': True/false comparison
  */
-export type TBAMappingType = 'count' | 'countMatching' | 'countMatchingAny' | 'boolean';
+export type TBAMappingType = 'count' | 'countMatching' | 'boolean';
 
 /**
  * Maps game actions/toggles to TBA score breakdown fields for validation.
@@ -465,8 +382,6 @@ export const tbaValidation = {
     categories: [
         { key: 'auto-fuel', label: 'Auto Fuel', phase: 'auto' as const },
         { key: 'teleop-fuel', label: 'Teleop Fuel', phase: 'teleop' as const },
-        { key: 'total-fuel', label: 'Total Fuel', phase: 'teleop' as const },
-        { key: 'auto-climb', label: 'Auto Climb', phase: 'auto' as const },
         { key: 'endgame', label: 'Endgame Climb', phase: 'endgame' as const },
     ],
 
@@ -475,21 +390,11 @@ export const tbaValidation = {
      * TODO: Update with actual 2026 TBA breakdown paths when available
      */
     actionMappings: {
-        // Fuel scoring by phase and total
-        autoFuelScored: {
-            tbaPath: 'hubScore.autoCount',
+        // Fuel scoring
+        fuelScored: {
+            tbaPath: 'autoFuelPoints', // Placeholder - update for 2026
             type: 'count' as TBAMappingType,
             category: 'auto-fuel',
-        },
-        teleopFuelScored: {
-            tbaPath: 'hubScore.teleopCount',
-            type: 'count' as TBAMappingType,
-            category: 'teleop-fuel',
-        },
-        totalFuelScored: {
-            tbaPath: 'hubScore.totalCount',
-            type: 'count' as TBAMappingType,
-            category: 'total-fuel',
         },
     },
 
@@ -497,13 +402,6 @@ export const tbaValidation = {
      * Toggle mappings - maps scouting toggles to TBA breakdown fields
      */
     toggleMappings: {
-        // Auto tower climb success (alliance robot slots)
-        autoClimbSuccess: {
-            tbaPath: ['autoTowerRobot1', 'autoTowerRobot2', 'autoTowerRobot3'],
-            type: 'countMatchingAny' as TBAMappingType,
-            matchValue: ['Level1', 'Level2', 'Level3'],
-            category: 'auto-climb',
-        },
         // Auto mobility
         leftStartZone: {
             tbaPath: ['autoLineRobot1', 'autoLineRobot2', 'autoLineRobot3'],
@@ -513,19 +411,19 @@ export const tbaValidation = {
         },
         // Endgame climb levels
         climbL1: {
-            tbaPath: ['endGameTowerRobot1', 'endGameTowerRobot2', 'endGameTowerRobot3'],
+            tbaPath: ['endGameRobot1', 'endGameRobot2', 'endGameRobot3'],
             type: 'countMatching' as TBAMappingType,
             matchValue: 'Level1',
             category: 'endgame',
         },
         climbL2: {
-            tbaPath: ['endGameTowerRobot1', 'endGameTowerRobot2', 'endGameTowerRobot3'],
+            tbaPath: ['endGameRobot1', 'endGameRobot2', 'endGameRobot3'],
             type: 'countMatching' as TBAMappingType,
             matchValue: 'Level2',
             category: 'endgame',
         },
         climbL3: {
-            tbaPath: ['endGameTowerRobot1', 'endGameTowerRobot2', 'endGameTowerRobot3'],
+            tbaPath: ['endGameRobot1', 'endGameRobot2', 'endGameRobot3'],
             type: 'countMatching' as TBAMappingType,
             matchValue: 'Level3',
             category: 'endgame',

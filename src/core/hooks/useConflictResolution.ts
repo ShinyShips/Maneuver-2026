@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import type { ConflictInfo } from "@/core/lib/scoutingDataUtils";
 import type { ScoutingEntryBase } from "@/types/scouting-entry";
 import { computeChangedFields } from "@/core/lib/scoutingDataUtils";
-import { db } from "@/core/db/database";
 
 // Debug logging helper - only logs in development
 const DEBUG = import.meta.env.DEV;
@@ -49,6 +48,8 @@ export const useConflictResolution = () => {
 
   // Apply all conflict resolutions
   const applyConflictResolutions = async (resolutionsMap?: Map<string, 'replace' | 'skip'>) => {
+    const { db } = await import('@/core/db/database');
+    
     const resolutions = resolutionsMap || conflictResolutions;
     let replaced = 0;
     let kept = 0;
@@ -103,6 +104,7 @@ export const useConflictResolution = () => {
       setConflictResolutions(newResolutions);
 
       // Apply immediately
+      const { db } = await import('@/core/db/database');
       let replaced = 0;
       let skipped = 0;
 
@@ -177,6 +179,8 @@ export const useConflictResolution = () => {
     setIsProcessing(true);
     
     try {
+      const { db } = await import('@/core/db/database');
+      
       if (decision === 'replace-all') {
         debugLog(`🔄 Batch replacing ${batchReviewEntries.length} duplicate entries...`);
         let replaced = 0;
@@ -238,6 +242,7 @@ export const useConflictResolution = () => {
       
     } else if (decision === 'review-each') {
       // Convert batch entries to conflicts for individual review
+      const { db } = await import('@/core/db/database');
       const batchConflicts: ConflictInfo[] = await Promise.all(
         batchReviewEntries.map(async (entry) => {
           const matchNumber = entry.matchNumber;

@@ -15,12 +15,7 @@ interface PickListHeaderProps {
     onToggleAllianceSelection: () => void;
 }
 
-export const PickListHeader = ({
-    onExport,
-    onImport,
-    showAllianceSelection,
-    onToggleAllianceSelection,
-}: PickListHeaderProps) => {
+export const PickListHeader = ({ onExport, onImport, showAllianceSelection, onToggleAllianceSelection }: PickListHeaderProps) => {
     const handleImportClick = () => {
         const input = document.getElementById('import-input') as HTMLInputElement;
         if (input) {

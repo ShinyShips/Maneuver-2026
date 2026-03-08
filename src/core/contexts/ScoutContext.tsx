@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getOrCreateScoutByName, getScout } from '@/core/lib/scoutGamificationUtils';
+import { getOrCreateScoutByName } from '@/core/lib/scoutGamificationUtils';
 
 interface ScoutContextType {
   currentScout: string;
@@ -157,6 +157,7 @@ export const ScoutProvider: React.FC<ScoutProviderProps> = ({ children }) => {
     if (!currentScout) return;
 
     try {
+      const { getScout } = await import('@/core/lib/scoutGamificationUtils');
       const scout = await getScout(currentScout);
       if (scout) {
         setCurrentScoutStakes(scout.stakes);

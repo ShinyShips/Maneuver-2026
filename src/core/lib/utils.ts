@@ -75,4 +75,12 @@ export function clearScoutingLocalStorage() {
   localStorage.removeItem("endgameRobotStatus");
   localStorage.removeItem("autoUndoHistory");
   localStorage.removeItem("teleopUndoHistory");
+  // Clear shooting timers
+  localStorage.removeItem("autoShootingTime");
+  localStorage.removeItem("teleopShootingTime");
+  // Clear broken down time
+  localStorage.removeItem("autoBrokenDownTime");
+  localStorage.removeItem("teleopBrokenDownTime");
+  localStorage.removeItem("autoBrokenDownStart");
+  localStorage.removeItem("teleopBrokenDownStart");
 }

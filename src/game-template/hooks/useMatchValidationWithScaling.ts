@@ -12,12 +12,6 @@ import { calculateAllianceScaling, updateEntriesWithScaling } from '../matchVali
 import { toast } from 'sonner';
 import { useTBAMatchData } from '@/core/hooks/useTBAMatchData';
 import { getEntriesByEvent } from '@/core/db/scoutingDatabase';
-import { getCachedTBAMatch } from '@/core/lib/tbaCache';
-
-const normalizeMatchKey = (matchKey: string): string => {
-    if (!matchKey.includes('_')) return matchKey;
-    return matchKey.split('_')[1] || matchKey;
-};
 
 interface UseMatchValidationWithScalingOptions {
     eventKey: string;
@@ -41,15 +35,6 @@ export function useMatchValidationWithScaling(options: UseMatchValidationWithSca
 
     const { matches: tbaMatches } = useTBAMatchData();
 
-    const getTBAMatchForScaling = useCallback(async (matchKey: string) => {
-        const fromHook = tbaMatches.find(m => m.key === matchKey);
-        if (fromHook) {
-            return fromHook;
-        }
-
-        return getCachedTBAMatch(matchKey, true);
-    }, [tbaMatches]);
-
     /**
      * Enhanced validateMatch that adds scaling after core validation
      */
@@ -64,7 +49,7 @@ export function useMatchValidationWithScaling(options: UseMatchValidationWithSca
         // Apply 2026 scaling
         try {
             // Find TBA match data
-            const tbaMatch = await getTBAMatchForScaling(matchKey);
+            const tbaMatch = tbaMatches.find(m => m.key === matchKey);
             if (!tbaMatch || !tbaMatch.score_breakdown) {
                 console.log('[2026 Scaling] No TBA data for scaling:', matchKey);
                 return result;
@@ -72,8 +57,7 @@ export function useMatchValidationWithScaling(options: UseMatchValidationWithSca
 
             // Get scouting entries for this match
             const allEntries = await getEntriesByEvent(eventKey);
-            const normalizedMatchKey = normalizeMatchKey(matchKey);
-            const matchEntries = allEntries.filter(e => normalizeMatchKey(e.matchKey) === normalizedMatchKey);
+            const matchEntries = allEntries.filter(e => e.matchKey === matchKey);
 
             if (matchEntries.length === 0) {
                 return result;
@@ -115,7 +99,7 @@ export function useMatchValidationWithScaling(options: UseMatchValidationWithSca
         }
 
         return result;
-    }, [coreValidation, enableScaling, eventKey, getTBAMatchForScaling]);
+    }, [coreValidation, enableScaling, eventKey, tbaMatches]);
 
     /**
      * Enhanced validateEvent that adds scaling to all matches
@@ -136,20 +120,18 @@ export function useMatchValidationWithScaling(options: UseMatchValidationWithSca
                 m.validationResult
             );
 
-            const allEntries = await getEntriesByEvent(eventKey);
-
             let scaledCount = 0;
             for (const match of matchesToScale) {
                 try {
                     // Find TBA match data
-                    const tbaMatch = await getTBAMatchForScaling(match.matchKey);
+                    const tbaMatch = tbaMatches.find(m => m.key === match.matchKey);
                     if (!tbaMatch || !tbaMatch.score_breakdown) {
                         continue;
                     }
 
                     // Get scouting entries
-                    const normalizedMatchKey = normalizeMatchKey(match.matchKey);
-                    const matchEntries = allEntries.filter(e => normalizeMatchKey(e.matchKey) === normalizedMatchKey);
+                    const allEntries = await getEntriesByEvent(eventKey);
+                    const matchEntries = allEntries.filter(e => e.matchKey === match.matchKey);
 
                     if (matchEntries.length === 0) {
                         continue;
@@ -197,7 +179,7 @@ export function useMatchValidationWithScaling(options: UseMatchValidationWithSca
             console.error('[2026 Scaling] Error in batch scaling:', error);
             toast.error('Some matches could not be scaled');
         }
-    }, [coreValidation, enableScaling, eventKey, getTBAMatchForScaling]);
+    }, [coreValidation, enableScaling, eventKey, tbaMatches]);
 
     // Return enhanced hook with 2026 scaling
     return {

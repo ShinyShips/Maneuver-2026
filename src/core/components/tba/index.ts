@@ -6,12 +6,13 @@
  * Component Organization:
  * - DataManagement: Data loading, display, and operations (match data, teams, validation display)
  * - EventConfiguration: Event setup and configuration (event selector, data type selector)
+ * - MatchSelector: Generic match selection component
  * - ProcessingResults: Data processing feedback component
  * 
  * API Configuration:
- * API keys should be configured as server-side env vars (Netlify Functions):
- * - TBA_API_KEY (or TBA_AUTH_KEY)
- * - NEXUS_API_KEY (or NEXUS_AUTH_KEY)
+ * API keys are configured via environment variables in .env file:
+ * - VITE_TBA_API_KEY: The Blue Alliance API key
+ * - VITE_NEXUS_API_KEY: Nexus Stats API key (optional, for pit data)
  * 
  * GAME-SPECIFIC (commented out - implement in your game repo):
  * - ValidationTesting: Test data generation and validation testing
@@ -19,6 +20,7 @@
  */
 
 // Core TBA Components
+export { MatchSelector } from './MatchSelector';
 export { ProcessingResults } from './ProcessingResults';
 
 // GAME-SPECIFIC: Uncomment and implement dependencies in your game repo

@@ -2,7 +2,7 @@
   {
     "name": "Rocket City Regional",
     "key": "2026alhu",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Archimedes Division",
@@ -12,127 +12,127 @@
   {
     "name": "Arkansas Regional",
     "key": "2026arli",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Southern Cross Regional",
     "key": "2026ausc",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Arizona North Regional",
     "key": "2026azfg",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Canadian Pacific Regional",
     "key": "2026bcvi",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Regional Brazil - Festival SESI de Educa\u00e7\u00e3o",
     "key": "2026brba",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Regional Brazil - SESI Vila Leopoldina",
     "key": "2026brsp",
-    "week": 2
+    "week": 1
   },
   {
     "name": "CA District Aerospace Valley Event",
     "key": "2026caasv",
-    "week": 5
+    "week": 4
   },
   {
     "name": "CA District Contra Costa Event",
     "key": "2026cacac",
-    "week": 5
+    "week": 4
   },
   {
     "name": "CA District Central Valley Event",
     "key": "2026caclv",
-    "week": 4
+    "week": 3
   },
   {
     "name": "CA District East Bay Event",
     "key": "2026caetb",
-    "week": 5
+    "week": 4
   },
   {
     "name": "CA District Glendale Event",
     "key": "2026cagle",
-    "week": 4
+    "week": 3
   },
   {
     "name": "CA District Half Moon Bay Event",
     "key": "2026cahal",
-    "week": 1
+    "week": 0
   },
   {
     "name": "CA District Los Angeles Event",
     "key": "2026calas",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIRST California Northern State Championship",
     "key": "2026cancmp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "CA District Orange County Event",
     "key": "2026caoec",
-    "week": 5
+    "week": 4
   },
   {
     "name": "CA District Pinnacles Event presented by Apple",
     "key": "2026capin",
-    "week": 4
+    "week": 3
   },
   {
     "name": "CA District Hueneme Port Event",
     "key": "2026capoh",
-    "week": 1
+    "week": 0
   },
   {
     "name": "CA District Sacramento Event",
     "key": "2026casac",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIRST California Southern State Championship presented by Qualcomm",
     "key": "2026cascmp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "CA District San Gabriel Valley Event",
     "key": "2026casgv",
-    "week": 4
+    "week": 3
   },
   {
     "name": "CA District San Diego Event presented by Qualcomm",
     "key": "2026casnd",
-    "week": 3
+    "week": 2
   },
   {
     "name": "CA District San Francisco Event",
     "key": "2026casnf",
-    "week": 2
+    "week": 1
   },
   {
     "name": "CA District Silicon Valley Event presented by Apple",
     "key": "2026casnv",
-    "week": 2
+    "week": 1
   },
   {
     "name": "CA District Ventura County Event",
     "key": "2026caven",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FIRST Chesapeake District Championship",
     "key": "2026chcmp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "FIRST Championship - FIRST Robotics Competition",
@@ -142,27 +142,27 @@
   {
     "name": "Shanghai Regional",
     "key": "2026cnsh",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Denver Regional",
     "key": "2026code",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Pikes Peak Regional",
     "key": "2026cosp",
-    "week": 1
+    "week": 0
   },
   {
     "name": "NE District Hartford Event",
     "key": "2026cthar",
-    "week": 4
+    "week": 3
   },
   {
     "name": "NE District Waterbury Event",
     "key": "2026ctwat",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Curie Division",
@@ -177,47 +177,47 @@
   {
     "name": "Orlando Regional",
     "key": "2026flor",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Tallahassee Regional",
     "key": "2026flta",
-    "week": 7
+    "week": 6
   },
   {
     "name": "South Florida Regional",
     "key": "2026flwp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "PCH District Albany Event presented by Procter & Gamble",
     "key": "2026gaalb",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Peachtree District Championship presented by Mercer University",
     "key": "2026gacmp",
-    "week": 6
+    "week": 5
   },
   {
-    "name": "PCH District Columbus Event presented by Muscogee County Schools (CTAE) and Columbus Development Authority",
+    "name": "PCH District Columbus Event",
     "key": "2026gacol",
-    "week": 3
+    "week": 2
   },
   {
     "name": "PCH District Dalton Event presented by Shaw Industries",
     "key": "2026gadal",
-    "week": 1
+    "week": 0
   },
   {
     "name": "PCH District Gainesville Event",
     "key": "2026gagai",
-    "week": 5
+    "week": 4
   },
   {
     "name": "PCH District Gwinnett Event presented by Gwinnett County Public Schools",
     "key": "2026gagwi",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Galileo Division",
@@ -227,7 +227,7 @@
   {
     "name": "Hawaii Regional",
     "key": "2026hiho",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Hopper Division",
@@ -237,77 +237,72 @@
   {
     "name": "Iowa Regional",
     "key": "2026iacf",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Idaho Regional",
     "key": "2026idbo",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Midwest Regional Presented by Baxter",
     "key": "2026ilch",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Central Illinois Regional",
     "key": "2026ilpe",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIRST Indiana State Championship",
     "key": "2026incmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIN District Columbus Event",
     "key": "2026incol",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIN District Lafayette Event",
     "key": "2026inlaf",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIN District Mishawaka Event",
     "key": "2026inmis",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIN District Washington Event presented by Toyota IN & VA CARA",
     "key": "2026inwas",
-    "week": 5
-  },
-  {
-    "name": "Pregional by ORBIT",
-    "key": "2026ipr",
-    "week": 0
+    "week": 4
   },
   {
     "name": "FIRST Israel District Championship",
     "key": "2026iscmp",
-    "week": 4
+    "week": 3
   },
   {
     "name": "ISR District Event #1",
     "key": "2026isde1",
-    "week": 1
+    "week": 0
   },
   {
     "name": "ISR District Event #2",
     "key": "2026isde2",
-    "week": 2
+    "week": 1
   },
   {
     "name": "ISR District Event #3",
     "key": "2026isde3",
-    "week": 2
+    "week": 1
   },
   {
     "name": "ISR District Event #4",
     "key": "2026isde4",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Johnson Division",
@@ -317,147 +312,147 @@
   {
     "name": "Heartland Regional",
     "key": "2026ksla",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Bayou Regional",
     "key": "2026lake",
-    "week": 5
+    "week": 4
   },
   {
     "name": "NE District Minuteman Event",
     "key": "2026mabil",
-    "week": 1
+    "week": 0
   },
   {
     "name": "NE District Greater Boston Event",
     "key": "2026mabos",
-    "week": 4
+    "week": 3
   },
   {
     "name": "NE District North Shore Event",
     "key": "2026marea",
-    "week": 2
+    "week": 1
   },
   {
     "name": "NE District Western NE Event",
     "key": "2026mawne",
-    "week": 2
+    "week": 1
   },
   {
     "name": "NE District WPI Event",
     "key": "2026mawor",
-    "week": 5
+    "week": 4
   },
   {
     "name": "FCH District Bethesda MD Event",
     "key": "2026mdbet",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FCH District Pasadena MD Event",
     "key": "2026mdpas",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FCH District Severn MD Event",
     "key": "2026mdsev",
-    "week": 4
+    "week": 3
   },
   {
     "name": "NE District Pine Tree Event",
     "key": "2026mefal",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIM District Battle Creek Event",
     "key": "2026mibat",
-    "week": 4
+    "week": 3
   },
   {
-    "name": "FIM District Belleville Event presented by DTE",
+    "name": "FIM District Belleville Event",
     "key": "2026mibel",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIM District Berrien Springs Event",
     "key": "2026miber",
-    "week": 3
+    "week": 2
   },
   {
-    "name": "FIM District Ferris State Event presented by Ferris State University",
+    "name": "FIM District Ferris State Event",
     "key": "2026mibig",
-    "week": 6
+    "week": 5
   },
   {
-    "name": "FIM District Jackson at Columbia Event presented by Consumers Energy Foundation",
+    "name": "FIM District Jackson at Columbia Event",
     "key": "2026mibkn",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIM District Woodhaven Event",
     "key": "2026mibro",
-    "week": 2
+    "week": 1
   },
   {
-    "name": "FIM District Chelsea Event presented by DTE",
+    "name": "FIM District Chelsea Event",
     "key": "2026miche",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIRST in Michigan State Championship",
     "key": "2026micmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST in Michigan State Championship - DTE Energy Foundation Division",
     "key": "2026micmp1",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST in Michigan State Championship - Hemlock Semiconductor Division",
     "key": "2026micmp2",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST in Michigan State Championship - Consumers Energy Division",
     "key": "2026micmp3",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST in Michigan State Championship - Aptiv Division",
     "key": "2026micmp4",
-    "week": 7
-  },
-  {
-    "name": "FIM District Renaissance Event presented by DTE Energy Foundation",
-    "key": "2026midet",
     "week": 6
   },
   {
-    "name": "FIM District Wayne State Event presented by Magna",
+    "name": "FIM District Renaissance Event",
+    "key": "2026midet",
+    "week": 5
+  },
+  {
+    "name": "FIM District Wayne State Event",
     "key": "2026midtr",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FIM District Escanaba Event",
     "key": "2026miesc",
-    "week": 6
+    "week": 5
   },
   {
-    "name": "FIM District Fenton Event presented by Gene Haas Foundation",
+    "name": "FIM District Fenton Event",
     "key": "2026mifen",
-    "week": 6
+    "week": 5
   },
   {
-    "name": "FIM District Kearsley Event presented by BAE Systems",
+    "name": "FIM District Kearsley Event",
     "key": "2026mifli",
-    "week": 3
+    "week": 2
   },
   {
-    "name": "FIM District Kentwood Event presented by Dematic",
+    "name": "FIM District Kentwood Event",
     "key": "2026miken",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Milstein Division",
@@ -465,199 +460,199 @@
     "week": null
   },
   {
-    "name": "FIM District Lake City Event presented by AT&T",
+    "name": "FIM District Lake City Event",
     "key": "2026milac",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FIM District Lakeview Event",
     "key": "2026milak",
-    "week": 1
+    "week": 0
   },
   {
-    "name": "FIM District Livonia Event presented by Aisin",
+    "name": "FIM District Livonia Event",
     "key": "2026miliv",
-    "week": 5
+    "week": 4
   },
   {
-    "name": "FIM District LSSU Event presented by Lake Superior State University",
+    "name": "FIM District LSSU Event",
     "key": "2026milsu",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIM District Marysville Event",
     "key": "2026mimar",
-    "week": 2
-  },
-  {
-    "name": "FIM District Mason Event presented by Altair",
-    "key": "2026mimas",
-    "week": 4
-  },
-  {
-    "name": "FIM District Midland Event presented by Dow",
-    "key": "2026mimid",
-    "week": 2
-  },
-  {
-    "name": "FIM District Milford Event presented by GM Proving Grounds",
-    "key": "2026mimil",
-    "week": 2
-  },
-  {
-    "name": "FIM District Mt Pleasant Event presented by AT&T",
-    "key": "2026mimtp",
     "week": 1
   },
   {
-    "name": "FIM District Muskegon Event presented by Renk",
-    "key": "2026mimus",
+    "name": "FIM District Mason Event",
+    "key": "2026mimas",
     "week": 3
   },
   {
-    "name": "FIM District Saline Event presented by Oracle",
-    "key": "2026misal",
-    "week": 4
+    "name": "FIM District Midland Event",
+    "key": "2026mimid",
+    "week": 1
   },
   {
-    "name": "FIM District Troy Event presented by Aptiv Foundation",
+    "name": "FIM District Milford Event",
+    "key": "2026mimil",
+    "week": 1
+  },
+  {
+    "name": "FIM District Mt Pleasant Event",
+    "key": "2026mimtp",
+    "week": 0
+  },
+  {
+    "name": "FIM District Muskegon Event",
+    "key": "2026mimus",
+    "week": 2
+  },
+  {
+    "name": "FIM District Saline Event",
+    "key": "2026misal",
+    "week": 3
+  },
+  {
+    "name": "FIM District Troy Event",
     "key": "2026mitry",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIM District Traverse City Event",
     "key": "2026mitvc",
-    "week": 3
+    "week": 2
   },
   {
-    "name": "FIM District West Michigan Event presented by Grand Valley State University",
+    "name": "FIM District West Michigan Event",
     "key": "2026miwmi",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Blue Twilight Week Zero",
     "key": "2026mnbt",
-    "week": 0
+    "week": null
   },
   {
     "name": "Lake Superior Regional",
     "key": "2026mndu",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Northern Lights Regional",
     "key": "2026mndu2",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Minnesota 10,000 Lakes Regional",
     "key": "2026mnmi",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Minnesota Granite City Regional",
     "key": "2026mnmi2",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Minnesota North Star Regional",
     "key": "2026mnum",
-    "week": 5
+    "week": 4
   },
   {
     "name": "Minnesota Bluff Country Regional",
     "key": "2026mnwi",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Greater Kansas City Regional",
     "key": "2026mokc",
-    "week": 6
+    "week": 5
   },
   {
     "name": "City of Fountains Regional",
     "key": "2026mose",
-    "week": 5
+    "week": 4
   },
   {
     "name": "St. Louis Regional",
     "key": "2026mosl",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIRST Mid-Atlantic District Championship",
     "key": "2026mrcmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "Magnolia Regional",
     "key": "2026mslr",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Regional Monterrey presented by PrepaTec",
     "key": "2026mxmo",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Regional Laguna presented by Pe\u00f1oles",
     "key": "2026mxto",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FNC District UNC Asheville Event",
     "key": "2026ncash",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FNC District Cabarrus Event",
     "key": "2026nccab",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIRST North Carolina State Championship",
     "key": "2026nccmp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "FNC District Elon University Event",
     "key": "2026ncelo",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FNC District UNC Pembroke Event",
     "key": "2026ncpem",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FNC District Wake County Event #1",
     "key": "2026ncwak",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FNC District Wake County Event #2",
     "key": "2026ncwk2",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Great Northern Regional",
     "key": "2026ndgf",
-    "week": 2
+    "week": 1
   },
   {
     "name": "New England FIRST District Championship",
     "key": "2026necmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "New England FIRST District Championship - Burns Division",
     "key": "2026necmp1",
-    "week": 7
+    "week": 6
   },
   {
     "name": "New England FIRST District Championship - Newsom Division",
     "key": "2026necmp2",
-    "week": 7
+    "week": 6
   },
   {
     "name": "Newton Division",
@@ -667,441 +662,426 @@
   {
     "name": "NE District Granite State Event",
     "key": "2026nhbed",
-    "week": 2
+    "week": 1
   },
   {
     "name": "NE District UNH Event",
     "key": "2026nhdur",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FMA District Mount Olive Event",
     "key": "2026njfla",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FMA District Robbinsville Event",
     "key": "2026njrob",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FMA District Montgomery Event",
     "key": "2026njski",
-    "week": 6
+    "week": 5
   },
   {
     "name": "FMA District Seneca Event",
     "key": "2026njtab",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FMA District Warren Hills Event",
     "key": "2026njwas",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Las Vegas Regional",
     "key": "2026nvlv",
-    "week": 6
+    "week": 5
   },
   {
     "name": "FIRST Long Island Regional",
     "key": "2026nyli2",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Gotham Regional",
     "key": "2026nyn2",
-    "week": 6
+    "week": 5
   },
   {
     "name": "New York City Regional",
     "key": "2026nyny",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Finger Lakes Regional",
     "key": "2026nyro",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Hudson Valley Regional",
     "key": "2026nysu",
-    "week": 3
+    "week": 2
   },
   {
     "name": "New York Tech Valley Regional",
     "key": "2026nytr",
-    "week": 7
-  },
-  {
-    "name": "Regal Eagles Rampage",
-    "key": "2026nywz",
-    "week": 0
+    "week": 6
   },
   {
     "name": "Buckeye Regional",
     "key": "2026ohcl",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Miami Valley Regional",
     "key": "2026ohmv",
-    "week": 5
+    "week": 4
   },
   {
     "name": "Oklahoma Regional",
     "key": "2026okok",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Green Country Regional",
     "key": "2026oktu",
-    "week": 5
+    "week": 4
   },
   {
     "name": "ONT District Georgian College Event",
     "key": "2026onbar",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIRST Ontario Provincial Championship",
     "key": "2026oncmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST Ontario Provincial Championship - Science Division",
     "key": "2026oncmp1",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST Ontario Provincial Championship - Technology Division",
     "key": "2026oncmp2",
-    "week": 7
+    "week": 6
   },
   {
     "name": "ONT District McMaster University Event",
     "key": "2026onham",
-    "week": 3
+    "week": 2
   },
   {
     "name": "ONT District North Bay Event",
     "key": "2026onnob",
-    "week": 3
+    "week": 2
   },
   {
     "name": "ONT District Durham College Event",
     "key": "2026onosh",
-    "week": 2
+    "week": 1
   },
   {
     "name": "ONT District Humber Polytechnic Event",
     "key": "2026ontor",
-    "week": 2
+    "week": 1
   },
   {
     "name": "ONT District University of Waterloo Event",
     "key": "2026onwat",
-    "week": 4
+    "week": 3
   },
   {
     "name": "ONT District Niagara College Event",
     "key": "2026onwel",
-    "week": 6
+    "week": 5
   },
   {
     "name": "ONT District Windsor Essex Great Lake Event",
     "key": "2026onwin",
-    "week": 6
+    "week": 5
   },
   {
     "name": "PNW District Clackamas Academy Event",
     "key": "2026orore",
-    "week": 4
+    "week": 3
   },
   {
     "name": "PNW District Oregon State Fair Event",
     "key": "2026orsal",
-    "week": 1
+    "week": 0
   },
   {
     "name": "PNW District Wilsonville Event",
     "key": "2026orwil",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FMA District Bensalem Event",
     "key": "2026paben",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Greater Pittsburgh Regional",
     "key": "2026paca",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FMA District Hatboro-Horsham Event",
     "key": "2026pahat",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FMA District Philadelphia Event",
     "key": "2026paphi",
-    "week": 5
+    "week": 4
   },
   {
     "name": "FMA District Centennial Event",
     "key": "2026pawar",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Pacific Northwest FIRST District Championship",
     "key": "2026pncmp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Festival de Robotique Regional",
     "key": "2026qcmo",
-    "week": 6
+    "week": 5
   },
   {
     "name": "NE District URI Event",
     "key": "2026rikin",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FSC District North Charleston Event presented by SCDE & City of North Charleston Recreation",
     "key": "2026sccha",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIRST South Carolina State Championship presented by Magna",
     "key": "2026sccmp",
-    "week": 6
+    "week": 5
   },
   {
     "name": "FSC District Hartsville Event presented by Honda",
     "key": "2026schar",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FSC District Richland Event presented by Aflac & RCSD1",
     "key": "2026schop",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Smoky Mountains Regional",
     "key": "2026tnkn",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Ankara Regional",
     "key": "2026tuak",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Ba\u015fkent Regional",
     "key": "2026tuak2",
-    "week": 6
+    "week": 5
   },
   {
     "name": "Hali\u00e7 Regional",
     "key": "2026tuhc",
-    "week": 4
+    "week": 3
   },
   {
     "name": "\u0130stanbul Regional",
     "key": "2026tuis",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Bosphorus Regional",
     "key": "2026tuis2",
-    "week": 1
+    "week": 0
   },
   {
     "name": "Marmara Regional",
     "key": "2026tuis3",
-    "week": 4
+    "week": 3
   },
   {
     "name": "Yeditepe Regional",
     "key": "2026tuis4",
-    "week": 2
+    "week": 1
   },
   {
     "name": "Avrasya Regional",
     "key": "2026tuis5",
-    "week": 5
+    "week": 4
   },
   {
     "name": "FIT District Abilene Event",
     "key": "2026txabi",
-    "week": 6
+    "week": 5
   },
   {
     "name": "FIT District Amarillo Event",
     "key": "2026txama",
-    "week": 5
+    "week": 4
   },
   {
     "name": "FIT District Belton Event",
     "key": "2026txbel",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIT District Space City @ Friendswood Event #2",
     "key": "2026txcl2",
-    "week": 5
+    "week": 4
   },
   {
-    "name": "FIT District Space City @ League City Event #1",
+    "name": "FIT District Space City @ Friendswood Event #1",
     "key": "2026txcle",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FIRST In Texas District Championship",
     "key": "2026txcmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST In Texas District Championship - Mercury Division",
     "key": "2026txcmp1",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIRST In Texas District Championship - Apollo Division",
     "key": "2026txcmp2",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FIT District Dripping Springs Event",
     "key": "2026txdri",
-    "week": 5
+    "week": 4
   },
   {
     "name": "FIT District Farmersville Event",
     "key": "2026txfar",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIT District Fort Worth Event",
     "key": "2026txfor",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIT District Houston Event",
     "key": "2026txhou",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIT District Manor Event",
     "key": "2026txman",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FIT District McAllen Event",
     "key": "2026txmca",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FIT District San Antonio Event",
     "key": "2026txsan",
-    "week": 2
+    "week": 1
   },
   {
     "name": "FIT District Waco Event",
     "key": "2026txwac",
-    "week": 3
+    "week": 2
   },
   {
     "name": "Utah Regional",
     "key": "2026utwv",
-    "week": 7
+    "week": 6
   },
   {
     "name": "FCH District Alexandria VA Event",
     "key": "2026vaale",
-    "week": 1
+    "week": 0
   },
   {
     "name": "FCH District Blacksburg VA Event",
     "key": "2026vabla",
-    "week": 4
+    "week": 3
   },
   {
     "name": "FCH District Chesapeake VA Event",
     "key": "2026vache",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FCH District Glen Allen VA Event",
     "key": "2026vagle",
-    "week": 2
+    "week": 1
   },
   {
     "name": "NE District UVM Event",
     "key": "2026vtbur",
-    "week": 5
+    "week": 4
   },
   {
     "name": "PNW District Auburn Event",
     "key": "2026waahs",
-    "week": 4
+    "week": 3
   },
   {
     "name": "PNW District Bonney Lake Event",
     "key": "2026wabon",
-    "week": 1
+    "week": 0
   },
   {
     "name": "PNW District Sammamish Event",
     "key": "2026wasam",
-    "week": 3
+    "week": 2
   },
   {
     "name": "PNW District Glacier Peak Event",
     "key": "2026wasno",
-    "week": 2
+    "week": 1
   },
   {
     "name": "PNW District SunDome Event",
     "key": "2026wayak",
-    "week": 3
-  },
-  {
-    "name": "Week 0",
-    "key": "2026week0",
-    "week": 0
+    "week": 2
   },
   {
     "name": "WIN District Appleton Event",
     "key": "2026wiapp",
-    "week": 3
+    "week": 2
   },
   {
     "name": "FIRST Wisconsin State Championship",
     "key": "2026wicmp",
-    "week": 7
+    "week": 6
   },
   {
     "name": "WIN District Seven Rivers Event",
     "key": "2026wilax",
-    "week": 5
+    "week": 4
   },
   {
     "name": "WIN District Mukwonago Event",
     "key": "2026wimuk",
-    "week": 4
+    "week": 3
   },
   {
     "name": "WIN District Lakeland Event",
     "key": "2026wiply",
-    "week": 1
-  },
-  {
-    "name": "Sussex Scrimmage",
-    "key": "2026wiss",
     "week": 0
   }
 ]

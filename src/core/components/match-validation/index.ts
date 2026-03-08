@@ -4,7 +4,4 @@ export { MatchValidationDetail } from './MatchValidationDetail';
 export { MatchListFilters } from './MatchListFilters';
 export { ValidationSettingsSheet } from './ValidationSettingsSheet';
 export { MatchListCard } from './MatchListCard';
-export { FuelOPRCard } from './FuelOPRCard';
 export type { MatchFilters } from './MatchListFilters';
-export type { FuelOPRDisplayRow } from './FuelOPRCard';
-export type { FuelOPRDisplayMode } from './FuelOPRCard';

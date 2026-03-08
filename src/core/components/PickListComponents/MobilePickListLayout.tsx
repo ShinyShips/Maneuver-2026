@@ -28,15 +28,10 @@ interface MobilePickListLayoutProps {
     newListDescription: string;
     searchFilter: string;
     sortBy: PickListSortOption;
-    activeFilterIds: string[];
-    defenseTargetTeamFilter: string;
-    hideAllianceAssignedTeams: boolean;
     canDeleteAll?: boolean;
     onTabChange: (tab: string) => void;
     onSearchChange: (search: string) => void;
     onSortChange: (sort: PickListSortOption) => void;
-    onFilterChange: (filters: string[]) => void;
-    onDefenseTargetTeamFilterChange: (value: string) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
@@ -51,7 +46,6 @@ interface MobilePickListLayoutProps {
     onExport: () => void;
     onImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onToggleAllianceSelection: () => void;
-    onToggleHideAllianceAssignedTeams: (hide: boolean) => void;
 }
 
 export const MobilePickListLayout = ({
@@ -66,15 +60,10 @@ export const MobilePickListLayout = ({
     newListDescription,
     searchFilter,
     sortBy,
-    activeFilterIds,
-    defenseTargetTeamFilter,
-    hideAllianceAssignedTeams,
     canDeleteAll = true,
     onTabChange,
     onSearchChange,
     onSortChange,
-    onFilterChange,
-    onDefenseTargetTeamFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance,
     onUpdateAlliances,
@@ -87,8 +76,7 @@ export const MobilePickListLayout = ({
     onAssignToAlliance,
     onExport,
     onImport,
-    onToggleAllianceSelection,
-    onToggleHideAllianceAssignedTeams,
+    onToggleAllianceSelection
 }: MobilePickListLayoutProps) => {
     return (
         <div className="xl:hidden">
@@ -111,19 +99,12 @@ export const MobilePickListLayout = ({
                 <TabsContent value="teams">
                     <AvailableTeamsPanel
                         teams={filteredAndSortedTeams}
-                        totalTeams={availableTeams.length}
                         pickLists={pickLists}
                         alliances={alliances}
                         searchFilter={searchFilter}
                         sortBy={sortBy}
-                        activeFilterIds={activeFilterIds}
-                        defenseTargetTeamFilter={defenseTargetTeamFilter}
-                        hideAllianceAssignedTeams={hideAllianceAssignedTeams}
                         onSearchChange={onSearchChange}
                         onSortChange={onSortChange}
-                        onFilterChange={onFilterChange}
-                        onDefenseTargetTeamFilterChange={onDefenseTargetTeamFilterChange}
-                        onToggleHideAllianceAssignedTeams={onToggleHideAllianceAssignedTeams}
                         onAddTeamToList={onAddTeamToList}
                         onAddTeamToAlliance={onAddTeamToAlliance}
                     />

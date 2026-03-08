@@ -11,8 +11,6 @@ import {
   Trophy,
   Users,
   AlertCircle,
-  CheckCircle,
-  BarChart3,
 } from 'lucide-react';
 import { type TBADataType } from '../EventConfiguration/DataTypeSelector';
 
@@ -23,14 +21,11 @@ interface DataOperationsCardProps {
   nexusApiKey: string;
   matchDataLoading: boolean;
   matchResultsLoading: boolean;
-  validationLoading: boolean;
   eventTeamsLoading: boolean;
   pitDataLoading: boolean;
   debugNexusLoading: boolean;
   onLoadMatchData: () => void;
   onLoadMatchResults: () => void;
-  onLoadValidationData: () => void;
-  onLoadStatboticsEPA: () => void;
   onLoadEventTeams: () => void;
   onLoadPitData: () => void;
   onDebugNexus: () => void;
@@ -43,20 +38,15 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
   nexusApiKey,
   matchDataLoading,
   matchResultsLoading,
-  validationLoading,
   eventTeamsLoading,
   pitDataLoading,
   debugNexusLoading,
   onLoadMatchData,
   onLoadMatchResults,
-  onLoadValidationData,
-  onLoadStatboticsEPA,
   onLoadEventTeams,
   onLoadPitData,
   onDebugNexus,
 }) => {
-  const useServerProxy = true;
-
   const getDataTypeInfo = () => {
     switch (dataType) {
       case 'match-data':
@@ -86,15 +76,6 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
           requiresTBA: true,
           requiresNexus: false,
         };
-      case 'match-validation-data':
-        return {
-          title: 'Load Match Validation Data',
-          description: 'Download TBA match breakdowns and refresh TBA COPR + Statbotics EPA metrics for validation',
-          icon: CheckCircle,
-          requiresEvent: true,
-          requiresTBA: true,
-          requiresNexus: false,
-        };
       case 'pit-data':
         return {
           title: 'Load Pit Data',
@@ -103,15 +84,6 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
           requiresEvent: true,
           requiresTBA: false,
           requiresNexus: true,
-        };
-      case 'statbotics-epa':
-        return {
-          title: 'Load Statbotics EPA',
-          description: 'Download Statbotics team-event EPA breakdown data for all teams in this event',
-          icon: BarChart3,
-          requiresEvent: true,
-          requiresTBA: true,
-          requiresNexus: false,
         };
       case 'debug-nexus':
         return {
@@ -135,8 +107,8 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
 
     // Check requirements
     const hasEventKey = !requiresEvent || eventKey.trim();
-    const hasTBAKey = !requiresTBA || useServerProxy || apiKey.trim();
-    const hasNexusKey = !requiresNexus || useServerProxy || nexusApiKey.trim();
+    const hasTBAKey = !requiresTBA || apiKey.trim();
+    const hasNexusKey = !requiresNexus || nexusApiKey.trim();
 
     const canLoad = hasEventKey && hasTBAKey && hasNexusKey;
 
@@ -181,26 +153,6 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
             )}
           </Button>
         );
-      case 'match-validation-data':
-        return (
-          <Button
-            className="w-full h-12"
-            onClick={onLoadValidationData}
-            disabled={validationLoading || !canLoad}
-          >
-            {validationLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading Validation Data...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Load Match Validation Data
-              </>
-            )}
-          </Button>
-        );
       case 'event-teams':
         return (
           <Button
@@ -217,26 +169,6 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
               <>
                 <Download className="h-4 w-4 mr-2" />
                 Load Event Teams
-              </>
-            )}
-          </Button>
-        );
-      case 'statbotics-epa':
-        return (
-          <Button
-            className="w-full h-12"
-            onClick={onLoadStatboticsEPA}
-            disabled={validationLoading || !canLoad}
-          >
-            {validationLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading Statbotics EPA...
-              </>
-            ) : (
-              <>
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Load Statbotics EPA
               </>
             )}
           </Button>
@@ -291,10 +223,10 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
     if (dataTypeInfo.requiresEvent && !eventKey.trim()) {
       missing.push('Event Key');
     }
-    if (dataTypeInfo.requiresTBA && !useServerProxy && !apiKey.trim()) {
+    if (dataTypeInfo.requiresTBA && !apiKey.trim()) {
       missing.push('TBA API Key');
     }
-    if (dataTypeInfo.requiresNexus && !useServerProxy && !nexusApiKey.trim()) {
+    if (dataTypeInfo.requiresNexus && !nexusApiKey.trim()) {
       missing.push('Nexus API Key');
     }
     return missing;
@@ -330,10 +262,10 @@ export const DataOperationsCard: React.FC<DataOperationsCardProps> = ({
         {/* API Requirements Info */}
         <div className="text-xs text-muted-foreground space-y-1">
           {dataTypeInfo.requiresTBA && (
-            <p>{useServerProxy ? '• Uses server-side TBA API key' : '• Requires TBA API Key'}</p>
+            <p>• Requires TBA API Key</p>
           )}
           {dataTypeInfo.requiresNexus && (
-            <p>{useServerProxy ? '• Uses server-side Nexus API key' : '• Requires Nexus API Key'}</p>
+            <p>• Requires Nexus API Key</p>
           )}
           {dataTypeInfo.requiresEvent && (
             <p>• Requires Event Key</p>

@@ -58,30 +58,6 @@ export interface TeamStats {
         [key: string]: number[];  // Allow additional raw value arrays
     };
 
-    // TBA COPR metrics (optional; populated after match validation refresh)
-    coprHubAutoPoints?: number;
-    coprHubTeleopPoints?: number;
-    coprHubTotalPoints?: number;
-    coprAutoTowerPoints?: number;
-    coprEndgameTowerPoints?: number;
-    coprTotalPoints?: number;
-    coprTotalTeleopPoints?: number;
-    coprTotalAutoPoints?: number;
-    coprTotalTowerPoints?: number;
-
-    // Statbotics EPA metrics (optional; populated from team-event EPA breakdown)
-    statboticsTotalPoints?: number;
-    statboticsAutoPoints?: number;
-    statboticsTeleopPoints?: number;
-    statboticsEndgamePoints?: number;
-    statboticsTotalFuel?: number;
-    statboticsAutoFuel?: number;
-    statboticsTeleopFuel?: number;
-    statboticsEndgameFuel?: number;
-    statboticsTotalTower?: number;
-    statboticsAutoTower?: number;
-    statboticsEndgameTower?: number;
-
     // Allow additional game-specific fields
     [key: string]: any;
 }

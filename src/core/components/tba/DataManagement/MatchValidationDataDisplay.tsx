@@ -2,21 +2,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/cor
 import { Button } from "@/core/components/ui/button";
 import { Separator } from "@/core/components/ui/separator";
 import { Alert, AlertDescription } from "@/core/components/ui/alert";
-import { CheckCircle, Clock, Trash2, WifiOff, AlertTriangle, Wrench } from 'lucide-react';
+import { CheckCircle, Clock, Trash2, WifiOff, AlertTriangle } from 'lucide-react';
 import { hasScoreBreakdown, type TBAMatchData } from '@/core/lib/tbaMatchData';
 import type { TBACacheMetadata } from '@/core/lib/tbaCache';
-import type { ClimbCorrectionPreview } from '@/game-template/validationCorrections';
 
 interface MatchValidationDataDisplayProps {
   matches: TBAMatchData[];
   cacheMetadata: TBACacheMetadata | null;
   eventKey: string;
   onClearCache: () => void;
-  climbCorrectionPreview?: ClimbCorrectionPreview | null;
-  onPreviewClimbCorrections?: () => void;
-  previewingClimbCorrections?: boolean;
-  onCorrectClimbData?: () => void;
-  correctingClimbData?: boolean;
   isOnline?: boolean;
   cacheExpired?: boolean;
 }
@@ -47,11 +41,6 @@ export function MatchValidationDataDisplay({
   cacheMetadata,
   eventKey,
   onClearCache,
-  climbCorrectionPreview,
-  onPreviewClimbCorrections,
-  previewingClimbCorrections = false,
-  onCorrectClimbData,
-  correctingClimbData = false,
   isOnline = true,
   cacheExpired = false,
 }: MatchValidationDataDisplayProps) {
@@ -219,76 +208,6 @@ export function MatchValidationDataDisplay({
                   : "This cached data is available offline for validation. Reconnect to refresh."
                 }
               </p>
-              {onPreviewClimbCorrections && (
-                <Button
-                  variant="outline"
-                  onClick={onPreviewClimbCorrections}
-                  className="w-full"
-                  size="sm"
-                  disabled={!isOnline || matches.length === 0 || previewingClimbCorrections}
-                >
-                  {previewingClimbCorrections ? (
-                    <>
-                      <Clock className="mr-2 h-4 w-4 animate-spin" />
-                      Scanning Climb Corrections...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Preview Climb Corrections
-                    </>
-                  )}
-                </Button>
-              )}
-              {onCorrectClimbData && (
-                <Button
-                  variant="secondary"
-                  onClick={onCorrectClimbData}
-                  className="w-full"
-                  size="sm"
-                  disabled={!isOnline || matches.length === 0 || correctingClimbData}
-                >
-                  {correctingClimbData ? (
-                    <>
-                      <Clock className="mr-2 h-4 w-4 animate-spin" />
-                      Correcting Climb Data...
-                    </>
-                  ) : (
-                    <>
-                      <Wrench className="mr-2 h-4 w-4" />
-                      Correct Climb Data from Validation
-                    </>
-                  )}
-                </Button>
-              )}
-              {climbCorrectionPreview && (
-                <div className="rounded-md border p-3 space-y-2">
-                  <div className="text-sm font-medium">Climb Correction Preview</div>
-                  <div className="text-xs text-muted-foreground">
-                    {climbCorrectionPreview.candidates.length} fixable entries • {climbCorrectionPreview.summary.skippedMissingEntries} missing entries • {climbCorrectionPreview.summary.skippedNoTBAClimbData} no TBA climb data
-                  </div>
-                  {climbCorrectionPreview.candidates.length > 0 ? (
-                    <div className="max-h-56 overflow-y-auto space-y-1">
-                      {climbCorrectionPreview.candidates.map((candidate) => {
-                        const currentLabel = candidate.currentFailed
-                          ? 'Failed'
-                          : candidate.currentLevel ? `Level ${candidate.currentLevel}` : 'No climb';
-                        const tbaLabel = candidate.tbaFailed
-                          ? 'Failed'
-                          : candidate.tbaLevel ? `Level ${candidate.tbaLevel}` : 'No climb';
-
-                        return (
-                          <div key={`${candidate.matchKey}-${candidate.teamNumber}-${candidate.alliance}`} className="text-xs rounded border px-2 py-1">
-                            {candidate.phase.toUpperCase()} • Match {candidate.matchNumber} • {candidate.alliance.toUpperCase()} • Team {candidate.teamNumber}: {currentLabel} → {tbaLabel}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground">No climb mismatches found.</div>
-                  )}
-                </div>
-              )}
               <Button 
                 variant="outline" 
                 onClick={onClearCache}

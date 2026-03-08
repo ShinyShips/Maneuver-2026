@@ -3,7 +3,7 @@
  * UI components for filtering large scouting datasets before transfer
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Button } from "@/core/components/ui/button";
 import { Badge } from "@/core/components/ui/badge";
@@ -31,7 +31,6 @@ import {
     type ScoutingDataCollection,
     extractTeamNumbers,
     extractMatchRange,
-    applyFilters,
     calculateFilterStats,
     validateFilters,
     getLastExportedMatch
@@ -60,17 +59,9 @@ export const DataFilteringControls: React.FC<DataFilteringControlsProps> = ({
 }) => {
     const teams = data ? extractTeamNumbers(data) : [];
     const matchRange = data ? extractMatchRange(data) : { min: 1, max: 1 };
-    const previewFilteredData = useMemo(() => {
-        if (!data) return null;
-        return applyFilters(data, filters);
-    }, [data, filters]);
-
-    const currentData = filteredData || previewFilteredData || data;
+    const currentData = filteredData || data;
     const currentMatchRange = currentData ? extractMatchRange(currentData) : { min: 1, max: 1 };
-    const stats = useMemo(
-        () => (data && currentData ? calculateFilterStats(data, currentData, useCompression) : null),
-        [data, currentData, useCompression]
-    );
+    const stats = data && currentData ? calculateFilterStats(data, currentData, useCompression) : null;
     const filterValidation = validateFilters(filters);
 
     const handleMatchRangeChange = (type: 'preset' | 'custom', value?: string) => {
@@ -134,8 +125,7 @@ export const DataFilteringControls: React.FC<DataFilteringControlsProps> = ({
             <div className="space-y-2">
                 {!hideQRStats && stats && currentData && (
                     <Label className="flex flex-col text-green-400 text-sm items-start gap-0">
-                        Current dataset: ~{stats.estimatedFountainPacketsFast} packets (Fast) / ~{stats.estimatedFountainPacketsReliable} packets (Reliable)
-                        <span className="text-muted-foreground">{stats.actualCompressedBytes.toLocaleString()} bytes payload</span>
+                        Current dataset: ~{stats.estimatedQRCodes} QR codes from {currentData.entries.length} entries
                         {filteredData && data && (
                             <span className="text-muted-foreground"> Original: {data.entries.length} entries</span>
                         )}
@@ -335,30 +325,12 @@ export const FilteredDataStatsDisplay: React.FC<FilteredDataStatsProps> = ({
                         </div>
                     </div>
                     <div className="text-center">
-                        <div className="text-2xl font-bold">{stats.estimatedFountainPacketsFast}</div>
+                        <div className="text-2xl font-bold">{stats.estimatedQRCodes}</div>
                         <div className="text-sm text-muted-foreground">
-                            Packets (Fast)
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                            Reliable: ~{stats.estimatedFountainPacketsReliable}
+                            QR Codes
                         </div>
                     </div>
                 </div>
-
-                <div className="text-center text-sm text-muted-foreground">
-                    Payload: {stats.actualCompressedBytes.toLocaleString()} bytes
-                    ({stats.actualJsonBytes.toLocaleString()} bytes raw JSON, ~{stats.avgBytesPerEntry.toLocaleString()} bytes/entry)
-                </div>
-
-                {stats.benchmarkBestBytes !== undefined && stats.benchmarkBestPackets !== undefined && stats.benchmarkBestMethod && (
-                    <div className="text-center">
-                        <Badge variant="secondary" className="text-xs">
-                            🧪 Aggressive benchmark: {stats.benchmarkBestBytes.toLocaleString()} bytes, ~{stats.benchmarkBestPackets} packets
-                            {stats.benchmarkReductionPct !== undefined ? ` (${stats.benchmarkReductionPct}% smaller)` : ''}
-                            {` via ${stats.benchmarkBestMethod}`}
-                        </Badge>
-                    </div>
-                )}
 
                 <div className="flex items-center justify-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />

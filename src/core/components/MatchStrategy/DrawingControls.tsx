@@ -218,7 +218,7 @@ export const DrawingControls = ({
                         value={brushSize.toString()}
                         onValueChange={(value) => onBrushSizeChange(Number(value))}
                     >
-                        <SelectTrigger className="w-25" size="sm">
+                        <SelectTrigger className="w-[100px]" size="sm">
                             <SelectValue>{getSizeLabel(brushSize)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>

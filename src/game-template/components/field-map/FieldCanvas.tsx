@@ -48,7 +48,6 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
         isSelectingCollect = false,
         drawConnectedPaths = true,
         drawingZoneBounds,
-        replayDrawProgress,
         onPointerDown,
         onPointerMove,
         onPointerUp,
@@ -78,64 +77,6 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
         }
     };
 
-    const getPolylineLength = (points: { x: number; y: number }[]): number => {
-        if (points.length < 2) return 0;
-
-        let length = 0;
-        for (let index = 1; index < points.length; index += 1) {
-            const previous = points[index - 1]!;
-            const current = points[index]!;
-            length += Math.hypot(current.x - previous.x, current.y - previous.y);
-        }
-
-        return length;
-    };
-
-    const drawPolyline = (
-        ctx: CanvasRenderingContext2D,
-        points: { x: number; y: number }[],
-        maxLength?: number
-    ) => {
-        if (points.length < 2) return;
-
-        const totalLength = getPolylineLength(points);
-        if (totalLength <= 0) return;
-
-        const drawLength = typeof maxLength === 'number'
-            ? Math.max(0, Math.min(maxLength, totalLength))
-            : totalLength;
-
-        if (drawLength <= 0) return;
-
-        const start = points[0]!;
-        ctx.beginPath();
-        ctx.moveTo(getVisualX(start.x) * ctx.canvas.width, getVisualY(start.y) * ctx.canvas.height);
-
-        let remaining = drawLength;
-        for (let index = 1; index < points.length; index += 1) {
-            const previous = points[index - 1]!;
-            const current = points[index]!;
-            const segmentLength = Math.hypot(current.x - previous.x, current.y - previous.y);
-
-            if (segmentLength <= 0) continue;
-
-            if (remaining >= segmentLength) {
-                ctx.lineTo(getVisualX(current.x) * ctx.canvas.width, getVisualY(current.y) * ctx.canvas.height);
-                remaining -= segmentLength;
-                continue;
-            }
-
-            const t = remaining / segmentLength;
-            const partialX = previous.x + (current.x - previous.x) * t;
-            const partialY = previous.y + (current.y - previous.y) * t;
-            ctx.lineTo(getVisualX(partialX) * ctx.canvas.width, getVisualY(partialY) * ctx.canvas.height);
-            remaining = 0;
-            break;
-        }
-
-        ctx.stroke();
-    };
-
     // Main drawing effect
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -159,9 +100,59 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
         const scaleFactor = canvas.width / 1000;
         const allianceColor = alliance === 'red' ? COLORS.red : COLORS.blue;
 
-        const replayProgress = typeof replayDrawProgress === 'number'
-            ? Math.max(0, Math.min(1, replayDrawProgress))
-            : null;
+        // Helper to draw segment between two points
+        const drawSegment = (p1: { x: number; y: number }, p2: PathWaypoint) => {
+            const actionColor = getWaypointColor(p2.type);
+
+            if (p2.pathPoints && p2.pathPoints.length > 0) {
+                // 1. Draw connecting line from prev to start of path (Alliance Color)
+                ctx.beginPath();
+                ctx.strokeStyle = allianceColor;
+                ctx.lineWidth = Math.max(2, 4 * scaleFactor);
+                ctx.moveTo(getVisualX(p1.x) * canvas.width, getVisualY(p1.y) * canvas.height);
+                const pathStart = p2.pathPoints[0];
+                if (pathStart) {
+                    ctx.lineTo(getVisualX(pathStart.x) * canvas.width, getVisualY(pathStart.y) * canvas.height);
+                }
+                ctx.stroke();
+
+                // 2. Draw free-form path (Action Color)
+                ctx.beginPath();
+                ctx.strokeStyle = actionColor;
+                ctx.lineWidth = Math.max(2, 4 * scaleFactor);
+                p2.pathPoints.forEach((pt, idx) => {
+                    if (idx === 0) ctx.moveTo(getVisualX(pt.x) * canvas.width, getVisualY(pt.y) * canvas.height);
+                    else ctx.lineTo(getVisualX(pt.x) * canvas.width, getVisualY(pt.y) * canvas.height);
+                });
+                ctx.stroke();
+            } else {
+                // Draw straight line (Alliance Color)
+                ctx.beginPath();
+                ctx.strokeStyle = allianceColor;
+                ctx.lineWidth = Math.max(2, 4 * scaleFactor);
+                ctx.moveTo(getVisualX(p1.x) * canvas.width, getVisualY(p1.y) * canvas.height);
+                ctx.lineTo(getVisualX(p2.position.x) * canvas.width, getVisualY(p2.position.y) * canvas.height);
+                ctx.stroke();
+            }
+        };
+
+        // Helper to draw standalone path (for Teleop - paths without connection to previous)
+        const drawStandalonePath = (waypoint: PathWaypoint) => {
+            if (!waypoint.pathPoints || waypoint.pathPoints.length === 0) return;
+
+            const actionColor = getWaypointColor(waypoint.type);
+            ctx.beginPath();
+            ctx.strokeStyle = actionColor;
+            ctx.lineWidth = Math.max(2, 4 * scaleFactor);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            waypoint.pathPoints.forEach((pt, idx) => {
+                if (idx === 0) ctx.moveTo(getVisualX(pt.x) * canvas.width, getVisualY(pt.y) * canvas.height);
+                else ctx.lineTo(getVisualX(pt.x) * canvas.width, getVisualY(pt.y) * canvas.height);
+            });
+            ctx.stroke();
+        };
 
         // Draw path lines
         if (actions.length > 0) {
@@ -169,71 +160,26 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             ctx.lineJoin = 'round';
             ctx.setLineDash([]);
 
-            const replaySegments: Array<{ points: { x: number; y: number }[]; color: string; length: number }> = [];
-
+            // Draw segments between waypoints (for connected paths like Auto)
+            // Skip this for Teleop to avoid cluttered connecting lines
             if (drawConnectedPaths) {
                 for (let i = 1; i < actions.length; i++) {
                     const prev = actions[i - 1];
                     const curr = actions[i];
-                    if (!prev || !curr) continue;
-
-                    const startPoint = (prev.pathPoints && prev.pathPoints.length > 0)
-                        ? prev.pathPoints[prev.pathPoints.length - 1]!
-                        : prev.position;
-
-                    if (curr.pathPoints && curr.pathPoints.length > 0) {
-                        const pathStart = curr.pathPoints[0]!;
-                        replaySegments.push({
-                            points: [startPoint, pathStart],
-                            color: allianceColor,
-                            length: getPolylineLength([startPoint, pathStart]),
-                        });
-
-                        replaySegments.push({
-                            points: curr.pathPoints,
-                            color: getWaypointColor(curr.type),
-                            length: getPolylineLength(curr.pathPoints),
-                        });
-                    } else {
-                        const straight = [startPoint, curr.position];
-                        replaySegments.push({
-                            points: straight,
-                            color: allianceColor,
-                            length: getPolylineLength(straight),
-                        });
+                    if (prev && curr) {
+                        // Start point is either the end of the previous path or the previous position
+                        const startPoint = (prev.pathPoints && prev.pathPoints.length > 0)
+                            ? prev.pathPoints[prev.pathPoints.length - 1]!
+                            : prev.position;
+                        drawSegment(startPoint, curr);
                     }
                 }
-            } else {
-                actions.forEach((action) => {
-                    if (!action.pathPoints || action.pathPoints.length === 0) return;
-                    replaySegments.push({
-                        points: action.pathPoints,
-                        color: getWaypointColor(action.type),
-                        length: getPolylineLength(action.pathPoints),
-                    });
-                });
             }
 
-            const totalReplayLength = replaySegments.reduce((sum, segment) => sum + segment.length, 0);
-            let remainingLength = replayProgress === null
-                ? Number.POSITIVE_INFINITY
-                : totalReplayLength * replayProgress;
-
-            replaySegments.forEach((segment) => {
-                if (segment.length <= 0) return;
-                if (remainingLength <= 0) return;
-
-                ctx.strokeStyle = segment.color;
-                ctx.lineWidth = Math.max(2, 4 * scaleFactor);
-
-                const maxLengthForSegment = replayProgress === null
-                    ? undefined
-                    : Math.min(segment.length, remainingLength);
-
-                drawPolyline(ctx, segment.points, maxLengthForSegment);
-
-                if (replayProgress !== null) {
-                    remainingLength -= segment.length;
+            // Draw standalone paths for each action (always - for all paths)
+            actions.forEach((action) => {
+                if (action.pathPoints && action.pathPoints.length > 0) {
+                    drawStandalonePath(action);
                 }
             });
         }
@@ -423,7 +369,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             ctx.restore();
         }
 
-    }, [actions, width, height, alliance, drawingPoints, pendingWaypoint, isFieldRotated, isSelectingScore, isSelectingPass, isSelectingCollect, drawConnectedPaths, drawingZoneBounds, replayDrawProgress]);
+    }, [actions, width, height, alliance, drawingPoints, pendingWaypoint, isFieldRotated, isSelectingScore, isSelectingPass, isSelectingCollect, drawConnectedPaths, drawingZoneBounds]);
 
     return (
         <canvas

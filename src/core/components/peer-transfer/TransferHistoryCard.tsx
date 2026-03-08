@@ -120,9 +120,6 @@ export function TransferHistoryCard({
                             } else if (transferDataType === 'pit-scouting') {
                                 const entryCount = dataObj.entries?.length || 0;
                                 displayText = `${entryCount} pit entries`;
-                            } else if (transferDataType === 'pit-assignments') {
-                                const assignmentCount = (dataObj as { assignments?: unknown[] }).assignments?.length || 0;
-                                displayText = `${assignmentCount} pit assignments`;
                             } else if (transferDataType === 'combined') {
                                 const entryCount = dataObj.entries?.length || 0;
                                 const scoutProfiles = (dataObj as { scoutProfiles?: { scouts?: unknown[]; predictions?: unknown[] } }).scoutProfiles;

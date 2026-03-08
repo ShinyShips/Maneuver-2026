@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import type { TransferDataType } from '@/core/contexts/WebRTCContext';
-import { buildPitAssignmentsTransferPayload } from '@/core/lib/pitAssignmentTransfer';
 import { toast } from 'sonner';
 
 const DEBUG = import.meta.env.DEV;
@@ -36,18 +35,6 @@ export function usePeerTransferPush({ addToReceivedData, pushDataToAll }: UsePee
                     version: '3.0-maneuver-core',
                     exportedAt: Date.now()
                 };
-            }
-            case 'pit-assignments': {
-                const eventKey = localStorage.getItem('eventKey') || localStorage.getItem('eventName') || '';
-                const sourceScoutName = localStorage.getItem('currentScout') || 'Lead Scout';
-
-                if (!eventKey) {
-                    throw new Error('No active event found for pit assignment transfer');
-                }
-
-                const payload = buildPitAssignmentsTransferPayload(eventKey, sourceScoutName);
-                debugLog('Loaded pit assignments data:', payload.assignments.length, 'assignments');
-                return payload;
             }
             case 'match': {
                 const matchDataStr = localStorage.getItem('matchData');

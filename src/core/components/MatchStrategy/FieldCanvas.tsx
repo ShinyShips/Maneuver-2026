@@ -16,92 +16,23 @@ import { useFullscreen } from "@/core/hooks/useFullscreen";
 import { useIsMobile } from "@/core/hooks/use-mobile";
 import { useCanvasDrawing } from "@/core/hooks/useCanvasDrawing";
 import { useCanvasSetup } from "@/core/hooks/useCanvasSetup";
-import { drawSelectedAutoRoutines, drawTeamNumbersAndSpots, getAutoRoutineSlotAtPoint } from "@/core/lib/canvasUtils";
 import { FieldCanvasHeader } from "./FieldCanvasHeader";
 import { MobileStageControls } from "./MobileStageControls";
 import { DrawingControls } from "./DrawingControls";
 import { FloatingControls } from "./FloatingControls";
-import { Button } from "@/core/components/ui/button";
-import { Play, Pause, RotateCcw } from "lucide-react";
-import type { StrategyAutoRoutine, StrategyStageId, TeamStageSpots } from "@/core/hooks/useMatchStrategy";
-
-interface TeamSlotSpotVisibility {
-    showShooting: boolean;
-    showPassing: boolean;
-}
 
 interface FieldCanvasProps {
     fieldImagePath: string;
     stageId?: string;
     onStageChange?: (newStageId: string) => void;
     selectedTeams?: (number | null)[];
-    teamSlotSpotVisibility?: TeamSlotSpotVisibility[];
-    getTeamSpots?: (teamNumber: number | null, stageId: StrategyStageId) => TeamStageSpots;
-    selectedAutoRoutinesBySlot?: (StrategyAutoRoutine | null)[];
 }
-
-const MIN_REPLAY_DURATION_MS = 6000;
-const MAX_REPLAY_DURATION_MS = 20000;
-const MIN_LENGTH_FOR_SCALING = 0.15;
-const MAX_LENGTH_FOR_SCALING = 2.2;
-
-const getWaypointPathLength = (routine: StrategyAutoRoutine): number => {
-    if (!Array.isArray(routine.actions) || routine.actions.length < 2) return 0;
-
-    let totalLength = 0;
-    let previousPoint: { x: number; y: number } | null = null;
-
-    routine.actions.forEach((action) => {
-        const currentPoint = action.position;
-        const pathPoints = Array.isArray(action.pathPoints) && action.pathPoints.length >= 2
-            ? action.pathPoints
-            : null;
-
-        if (pathPoints) {
-            if (previousPoint) {
-                const start = pathPoints[0]!;
-                totalLength += Math.hypot(start.x - previousPoint.x, start.y - previousPoint.y);
-            }
-
-            for (let index = 1; index < pathPoints.length; index += 1) {
-                const previous = pathPoints[index - 1]!;
-                const current = pathPoints[index]!;
-                totalLength += Math.hypot(current.x - previous.x, current.y - previous.y);
-            }
-
-            previousPoint = pathPoints[pathPoints.length - 1] ?? currentPoint;
-            return;
-        }
-
-        if (previousPoint) {
-            totalLength += Math.hypot(currentPoint.x - previousPoint.x, currentPoint.y - previousPoint.y);
-        }
-
-        previousPoint = currentPoint;
-    });
-
-    return totalLength;
-};
-
-const getScaledReplayDurationMs = (pathLength: number): number => {
-    if (pathLength <= MIN_LENGTH_FOR_SCALING) return MIN_REPLAY_DURATION_MS;
-
-    const ratio = Math.min(
-        1,
-        (pathLength - MIN_LENGTH_FOR_SCALING) / (MAX_LENGTH_FOR_SCALING - MIN_LENGTH_FOR_SCALING)
-    );
-
-    return Math.round(MIN_REPLAY_DURATION_MS + ratio * (MAX_REPLAY_DURATION_MS - MIN_REPLAY_DURATION_MS));
-};
 
 const FieldCanvas = ({
     fieldImagePath,
     stageId = "default",
     onStageChange,
-    selectedTeams = [],
-    teamSlotSpotVisibility = [],
-    getTeamSpots,
-    selectedAutoRoutinesBySlot = [],
+    selectedTeams = []
 }: FieldCanvasProps) => {
     // Canvas refs for the 3-layer architecture
     const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -117,10 +48,6 @@ const FieldCanvas = ({
     const { isFullscreen, setIsFullscreen } = useFullscreen();
     const [currentStageId, setCurrentStageId] = useState(stageId);
     const [hideControls, setHideControls] = useState(false);
-    const [isolatedAutoSlot, setIsolatedAutoSlot] = useState<number | null>(null);
-    const [isAutoReplayPlaying, setIsAutoReplayPlaying] = useState(false);
-    const [autoReplayElapsedMs, setAutoReplayElapsedMs] = useState(0);
-    const [autoReplaySpeed, setAutoReplaySpeed] = useState<0.5 | 1 | 2>(1);
     const isMobile = useIsMobile();
 
     // Canvas dimensions (shared across all layers) - starts at 0 until image loads
@@ -136,80 +63,12 @@ const FieldCanvas = ({
     const currentStageIndex = Math.max(0, stages.findIndex(stage => stage.id === currentStageId));
     const currentStage = stages[currentStageIndex] || stages[0];
 
-    const visibleAutoRoutines = useMemo(() => {
-        if (currentStageId !== 'autonomous') return [];
-
-        return selectedAutoRoutinesBySlot
-            .map((routine, slotIndex) => ({ routine, slotIndex, team: selectedTeams[slotIndex] }))
-            .filter(({ routine, team, slotIndex }) => {
-                if (!routine || !team) return false;
-                if (routine.teamNumber !== team) return false;
-                if (isolatedAutoSlot !== null && isolatedAutoSlot !== slotIndex) return false;
-                return Array.isArray(routine.actions) && routine.actions.length > 1;
-            })
-            .map(({ routine }) => routine!);
-    }, [currentStageId, selectedAutoRoutinesBySlot, selectedTeams, isolatedAutoSlot]);
-
-    const replayPathLength = useMemo(() => {
-        if (visibleAutoRoutines.length === 0) return 0;
-        return Math.max(...visibleAutoRoutines.map((routine) => getWaypointPathLength(routine)));
-    }, [visibleAutoRoutines]);
-
-    const replayDurationMs = useMemo(() => getScaledReplayDurationMs(replayPathLength), [replayPathLength]);
-    const isAutoReplayInProgress = isAutoReplayPlaying || autoReplayElapsedMs > 0;
-    const autoReplayProgress = currentStageId === 'autonomous' && visibleAutoRoutines.length > 0
-        ? (isAutoReplayInProgress ? Math.min(1, autoReplayElapsedMs / replayDurationMs) : undefined)
-        : undefined;
-
     // Update internal stage when prop changes
     useEffect(() => {
         if (!isFullscreen) {
             setCurrentStageId(stageId);
         }
     }, [stageId, isFullscreen]);
-
-    useEffect(() => {
-        if (currentStageId !== 'autonomous') {
-            setIsolatedAutoSlot(null);
-        }
-    }, [currentStageId]);
-
-    useEffect(() => {
-        if (currentStageId !== 'autonomous') {
-            setIsAutoReplayPlaying(false);
-            setAutoReplayElapsedMs(0);
-        }
-    }, [currentStageId]);
-
-    useEffect(() => {
-        if (isolatedAutoSlot === null) return;
-        const teamNumber = selectedTeams[isolatedAutoSlot];
-        const routine = selectedAutoRoutinesBySlot[isolatedAutoSlot];
-        if (!teamNumber || !routine) {
-            setIsolatedAutoSlot(null);
-        }
-    }, [isolatedAutoSlot, selectedTeams, selectedAutoRoutinesBySlot]);
-
-    useEffect(() => {
-        setIsAutoReplayPlaying(false);
-        setAutoReplayElapsedMs(0);
-    }, [isolatedAutoSlot, selectedAutoRoutinesBySlot, selectedTeams]);
-
-    useEffect(() => {
-        if (!isAutoReplayPlaying || visibleAutoRoutines.length === 0 || currentStageId !== 'autonomous') return;
-
-        const interval = window.setInterval(() => {
-            setAutoReplayElapsedMs((previous) => Math.min(previous + 16 * autoReplaySpeed, replayDurationMs));
-        }, 16);
-
-        return () => window.clearInterval(interval);
-    }, [isAutoReplayPlaying, visibleAutoRoutines.length, currentStageId, autoReplaySpeed, replayDurationMs]);
-
-    useEffect(() => {
-        if (isAutoReplayPlaying && autoReplayElapsedMs >= replayDurationMs) {
-            setIsAutoReplayPlaying(false);
-        }
-    }, [isAutoReplayPlaying, autoReplayElapsedMs, replayDurationMs]);
 
     // Reset canvas dimensions when transitioning between fullscreen modes
     // This prevents overflow when exiting fullscreen before setupCanvas recalculates
@@ -219,18 +78,9 @@ const FieldCanvas = ({
 
     // Canvas ready state for undo history
     const [canvasReady, setCanvasReady] = useState(false);
-    const [isStageCanvasReady, setIsStageCanvasReady] = useState(false);
-    const readyStageIdRef = useRef<string | null>(null);
     const handleCanvasReady = useCallback(() => {
         setCanvasReady(true);
-        readyStageIdRef.current = currentStageId;
-        setIsStageCanvasReady(true);
-    }, [currentStageId]);
-
-    useEffect(() => {
-        readyStageIdRef.current = null;
-        setIsStageCanvasReady(false);
-    }, [currentStageId, isFullscreen]);
+    }, []);
 
     // Canvas setup hook (now handles background + overlay layers)
     const { clearCanvas } = useCanvasSetup({
@@ -245,58 +95,16 @@ const FieldCanvas = ({
         containerRef,
         fullscreenRef,
         selectedTeams,
-        teamSlotSpotVisibility,
-        getTeamSpots,
-        selectedAutoRoutinesBySlot,
-        isolatedAutoSlot,
-        autoReplayProgress,
         onCanvasReady: handleCanvasReady,
         onDimensionsChange: setCanvasDimensions
     });
 
-    const handleCanvasTap = useCallback((point: { x: number; y: number }) => {
-        if (currentStageId !== 'autonomous') return;
-
-        const hitSlot = getAutoRoutineSlotAtPoint(
-            point.x,
-            point.y,
-            canvasDimensions.width,
-            canvasDimensions.height,
-            selectedTeams,
-            currentStageId as StrategyStageId,
-            selectedAutoRoutinesBySlot,
-        );
-
-        if (hitSlot === null) {
-            setIsolatedAutoSlot(null);
-            return;
-        }
-
-        setIsolatedAutoSlot((prev) => (prev === hitSlot ? null : hitSlot));
-    }, [currentStageId, canvasDimensions.width, canvasDimensions.height, selectedTeams, selectedAutoRoutinesBySlot]);
-
-    const handleReplayPlayPause = useCallback(() => {
-        if (currentStageId !== 'autonomous' || visibleAutoRoutines.length === 0) return;
-
-        if (autoReplayElapsedMs >= replayDurationMs) {
-            setAutoReplayElapsedMs(0);
-            setIsAutoReplayPlaying(true);
-            return;
-        }
-
-        setIsAutoReplayPlaying((previous) => !previous);
-    }, [currentStageId, visibleAutoRoutines.length, autoReplayElapsedMs, replayDurationMs]);
-
-    const handleReplayRestart = useCallback(() => {
-        setAutoReplayElapsedMs(0);
-        setIsAutoReplayPlaying(currentStageId === 'autonomous' && visibleAutoRoutines.length > 0);
-    }, [currentStageId, visibleAutoRoutines.length]);
-
     // Save canvas function - composites all layers
     const saveCanvas = useCallback((showAlert = true) => {
         const bgCanvas = backgroundCanvasRef.current;
+        const overlayCanvas = overlayCanvasRef.current;
         const drawingCanvas = drawingCanvasRef.current;
-        if (!bgCanvas || !drawingCanvas) return;
+        if (!bgCanvas || !overlayCanvas || !drawingCanvas) return;
 
         // Create composite canvas
         const compositeCanvas = document.createElement('canvas');
@@ -307,25 +115,7 @@ const FieldCanvas = ({
 
         // Draw all layers in order
         ctx.drawImage(bgCanvas, 0, 0);
-        drawTeamNumbersAndSpots(
-            ctx,
-            canvasDimensions.width,
-            canvasDimensions.height,
-            selectedTeams,
-            currentStageId as StrategyStageId,
-            teamSlotSpotVisibility,
-            getTeamSpots,
-        );
-        drawSelectedAutoRoutines(
-            ctx,
-            canvasDimensions.width,
-            canvasDimensions.height,
-            selectedTeams,
-            currentStageId as StrategyStageId,
-            selectedAutoRoutinesBySlot,
-            isolatedAutoSlot,
-            undefined,
-        );
+        ctx.drawImage(overlayCanvas, 0, 0);
         ctx.drawImage(drawingCanvas, 0, 0);
 
         const dataURL = compositeCanvas.toDataURL('image/png');
@@ -337,78 +127,9 @@ const FieldCanvas = ({
             link.click();
         }
 
-        // Auto-save drawing layer to localStorage, but never overwrite an existing
-        // non-empty stage drawing with an empty canvas during stage transition races.
-        const drawingCtx = drawingCanvas.getContext('2d', { willReadFrequently: true });
-        const drawingKey = `fieldStrategy_${currentStageId}`;
-        const existingDrawing = localStorage.getItem(drawingKey);
-        let hasVisibleDrawing = false;
-
-        if (drawingCtx && drawingCanvas.width > 0 && drawingCanvas.height > 0) {
-            const imageData = drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height);
-            const data = imageData.data;
-            for (let index = 3; index < data.length; index += 4) {
-                if ((data[index] ?? 0) > 0) {
-                    hasVisibleDrawing = true;
-                    break;
-                }
-            }
-        }
-
-        if (hasVisibleDrawing || !existingDrawing) {
-            localStorage.setItem(drawingKey, drawingCanvas.toDataURL('image/png'));
-        }
-    }, [
-        currentStageId,
-        canvasDimensions,
-        selectedTeams,
-        teamSlotSpotVisibility,
-        getTeamSpots,
-        selectedAutoRoutinesBySlot,
-        isolatedAutoSlot,
-    ]);
-
-    const replayStatusText = visibleAutoRoutines.length > 0
-        ? `${Math.round((replayDurationMs / 1000) * 10) / 10}s replay`
-        : 'No auto path selected';
-
-    const replayControls = currentStageId === 'autonomous' ? (
-        <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground">{replayStatusText}</span>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReplayPlayPause}
-                disabled={visibleAutoRoutines.length === 0}
-                className="h-8 gap-1"
-            >
-                {isAutoReplayPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {isAutoReplayPlaying ? 'Pause' : 'Play'}
-            </Button>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReplayRestart}
-                disabled={visibleAutoRoutines.length === 0}
-                className="h-8 gap-1"
-            >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Restart
-            </Button>
-            {[0.5, 1, 2].map((speed) => (
-                <Button
-                    key={speed}
-                    variant={autoReplaySpeed === speed ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8"
-                    disabled={visibleAutoRoutines.length === 0}
-                    onClick={() => setAutoReplaySpeed(speed as 0.5 | 1 | 2)}
-                >
-                    {speed}x
-                </Button>
-            ))}
-        </div>
-    ) : null;
+        // Auto-save drawing layer only to localStorage
+        localStorage.setItem(`fieldStrategy_${currentStageId}`, drawingCanvas.toDataURL('image/png'));
+    }, [currentStageId, canvasDimensions]);
 
     // Canvas drawing hook - only operates on drawing layer
     const { canvasStyle, canvasEventHandlers, undo, canUndo, initializeHistory, saveToHistory } = useCanvasDrawing({
@@ -417,27 +138,8 @@ const FieldCanvas = ({
         brushColor,
         isErasing,
         onSave: () => saveCanvas(false),
-        onTap: handleCanvasTap,
         selectedTeams
     });
-
-    // Persist strategy state when overlay content changes (auto routines, teams, spot toggles)
-    // so an auto-only canvas is treated as saved even without freehand drawing.
-    useEffect(() => {
-        if (!isStageCanvasReady) return;
-        if (readyStageIdRef.current !== currentStageId) return;
-        if (canvasDimensions.width <= 0 || canvasDimensions.height <= 0) return;
-        saveCanvas(false);
-    }, [
-        isStageCanvasReady,
-        canvasDimensions.width,
-        canvasDimensions.height,
-        currentStageId,
-        saveCanvas,
-        selectedTeams,
-        teamSlotSpotVisibility,
-        selectedAutoRoutinesBySlot,
-    ]);
 
     // Initialize undo history once when component mounts
     const historyInitializedRef = useRef(false);
@@ -490,8 +192,6 @@ const FieldCanvas = ({
         if (!newStage) return;
         const newStageId = newStage.id;
 
-        readyStageIdRef.current = null;
-        setIsStageCanvasReady(false);
         saveCanvas(false);
         setCurrentStageId(newStageId);
 
@@ -617,12 +317,6 @@ const FieldCanvas = ({
                     />
                 )}
 
-                {replayControls && (
-                    <div className="px-3 pb-2">
-                        {replayControls}
-                    </div>
-                )}
-
                 <div
                     className="flex-1 flex items-center justify-center p-2 md:p-4 bg-green-50 dark:bg-green-950/20 overflow-hidden relative"
                     style={{ touchAction: 'none' }}
@@ -646,6 +340,20 @@ const FieldCanvas = ({
                     </div>
                 </div>
 
+                <div className="shrink-0 p-2 md:p-4 border-t bg-background text-center text-xs md:text-sm text-muted-foreground">
+                    <div className="flex flex-wrap justify-center gap-4">
+                        {!isMobile && (
+                            <>
+                                <span>Press ESC to exit fullscreen</span>
+                                <span>Use ← → arrows to switch stages</span>
+                                <span>Ctrl+Z to undo</span>
+                            </>
+                        )}
+                        {isMobile && (
+                            <span>Tap Exit Fullscreen to return • Use Previous/Next to switch stages</span>
+                        )}
+                    </div>
+                </div>
             </div>
         );
     }
@@ -674,12 +382,6 @@ const FieldCanvas = ({
                 onToggleHideControls={() => setHideControls(!hideControls)}
             />
 
-            {replayControls && (
-                <div className="mt-2 px-2 py-2 border rounded-md bg-background/60">
-                    {replayControls}
-                </div>
-            )}
-
             <div
                 ref={containerRef}
                 className="flex-1 flex items-center justify-center border rounded-lg bg-green-50 dark:bg-green-950/20 min-h-0 p-4"
@@ -692,17 +394,6 @@ const FieldCanvas = ({
                     onTouchEnd={(e) => e.stopPropagation()}
                 >
                     {renderCanvasStack()}
-                </div>
-            </div>
-
-            <div className="mt-2 px-2 py-1 text-xs text-muted-foreground border rounded-md bg-background/60">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="font-medium text-foreground">Key:</span>
-                    <span>Slot 1: ▲ triangle</span>
-                    <span>Slot 2: ● circle</span>
-                    <span>Slot 3: ■ square</span>
-                    <span>Filled = shooting</span>
-                    <span>Outline = passing</span>
                 </div>
             </div>
         </div>

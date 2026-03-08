@@ -22,6 +22,7 @@ import {
 import { generateDemoEvent } from '@/core/lib/demoDataGenerator';
 import { generate2026GameData } from '@/game-template/demoDataGenerator2026';
 import { backfillAchievementsForAllScouts } from '@/core/lib/achievementUtils';
+import { initializeTeamScouts, TEAM_SCOUTS } from '@/core/lib/teamScouts';
 import { getAllScouts } from '@/db';
 import { toast } from 'sonner';
 
@@ -141,6 +142,32 @@ const DevUtilitiesPage: React.FC = () => {
         }
     };
 
+    const handleInitializeTeamScouts = async () => {
+        setLoading(true);
+        try {
+            const result = await initializeTeamScouts();
+            if (result.success) {
+                showMessage(result.message + ' - Refreshing...', 'success');
+                toast.success(`Initialized ${TEAM_SCOUTS.length} team scouts - Page will refresh`, {
+                    duration: 2000
+                });
+                
+                // Reload page after a short delay to ensure all contexts update
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                showMessage(result.message, 'error');
+                toast.error('Failed to initialize team scouts');
+                setLoading(false);
+            }
+        } catch (error) {
+            console.error('Error initializing team scouts:', error);
+            showMessage('❌ Failed to initialize team scouts', 'error');
+            setLoading(false);
+        }
+    };
+
     const handleCheckCurrentData = async () => {
         setLoading(true);
         try {
@@ -202,10 +229,27 @@ const DevUtilitiesPage: React.FC = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Button
+                            onClick={handleInitializeTeamScouts}
+                            disabled={loading}
+                            className="w-full"
+                            size="lg"
+                            variant="default"
+                        >
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            {loading ? 'Initializing...' : `Initialize Team Scouts (${TEAM_SCOUTS.length})`}
+                        </Button>
+                        <div className="text-xs text-muted-foreground text-center">
+                            Add all official team scouters to the system
+                        </div>
+
+                        <Separator />
+
+                        <Button
                             onClick={handleCreateTestProfiles}
                             disabled={loading}
                             className="w-full"
                             size="lg"
+                            variant="outline"
                         >
                             <UserPlus className="h-4 w-4 mr-2" />
                             {loading ? 'Generating...' : 'Generate Random Scouts'}

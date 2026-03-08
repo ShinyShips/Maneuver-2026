@@ -13,8 +13,6 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/core/components/ui/button';
-import { Badge } from '@/core/components/ui/badge';
-import { Card } from '@/core/components/ui/card';
 import { cn } from '@/core/lib/utils';
 import { loadPitScoutingByTeamAndEvent } from '@/core/db/database';
 
@@ -24,7 +22,6 @@ import fieldImage from '@/game-template/assets/2026-field.png';
 
 // Import shared field-map components
 import {
-    type DefenseEffectiveness,
     type PathWaypoint,
     type ZoneType,
 
@@ -37,18 +34,12 @@ import {
     getVisibleElements,
     ZoneOverlay,
     PendingWaypointPopup,
-    ShotTypePopup,
-    DefensePopup,
+    ShootingTimer,
+    type ShootingTimerRef,
 } from '../field-map';
 
 // Context hooks
 import { TeleopPathProvider, useTeleopScoring } from '@/game-template/contexts';
-import { formatDurationSecondsLabel } from '@/game-template/duration';
-import { TELEOP_PHASE_DURATION_MS } from '@/game-template/constants';
-import {
-    GAME_SCOUT_OPTION_KEYS,
-    getEffectiveScoutOptions,
-} from '@/game-template/scout-options';
 
 // Local sub-components
 import { TeleopActionLog } from './components/TeleopActionLog';
@@ -62,32 +53,14 @@ import { PostClimbProceed } from '../scoring/PostClimbProceed';
 export interface TeleopFieldMapProps {
     onAddAction: (action: PathWaypoint) => void;
     actions: PathWaypoint[];
-    scoutOptions?: Record<string, boolean>;
     onUndo?: () => void;
     canUndo?: boolean;
     matchNumber?: string | number;
     matchType?: 'qm' | 'sf' | 'f';
     teamNumber?: string | number;
     onBack?: () => void;
-    onProceed?: (finalActions?: PathWaypoint[]) => void;
+    onProceed?: () => void;
 }
-
-const MOVING_SHOT_MIN_PATH_LENGTH = 0.05;
-
-const getPathLength = (points: { x: number; y: number }[]): number => {
-    if (points.length < 2) return 0;
-
-    let length = 0;
-    for (let index = 1; index < points.length; index += 1) {
-        const previous = points[index - 1]!;
-        const current = points[index]!;
-        const deltaX = current.x - previous.x;
-        const deltaY = current.y - previous.y;
-        length += Math.hypot(deltaX, deltaY);
-    }
-
-    return length;
-};
 
 // =============================================================================
 // WRAPPER COMPONENT - Provides Context
@@ -110,7 +83,7 @@ export function TeleopFieldMap(props: TeleopFieldMapProps) {
             onBack={props.onBack}
             onProceed={props.onProceed}
         >
-            <TeleopFieldMapContent scoutOptions={props.scoutOptions} />
+            <TeleopFieldMapContent />
         </TeleopPathProvider>
     );
 }
@@ -119,11 +92,7 @@ export function TeleopFieldMap(props: TeleopFieldMapProps) {
 // CONTENT COMPONENT - Uses Context
 // =============================================================================
 
-function TeleopFieldMapContent({
-    scoutOptions,
-}: {
-    scoutOptions?: Record<string, boolean>;
-}) {
+function TeleopFieldMapContent() {
     // Get all state from context
     const {
         // From ScoringContext
@@ -155,8 +124,6 @@ function TeleopFieldMapContent({
         setActiveZone,
         climbLevel,
         setClimbLevel,
-        climbLocation,
-        setClimbLocation,
         climbResult,
         setClimbResult,
         showPostClimbProceed,
@@ -176,31 +143,16 @@ function TeleopFieldMapContent({
         get current() { return fieldCanvasRef.current?.canvas ?? null; }
     }), []) as React.RefObject<HTMLCanvasElement>;
 
+    // Ref for shooting timer to control it programmatically
+    const shootingTimerRef = useRef<ShootingTimerRef>(null);
+
     const isMobile = useIsMobile();
-    const effectiveScoutOptions = getEffectiveScoutOptions(scoutOptions);
-    const disableHubFuelScoringPopup =
-        effectiveScoutOptions[GAME_SCOUT_OPTION_KEYS.disableHubFuelScoringPopup] === true;
-    const disablePassingPopup =
-        effectiveScoutOptions[GAME_SCOUT_OPTION_KEYS.disablePassingPopup] === true;
-    const disableDefensePopup =
-        effectiveScoutOptions[GAME_SCOUT_OPTION_KEYS.disableDefensePopup] === true;
-    const disablePathDrawingTapOnly =
-        effectiveScoutOptions[GAME_SCOUT_OPTION_KEYS.disableTeleopPathDrawingTapOnly] === true;
 
     // Local state (UI-only)
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [robotCapacity, setRobotCapacity] = useState<number | undefined>();
     const [actionLogOpen, setActionLogOpen] = useState(false);
-    const [pendingShotTypeWaypoint, setPendingShotTypeWaypoint] = useState<PathWaypoint | null>(null);
-    const [focusClimbTimeInputOnOpen, setFocusClimbTimeInputOnOpen] = useState(false);
-    const [isDefenseTargetDialogOpen, setIsDefenseTargetDialogOpen] = useState(false);
-    const [isDefenseEffectivenessDialogOpen, setIsDefenseEffectivenessDialogOpen] = useState(false);
-    const [pendingDefenseZone, setPendingDefenseZone] = useState<ZoneType | null>(null);
-    const [opponentTeamOptions, setOpponentTeamOptions] = useState<string[]>([]);
-    const [selectedDefenseTeam, setSelectedDefenseTeam] = useState<string>('');
-    const [customDefenseTeamInput, setCustomDefenseTeamInput] = useState('');
-    const [selectedDefenseEffectiveness, setSelectedDefenseEffectiveness] = useState<DefenseEffectiveness | null>(null);
-
+    
     // Broken down state - persisted with localStorage
     const [brokenDownStart, setBrokenDownStart] = useState<number | null>(() => {
         const saved = localStorage.getItem('teleopBrokenDownStart');
@@ -211,6 +163,17 @@ function TeleopFieldMapContent({
         return saved ? parseInt(saved, 10) : 0;
     });
     const isBrokenDown = brokenDownStart !== null;
+
+    // Shooting timer state - persisted with localStorage
+    const [totalShootingTime, setTotalShootingTime] = useState<number>(() => {
+        const saved = localStorage.getItem('teleopShootingTime');
+        return saved ? parseInt(saved, 10) : 0;
+    });
+
+    // Save shooting time to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('teleopShootingTime', String(totalShootingTime));
+    }, [totalShootingTime]);
 
     // Load pit scouting data for fuel capacity
     useEffect(() => {
@@ -230,10 +193,11 @@ function TeleopFieldMapContent({
     }, [teamNumber]);
 
     // Reset fuel accumulation when entering Teleop (component mounts)
+    // Also reset when pendingWaypoint changes to ensure clean state
     useEffect(() => {
         resetFuel();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+    
     // Reset fuel when any pending waypoint is cleared
     useEffect(() => {
         if (!pendingWaypoint) {
@@ -278,109 +242,6 @@ function TeleopFieldMapContent({
     const totalDefense = actions.filter(a => a.type === 'defense').length;
     const totalSteal = actions.filter(a => a.type === 'steal').length;
 
-    const getOpponentTeamsFromSchedule = useCallback((): string[] => {
-        try {
-            const matchDataStr = localStorage.getItem('matchData');
-            const matchData = matchDataStr ? JSON.parse(matchDataStr) : [];
-
-            if (!Array.isArray(matchData) || matchData.length === 0) return [];
-
-            const parsedMatchNumber = Number.parseInt(String(matchNumber), 10);
-            if (!Number.isFinite(parsedMatchNumber) || parsedMatchNumber <= 0) return [];
-
-            const currentMatch = matchData[parsedMatchNumber - 1];
-            if (!currentMatch || typeof currentMatch !== 'object') return [];
-
-            const opponentAllianceKey = alliance === 'red' ? 'blueAlliance' : 'redAlliance';
-            const rawTeams = (currentMatch as Record<string, unknown>)[opponentAllianceKey];
-            if (!Array.isArray(rawTeams)) return [];
-
-            return rawTeams
-                .map((team) => String(team ?? '').trim())
-                .filter((team) => /^\d+$/.test(team))
-                .slice(0, 3);
-        } catch {
-            return [];
-        }
-    }, [alliance, matchNumber]);
-
-    const resetDefenseDialogState = useCallback(() => {
-        setIsDefenseTargetDialogOpen(false);
-        setIsDefenseEffectivenessDialogOpen(false);
-        setPendingDefenseZone(null);
-        setOpponentTeamOptions([]);
-        setSelectedDefenseTeam('');
-        setCustomDefenseTeamInput('');
-        setSelectedDefenseEffectiveness(null);
-    }, []);
-
-    const addDefenseAction = useCallback((zone: ZoneType, details?: {
-        defendedTeamNumber?: number;
-        defenseTargetSource?: 'schedule' | 'custom';
-        defenseEffectiveness?: DefenseEffectiveness;
-    }) => {
-        onAddAction({
-            id: generateId(),
-            type: 'defense',
-            timestamp: Date.now(),
-            zone,
-            ...details,
-        } as any);
-    }, [generateId, onAddAction]);
-
-    const startDefenseFlow = useCallback((zone: ZoneType) => {
-        if (disableDefensePopup) {
-            addDefenseAction(zone);
-            return;
-        }
-
-        const opponentTeams = getOpponentTeamsFromSchedule();
-        setPendingDefenseZone(zone);
-        setOpponentTeamOptions(opponentTeams);
-        setSelectedDefenseTeam(opponentTeams[0] || '');
-        setCustomDefenseTeamInput('');
-        setSelectedDefenseEffectiveness(null);
-        setIsDefenseEffectivenessDialogOpen(false);
-        setIsDefenseTargetDialogOpen(true);
-    }, [addDefenseAction, disableDefensePopup, getOpponentTeamsFromSchedule]);
-
-    const getSelectedDefenseTeamNumber = useCallback((): number | null => {
-        const rawValue = customDefenseTeamInput.trim() !== '' ? customDefenseTeamInput : selectedDefenseTeam;
-        const sanitized = rawValue.trim();
-        if (!/^\d+$/.test(sanitized)) return null;
-
-        const parsed = Number.parseInt(sanitized, 10);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    }, [customDefenseTeamInput, selectedDefenseTeam]);
-
-    const handleDefenseTargetNext = useCallback(() => {
-        const teamNumber = getSelectedDefenseTeamNumber();
-        if (!teamNumber) return;
-
-        setIsDefenseTargetDialogOpen(false);
-        setIsDefenseEffectivenessDialogOpen(true);
-    }, [getSelectedDefenseTeamNumber]);
-
-    const handleDefenseConfirm = useCallback(() => {
-        const teamNumber = getSelectedDefenseTeamNumber();
-        if (!teamNumber || !pendingDefenseZone || !selectedDefenseEffectiveness) return;
-
-        addDefenseAction(pendingDefenseZone, {
-            defendedTeamNumber: teamNumber,
-            defenseTargetSource: customDefenseTeamInput.trim() !== '' ? 'custom' : 'schedule',
-            defenseEffectiveness: selectedDefenseEffectiveness,
-        });
-
-        resetDefenseDialogState();
-    }, [
-        addDefenseAction,
-        getSelectedDefenseTeamNumber,
-        pendingDefenseZone,
-        resetDefenseDialogState,
-        customDefenseTeamInput,
-        selectedDefenseEffectiveness,
-    ]);
-
     // ==========================================================================
     // HANDLERS
     // ==========================================================================
@@ -410,109 +271,46 @@ function TeleopFieldMapContent({
         if (points.length === 0) return;
 
         const isDrag = points.length > 5;
-        const shouldUsePath = isDrag && !disablePathDrawingTapOnly;
         const endPos = points[points.length - 1] || points[0]!;
 
         if (isSelectingScore) {
-            const inferredShotType = shouldUsePath
-                ? (getPathLength(points) >= MOVING_SHOT_MIN_PATH_LENGTH ? 'onTheMove' : 'stationary')
-                : 'stationary';
-
             const waypoint: PathWaypoint = {
                 id: generateId(),
                 type: 'score',
-                action: shouldUsePath ? 'shoot-path' : 'hub',
+                action: isDrag ? 'shoot-path' : 'hub',
                 position: endPos,
-                fuelDelta: disableHubFuelScoringPopup ? 0 : 0,
-                amountLabel: disableHubFuelScoringPopup ? undefined : '...',
+                fuelDelta: 0,
+                amountLabel: '...',
                 timestamp: Date.now(),
-                pathPoints: shouldUsePath ? points : undefined,
-                shotType: inferredShotType,
+                pathPoints: isDrag ? points : undefined,
                 zone: 'allianceZone',
             };
-            if (disablePathDrawingTapOnly) {
-                setPendingShotTypeWaypoint({
-                    ...waypoint,
-                    action: 'hub',
-                    pathPoints: undefined,
-                });
-                setAccumulatedFuel(0);
-                setFuelHistory([]);
-                setPendingWaypoint(null);
-            } else {
-                if (disableHubFuelScoringPopup) {
-                    onAddAction(waypoint);
-                    setAccumulatedFuel(0);
-                    setFuelHistory([]);
-                    setPendingWaypoint(null);
-                } else {
-                    setAccumulatedFuel(0);
-                    setFuelHistory([]);
-                    setPendingWaypoint(waypoint);
-                }
-            }
+            setAccumulatedFuel(0);
+            setFuelHistory([]);
+            setPendingWaypoint(waypoint);
             setIsSelectingScore(false);
         } else if (isSelectingPass) {
             const waypoint: PathWaypoint = {
                 id: generateId(),
                 type: 'pass',
-                action: shouldUsePath ? 'pass-path' : 'partner',
+                action: isDrag ? 'pass-path' : 'partner',
                 position: endPos,
                 fuelDelta: 0,
-                amountLabel: disablePassingPopup ? undefined : '...',
+                amountLabel: '...',
                 timestamp: Date.now(),
-                pathPoints: shouldUsePath ? points : undefined,
+                pathPoints: isDrag ? points : undefined,
                 zone: activeZone || 'neutralZone',
             };
-            if (disablePassingPopup) {
-                onAddAction(waypoint);
-                setAccumulatedFuel(0);
-                setFuelHistory([]);
-                setPendingWaypoint(null);
-            } else {
-                setAccumulatedFuel(0);
-                setFuelHistory([]);
-                setPendingWaypoint(waypoint);
-            }
+            setAccumulatedFuel(0);
+            setFuelHistory([]);
+            setPendingWaypoint(waypoint);
             setIsSelectingPass(false);
         }
-    }, [
-        isSelectingScore,
-        isSelectingPass,
-        activeZone,
-        generateId,
-        setAccumulatedFuel,
-        setFuelHistory,
-        setPendingWaypoint,
-        setIsSelectingScore,
-        setIsSelectingPass,
-        disableHubFuelScoringPopup,
-        disablePassingPopup,
-        disablePathDrawingTapOnly,
-        onAddAction,
-    ]);
+    }, [isSelectingScore, isSelectingPass, activeZone, generateId, setAccumulatedFuel, setFuelHistory, setPendingWaypoint, setIsSelectingScore, setIsSelectingPass]);
 
-    const handleShotTypeSelected = (shotType: 'onTheMove' | 'stationary') => {
-        if (!pendingShotTypeWaypoint) return;
-
-        const scoredWaypoint: PathWaypoint = {
-            ...pendingShotTypeWaypoint,
-            shotType,
-        };
-
-        if (disableHubFuelScoringPopup) {
-            onAddAction(scoredWaypoint);
-            setPendingWaypoint(null);
-        } else {
-            setPendingWaypoint(scoredWaypoint);
-        }
-
-        setPendingShotTypeWaypoint(null);
-    };
-
-    const handleElementClick = useCallback((elementKey: string) => {
+    const handleElementClick = (elementKey: string) => {
         // Block if popup active or broken down
-        if (pendingWaypoint || pendingShotTypeWaypoint || isSelectingScore || isSelectingPass || isBrokenDown) return;
+        if (pendingWaypoint || isSelectingScore || isSelectingPass || isBrokenDown) return;
 
         const element = FIELD_ELEMENTS[elementKey];
         if (!element) return;
@@ -526,7 +324,7 @@ function TeleopFieldMapContent({
             if (isCurrentlyStuck) {
                 // Clearing stuck state - record duration
                 const startTime = stuckStarts[elementKey]!;
-                const duration = Math.min(Date.now() - startTime, TELEOP_PHASE_DURATION_MS);
+                const duration = Date.now() - startTime;
 
                 onAddAction({
                     id: generateId(),
@@ -567,6 +365,8 @@ function TeleopFieldMapContent({
         switch (elementKey) {
             case 'hub':
                 setIsSelectingScore(true);
+                // Start shooting timer when hub button is clicked
+                shootingTimerRef.current?.start();
                 break;
             case 'pass':
             case 'pass_alliance':
@@ -574,7 +374,6 @@ function TeleopFieldMapContent({
                 break;
             case 'tower':
                 // Open climb selector
-                setFocusClimbTimeInputOnOpen(false);
                 setPendingWaypoint({
                     id: generateId(),
                     type: 'climb',
@@ -584,17 +383,17 @@ function TeleopFieldMapContent({
                     zone: 'allianceZone',
                 });
                 setClimbLevel(undefined);
-                setClimbLocation(undefined);
                 setClimbResult('success');
                 break;
             case 'defense_alliance':
-                startDefenseFlow('allianceZone');
-                break;
             case 'defense_neutral':
-                startDefenseFlow('neutralZone');
-                break;
             case 'defense_opponent':
-                startDefenseFlow('opponentZone');
+                // Defense - create minimal action (no waypoint needed)
+                onAddAction({
+                    id: generateId(),
+                    type: 'defense',
+                    timestamp: Date.now(),
+                } as any);
                 break;
             case 'pass_opponent':
                 // Pass from opponent zone - same behavior as regular pass
@@ -609,25 +408,7 @@ function TeleopFieldMapContent({
                 } as any);
                 break;
         }
-    }, [
-        generateId,
-        isBrokenDown,
-        isSelectingPass,
-        isSelectingScore,
-        onAddAction,
-        pendingShotTypeWaypoint,
-        pendingWaypoint,
-        startDefenseFlow,
-        setClimbLevel,
-        setClimbLocation,
-        setClimbResult,
-        setFocusClimbTimeInputOnOpen,
-        setIsSelectingPass,
-        setIsSelectingScore,
-        setPendingWaypoint,
-        setStuckStarts,
-        stuckStarts,
-    ]);
+    };
 
     const handleFuelSelect = (amount: number) => {
         setAccumulatedFuel(prev => prev + amount);
@@ -644,12 +425,22 @@ function TeleopFieldMapContent({
         };
         onAddAction(waypoint);
         setPendingWaypoint(null);
+        
+        // Stop shooting timer when scoring is confirmed (only for score type)
+        if (waypoint.type === 'score') {
+            shootingTimerRef.current?.stop();
+        }
         setAccumulatedFuel(0);
         setFuelHistory([]);
     };
 
     const handleFuelCancel = () => {
         setPendingWaypoint(null);
+        
+        // Stop timer if user cancels scoring
+        if (shootingTimerRef.current?.isRunning()) {
+            shootingTimerRef.current?.stop();
+        }
         setAccumulatedFuel(0);
         setFuelHistory([]);
         setIsSelectingScore(false);
@@ -669,7 +460,6 @@ function TeleopFieldMapContent({
     const handleClimbCancel = () => {
         setPendingWaypoint(null);
         setClimbLevel(undefined);
-        setClimbLocation(undefined);
     };
 
     // Undo wrapper that also clears active broken down state
@@ -688,418 +478,6 @@ function TeleopFieldMapContent({
 
     // Use shared zone element config
     const visibleElements = getVisibleElements('teleop', activeZone);
-
-    const getTeleopHotkeyLabel = (elementKey: string): string | undefined => {
-        if (elementKey === 'hub') return 'S';
-        if (elementKey === 'pass' || elementKey === 'pass_alliance' || elementKey === 'pass_opponent') return 'A';
-        if (elementKey === 'tower') return 'F';
-        if (elementKey === 'defense_alliance' || elementKey === 'defense_neutral' || elementKey === 'defense_opponent') return 'D';
-        if (elementKey === 'steal') return 'S';
-
-        const allianceTraversalMap: Record<string, string> = isFieldRotated
-            ? { trench1: '1', bump1: '2', bump2: '3', trench2: '4' }
-            : { trench1: '4', bump1: '3', bump2: '2', trench2: '1' };
-        const opponentTraversalMap: Record<string, string> = isFieldRotated
-            ? { trench_opponent1: 'Q', bump_opponent1: 'W', bump_opponent2: 'E', trench_opponent2: 'R' }
-            : { trench_opponent1: 'R', bump_opponent1: 'E', bump_opponent2: 'W', trench_opponent2: 'Q' };
-
-        return allianceTraversalMap[elementKey] || opponentTraversalMap[elementKey];
-    };
-
-    const handleProceedToEndgame = useCallback(() => {
-        // Capture any active stuck timers before proceeding
-        const stuckEntries = Object.entries(stuckStarts);
-        const finalActions = [...actions];
-        const now = Date.now();
-
-        for (const [elementKey, startTime] of stuckEntries) {
-            if (startTime && typeof startTime === 'number') {
-                const obstacleType = elementKey.includes('trench') ? 'trench' : 'bump';
-                const element = FIELD_ELEMENTS[elementKey];
-                const duration = Math.min(now - startTime, TELEOP_PHASE_DURATION_MS);
-
-                const unstuckWaypoint: PathWaypoint = {
-                    id: generateId(),
-                    type: 'unstuck',
-                    action: `unstuck-${obstacleType}`,
-                    position: element ? { x: element.x, y: element.y } : { x: 0, y: 0 },
-                    timestamp: now,
-                    duration,
-                    obstacleType: obstacleType as 'trench' | 'bump',
-                    amountLabel: formatDurationSecondsLabel(duration),
-                };
-
-                finalActions.push(unstuckWaypoint);
-            }
-        }
-
-        if (stuckEntries.length > 0) {
-            setStuckStarts({});
-        }
-
-        // Capture any active broken down time before proceeding
-        if (brokenDownStart) {
-            const duration = Date.now() - brokenDownStart;
-            const finalTotal = totalBrokenDownTime + duration;
-            localStorage.setItem('teleopBrokenDownTime', String(finalTotal));
-        }
-
-        if (onProceed) onProceed(finalActions);
-    }, [
-        actions,
-        brokenDownStart,
-        generateId,
-        onProceed,
-        setStuckStarts,
-        stuckStarts,
-        totalBrokenDownTime,
-    ]);
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const key = event.key.toLowerCase();
-            const target = event.target as HTMLElement | null;
-            const isEditableTarget =
-                !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-
-            if (key === 'escape') {
-                event.preventDefault();
-                if (isDefenseEffectivenessDialogOpen || isDefenseTargetDialogOpen) {
-                    resetDefenseDialogState();
-                    return;
-                }
-
-                if (pendingShotTypeWaypoint) {
-                    setPendingShotTypeWaypoint(null);
-                    setPendingWaypoint(null);
-                    resetDrawing();
-                    return;
-                }
-
-                if (pendingWaypoint) {
-                    if (pendingWaypoint.type === 'climb') {
-                        setPendingWaypoint(null);
-                        setClimbLevel(undefined);
-                        setClimbLocation(undefined);
-                    } else {
-                        setPendingWaypoint(null);
-                        setAccumulatedFuel(0);
-                        setFuelHistory([]);
-                        setIsSelectingScore(false);
-                        setIsSelectingPass(false);
-                        resetDrawing();
-                    }
-                    return;
-                }
-
-                if (isSelectingScore) {
-                    setIsSelectingScore(false);
-                    resetDrawing();
-                    return;
-                }
-
-                if (isSelectingPass) {
-                    setIsSelectingPass(false);
-                    resetDrawing();
-                }
-                return;
-            }
-
-            if (isDefenseTargetDialogOpen) {
-                if (!isEditableTarget && (key === 'a' || key === 's' || key === 'd')) {
-                    const index = key === 'a' ? 0 : key === 's' ? 1 : 2;
-                    const team = opponentTeamOptions[index];
-                    if (team) {
-                        event.preventDefault();
-                        setSelectedDefenseTeam(team);
-                        setCustomDefenseTeamInput('');
-                    }
-                    return;
-                }
-
-                if (!isEditableTarget && (key === 'n' || key === 'enter' || key === ' ' || key === 'spacebar')) {
-                    if (!getSelectedDefenseTeamNumber()) return;
-                    event.preventDefault();
-                    handleDefenseTargetNext();
-                    return;
-                }
-
-                return;
-            }
-
-            if (isDefenseEffectivenessDialogOpen) {
-                if (key === 'a') {
-                    event.preventDefault();
-                    setSelectedDefenseEffectiveness('very');
-                    return;
-                }
-
-                if (key === 's') {
-                    event.preventDefault();
-                    setSelectedDefenseEffectiveness('somewhat');
-                    return;
-                }
-
-                if (key === 'd') {
-                    event.preventDefault();
-                    setSelectedDefenseEffectiveness('not');
-                    return;
-                }
-
-                if (key === 'enter' || key === ' ' || key === 'spacebar') {
-                    if (!selectedDefenseEffectiveness) return;
-                    event.preventDefault();
-                    handleDefenseConfirm();
-                    return;
-                }
-
-                return;
-            }
-
-            if (isEditableTarget) return;
-
-            if (key === 'c') {
-                event.preventDefault();
-                if (isFieldRotated) {
-                    if (activeZone === 'opponentZone') setActiveZone('neutralZone');
-                    else if (activeZone === 'neutralZone') setActiveZone('allianceZone');
-                    else setActiveZone('allianceZone');
-                } else {
-                    if (activeZone === 'allianceZone') setActiveZone('neutralZone');
-                    else if (activeZone === 'neutralZone') setActiveZone('opponentZone');
-                    else setActiveZone('opponentZone');
-                }
-                return;
-            }
-
-            if (key === 'v') {
-                event.preventDefault();
-                if (isFieldRotated) {
-                    if (activeZone === 'allianceZone') setActiveZone('neutralZone');
-                    else if (activeZone === 'neutralZone') setActiveZone('opponentZone');
-                    else setActiveZone('opponentZone');
-                } else {
-                    if (activeZone === 'opponentZone') setActiveZone('neutralZone');
-                    else if (activeZone === 'neutralZone') setActiveZone('allianceZone');
-                    else setActiveZone('allianceZone');
-                }
-                return;
-            }
-
-            if (pendingWaypoint || pendingShotTypeWaypoint) return;
-
-            const allianceStuckKeyMap: Record<string, string> = isFieldRotated
-                ? {
-                    '1': 'trench1',
-                    '2': 'bump1',
-                    '3': 'bump2',
-                    '4': 'trench2',
-                }
-                : {
-                    '1': 'trench2',
-                    '2': 'bump2',
-                    '3': 'bump1',
-                    '4': 'trench1',
-                };
-            const opponentStuckKeyMap: Record<string, string> = isFieldRotated
-                ? {
-                    q: 'trench_opponent1',
-                    w: 'bump_opponent1',
-                    e: 'bump_opponent2',
-                    r: 'trench_opponent2',
-                }
-                : {
-                    q: 'trench_opponent2',
-                    w: 'bump_opponent2',
-                    e: 'bump_opponent1',
-                    r: 'trench_opponent1',
-                };
-
-            const visibleElementSet = new Set<string>(visibleElements);
-
-            const canUseAllianceTraversalHotkeys =
-                visibleElementSet.has('trench1') ||
-                visibleElementSet.has('bump1') ||
-                visibleElementSet.has('bump2') ||
-                visibleElementSet.has('trench2');
-            const canUseOpponentTraversalHotkeys =
-                visibleElementSet.has('trench_opponent1') ||
-                visibleElementSet.has('bump_opponent1') ||
-                visibleElementSet.has('bump_opponent2') ||
-                visibleElementSet.has('trench_opponent2');
-
-            if (canUseAllianceTraversalHotkeys) {
-                const allianceTraversalElementKey = allianceStuckKeyMap[key];
-                if (allianceTraversalElementKey) {
-                    event.preventDefault();
-                    handleElementClick(allianceTraversalElementKey);
-                    return;
-                }
-            }
-
-            if (canUseOpponentTraversalHotkeys) {
-                const opponentTraversalElementKey = opponentStuckKeyMap[key];
-                if (opponentTraversalElementKey) {
-                    event.preventDefault();
-                    handleElementClick(opponentTraversalElementKey);
-                    return;
-                }
-            }
-
-            if (key === 'z') {
-                event.preventDefault();
-                if (brokenDownStart) {
-                    setBrokenDownStart(null);
-                }
-                if (onUndo) {
-                    onUndo();
-                }
-                return;
-            }
-
-            if (key === 'x') {
-                event.preventDefault();
-                if (brokenDownStart) {
-                    const duration = Date.now() - brokenDownStart;
-                    const newTotal = totalBrokenDownTime + duration;
-                    setTotalBrokenDownTime(newTotal);
-                    localStorage.setItem('teleopBrokenDownTime', String(newTotal));
-                    setBrokenDownStart(null);
-                    localStorage.removeItem('teleopBrokenDownStart');
-                } else {
-                    const now = Date.now();
-                    setBrokenDownStart(now);
-                    localStorage.setItem('teleopBrokenDownStart', String(now));
-                }
-                return;
-            }
-
-            if (key === 'enter') {
-                event.preventDefault();
-                handleProceedToEndgame();
-                return;
-            }
-
-            const isBusyWithSelection = isSelectingScore || isSelectingPass || isAnyStuck || isBrokenDown;
-            if (isBusyWithSelection) return;
-
-            const canPassFromZone =
-                visibleElementSet.has('pass') ||
-                visibleElementSet.has('pass_alliance') ||
-                visibleElementSet.has('pass_opponent');
-            const canScoreFromZone = visibleElementSet.has('hub');
-            const canStealFromZone = visibleElementSet.has('steal');
-            const canDefenseFromZone =
-                visibleElementSet.has('defense_alliance') ||
-                visibleElementSet.has('defense_neutral') ||
-                visibleElementSet.has('defense_opponent');
-            const canClimbFromZone = visibleElements.includes('tower');
-
-            if (key === 's') {
-                if (canStealFromZone) {
-                    event.preventDefault();
-                    onAddAction({
-                        id: generateId(),
-                        type: 'steal',
-                        timestamp: Date.now(),
-                    } as any);
-                    return;
-                }
-
-                if (!canScoreFromZone) return;
-
-                event.preventDefault();
-                setIsSelectingScore(true);
-                return;
-            }
-
-            if (key === 'a') {
-                if (!canPassFromZone) return;
-                event.preventDefault();
-                setIsSelectingPass(true);
-                return;
-            }
-
-            if (key === 'f') {
-                if (!canClimbFromZone) return;
-                event.preventDefault();
-                const towerElement = FIELD_ELEMENTS.tower;
-                if (!towerElement) return;
-                setFocusClimbTimeInputOnOpen(true);
-                setPendingWaypoint({
-                    id: generateId(),
-                    type: 'climb',
-                    action: 'attempt',
-                    position: { x: towerElement!.x, y: towerElement!.y },
-                    timestamp: Date.now(),
-                    zone: 'allianceZone',
-                });
-                setClimbLevel(undefined);
-                setClimbLocation(undefined);
-                setClimbResult('success');
-                return;
-            }
-
-            if (key === 'd') {
-                if (!canDefenseFromZone) return;
-                event.preventDefault();
-                startDefenseFlow(activeZone || 'neutralZone');
-                return;
-            }
-
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [
-        activeZone,
-        brokenDownStart,
-        generateId,
-        handleElementClick,
-        handleDefenseConfirm,
-        handleDefenseTargetNext,
-        handleProceedToEndgame,
-        getSelectedDefenseTeamNumber,
-        isDefenseEffectivenessDialogOpen,
-        isDefenseTargetDialogOpen,
-        isFieldRotated,
-        isAnyStuck,
-        isBrokenDown,
-        isSelectingPass,
-        isSelectingScore,
-        opponentTeamOptions,
-        onAddAction,
-        onUndo,
-        pendingShotTypeWaypoint,
-        pendingWaypoint,
-        resetDefenseDialogState,
-        resetDrawing,
-        setAccumulatedFuel,
-        setActiveZone,
-        setBrokenDownStart,
-        setClimbLevel,
-        setClimbLocation,
-        setClimbResult,
-        setCustomDefenseTeamInput,
-        setSelectedDefenseEffectiveness,
-        setSelectedDefenseTeam,
-        setFuelHistory,
-        setFocusClimbTimeInputOnOpen,
-        setIsSelectingPass,
-        setIsSelectingScore,
-        setPendingWaypoint,
-        selectedDefenseEffectiveness,
-        startDefenseFlow,
-        setTotalBrokenDownTime,
-        totalBrokenDownTime,
-        visibleElements,
-    ]);
-
-    useEffect(() => {
-        if (!pendingWaypoint || pendingWaypoint.type !== 'climb') {
-            setFocusClimbTimeInputOnOpen(false);
-        }
-    }, [pendingWaypoint]);
 
     // ==========================================================================
     // RENDER
@@ -1127,10 +505,25 @@ function TeleopFieldMapContent({
                 canUndo={canUndo}
                 onUndo={handleUndoWrapper}
                 onBack={onBack}
-                onProceed={handleProceedToEndgame}
+                onProceed={() => {
+                    // Capture any active broken down time before proceeding
+                    if (brokenDownStart) {
+                        const duration = Date.now() - brokenDownStart;
+                        const finalTotal = totalBrokenDownTime + duration;
+                        localStorage.setItem('teleopBrokenDownTime', String(finalTotal));
+                    }
+                    if (onProceed) onProceed();
+                }}
                 toggleFieldOrientation={toggleFieldOrientation}
                 isBrokenDown={isBrokenDown}
                 onBrokenDownToggle={handleBrokenDownToggle}
+                shootingTimerSlot={
+                    <ShootingTimer
+                        ref={shootingTimerRef}
+                        initialTime={totalShootingTime}
+                        onTimeChange={setTotalShootingTime}
+                    />
+                }
             />
 
             {/* Field Map */}
@@ -1170,12 +563,12 @@ function TeleopFieldMapContent({
                         drawConnectedPaths={false}
                         drawingZoneBounds={currentZoneBounds}
                         onPointerDown={handleDrawStart}
-                        onPointerMove={disablePathDrawingTapOnly ? undefined : handleDrawMove}
+                        onPointerMove={handleDrawMove}
                         onPointerUp={handleDrawEnd}
                     />
 
                     {/* Zone Overlays - show inactive zones for quick switching */}
-                    {!pendingWaypoint && !pendingShotTypeWaypoint && !isSelectingScore && !isSelectingPass && (
+                    {!pendingWaypoint && !isSelectingScore && !isSelectingPass && (
                         <>
                             <ZoneOverlay
                                 zone="allianceZone"
@@ -1211,18 +604,11 @@ function TeleopFieldMapContent({
                                 let element = FIELD_ELEMENTS[key];
                                 if (!element) return null;
 
-                                if (key === 'hub') {
-                                    element = {
-                                        ...element,
-                                        name: 'Score',
-                                    };
-                                }
-
                                 // Override obstacle elements to always say "Stuck" in Teleop
                                 if (key.includes('trench') || key.includes('bump')) {
                                     element = {
                                         ...element,
-                                        name: 'Stuck?'
+                                        name: 'Stuck'
                                     };
                                 }
 
@@ -1239,7 +625,6 @@ function TeleopFieldMapContent({
                                         key={key}
                                         elementKey={key}
                                         element={element}
-                                        hotkeyLabel={getTeleopHotkeyLabel(key)}
                                         isVisible={true}
                                         isDisabled={isAnyStuck && !stuckStarts[key]}
                                         isStuck={!!stuckStarts[key]}
@@ -1255,43 +640,26 @@ function TeleopFieldMapContent({
                     )}
 
                     {/* Score/Pass Mode Overlay */}
-                    {!pendingShotTypeWaypoint && (isSelectingScore || isSelectingPass) && (
-                        <div
-                            className={cn(
-                                "absolute inset-x-0 top-1 z-20 flex pointer-events-none justify-center px-2",
-                                isFieldRotated && "bottom-1 top-auto"
-                            )}
-                        >
-                            <Card className={cn(
-                                "pointer-events-none bg-background/70 backdrop-blur-sm shadow-2xl py-1 px-2 sm:py-2 sm:px-3 flex flex-row items-center gap-2 sm:gap-3 max-w-[68%]",
-                                isFieldRotated && "rotate-180"
+                    {(isSelectingScore || isSelectingPass) && (
+                        <div className={cn(
+                            "absolute inset-x-0 top-0 z-20 flex items-center justify-center p-2",
+                            "bg-gradient-to-b from-slate-900/90 to-transparent",
+                            isFieldRotated && "bottom-0 top-auto rotate-180 bg-gradient-to-t"
+                        )}>
+                            <div className={cn(
+                                "px-3 py-1.5 rounded-full font-bold text-sm",
+                                isSelectingScore ? "bg-green-600/90 text-white" : "bg-purple-600/90 text-white"
                             )}>
-                                <Badge
-                                    variant="default"
-                                    className={cn(
-                                        "text-[10px] sm:text-xs",
-                                        isSelectingScore ? "bg-green-600" : "bg-purple-600"
-                                    )}
-                                >
-                                    {isSelectingScore ? 'SCORING' : 'PASSING'}
-                                </Badge>
-                                <span className="text-xs sm:text-sm font-medium truncate">
-                                    {isSelectingScore
-                                        ? (disablePathDrawingTapOnly ? 'Tap where robot scored' : 'Tap or draw to shoot')
-                                        : (disablePathDrawingTapOnly ? 'Tap where robot passed' : 'Tap or draw pass path')}
-                                </span>
-                                <Button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleFuelCancel();
-                                    }}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="pointer-events-auto h-7 w-7 p-0 rounded-full"
-                                >
-                                    ✕
-                                </Button>
-                            </Card>
+                                {isSelectingScore ? 'Tap or draw to shoot' : 'Tap or draw pass path'}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleFuelCancel}
+                                className="ml-2 text-red-400 hover:text-red-300"
+                            >
+                                Cancel
+                            </Button>
                         </div>
                     )}
 
@@ -1307,29 +675,22 @@ function TeleopFieldMapContent({
                             onFuelSelect={handleFuelSelect}
                             onFuelUndo={handleFuelUndo}
                             climbResult={climbResult}
-                            onClimbResultSelect={(result) => setClimbResult(result)}
+                            onClimbResultSelect={(result) => setClimbResult(result as any)}
                             climbWithLevels={true}
                             climbLevel={climbLevel}
                             onClimbLevelSelect={(level) => setClimbLevel(level)}
-                            climbLocation={climbLocation}
-                            onClimbLocationSelect={(location) => setClimbLocation(location)}
-                            focusClimbTimeInputOnOpen={focusClimbTimeInputOnOpen}
-                            onConfirm={pendingWaypoint.type === 'climb' ? (selectedClimbStartTimeSecRemaining) => {
-                                if (climbLevel && climbLocation && climbResult) {
+                            onConfirm={pendingWaypoint.type === 'climb' ? () => {
+                                if (climbLevel && climbResult) {
                                     const waypoint: PathWaypoint = {
                                         ...pendingWaypoint,
-                                        action: `climbL${climbLevel}`,
-                                        amountLabel: `${climbLocation === 'side' ? 'Side' : 'Middle'} L${climbLevel} ${climbResult === 'success' ? '✓' : '✗'}`,
-                                        climbLevel,
-                                        climbLocation,
+                                        action: climbLevel,
+                                        amountLabel: `${climbLevel} ${climbResult === 'success' ? '✓' : '✗'}`,
+                                        climbLevel: climbLevel,
                                         climbResult: climbResult,
-                                        climbStartTimeSecRemaining: selectedClimbStartTimeSecRemaining ?? null,
                                     };
                                     onAddAction(waypoint);
                                     setPendingWaypoint(null);
-                                    setFocusClimbTimeInputOnOpen(false);
                                     setClimbLevel(undefined);
-                                    setClimbLocation(undefined);
                                     setClimbResult('success');
                                     // Show proceed dialog
                                     setShowPostClimbProceed(true);
@@ -1338,39 +699,6 @@ function TeleopFieldMapContent({
                             onCancel={pendingWaypoint.type === 'climb' ? handleClimbCancel : handleFuelCancel}
                         />
                     )}
-
-                    {pendingShotTypeWaypoint && (
-                        <ShotTypePopup
-                            isFieldRotated={isFieldRotated}
-                            onSelect={handleShotTypeSelected}
-                            onCancel={() => {
-                                setPendingShotTypeWaypoint(null);
-                                setPendingWaypoint(null);
-                                resetDrawing();
-                            }}
-                        />
-                    )}
-
-                    <DefensePopup
-                        isFieldRotated={isFieldRotated}
-                        isTargetOpen={isDefenseTargetDialogOpen}
-                        isEffectivenessOpen={isDefenseEffectivenessDialogOpen}
-                        opponentTeamOptions={opponentTeamOptions}
-                        selectedDefenseTeam={selectedDefenseTeam}
-                        customDefenseTeamInput={customDefenseTeamInput}
-                        selectedDefenseEffectiveness={selectedDefenseEffectiveness}
-                        onSelectTeam={(team) => {
-                            setSelectedDefenseTeam(team);
-                            setCustomDefenseTeamInput('');
-                        }}
-                        onCustomDefenseTeamInputChange={setCustomDefenseTeamInput}
-                        onSelectEffectiveness={setSelectedDefenseEffectiveness}
-                        onCancel={resetDefenseDialogState}
-                        onNext={handleDefenseTargetNext}
-                        onConfirm={handleDefenseConfirm}
-                        canProceed={!!getSelectedDefenseTeamNumber()}
-                        canConfirm={!!selectedDefenseEffectiveness}
-                    />
 
                     {/* Post-Climb Transition Overlay */}
                     {showPostClimbProceed && onProceed && (

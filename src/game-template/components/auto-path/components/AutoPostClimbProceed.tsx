@@ -2,7 +2,7 @@
  * AutoPostClimbProceed Component
  * 
  * Confirmation popup shown after climb action to proceed to next phase.
- * Extracted from AutoFieldMap for better organization.
+ * Extracted from AutoPathTracker for better organization.
  */
 
 import { Button } from '@/core/components/ui/button';

@@ -6,33 +6,6 @@
  * - Saving composite images of all game phases
  */
 
-import { drawSelectedAutoRoutines, drawTeamNumbersAndSpots } from "@/core/lib/canvasUtils";
-import type { StrategyAutoRoutine } from "@/core/hooks/useMatchStrategy";
-
-type StrategyStageId = 'autonomous' | 'teleop' | 'endgame';
-
-interface TeamSpotPoint {
-    x: number;
-    y: number;
-    pathPoints?: Array<{ x: number; y: number }>;
-}
-
-interface TeamStageSpots {
-    shooting: TeamSpotPoint[];
-    passing: TeamSpotPoint[];
-}
-
-interface TeamSlotSpotVisibility {
-    showShooting: boolean;
-    showPassing: boolean;
-}
-
-interface SaveAllStrategyOptions {
-    teamSlotSpotVisibility?: TeamSlotSpotVisibility[];
-    getTeamSpots?: (teamNumber: number | null, stageId: StrategyStageId) => TeamStageSpots;
-    selectedAutoRoutinesBySlot?: (StrategyAutoRoutine | null)[];
-}
-
 export const clearAllStrategies = (setActiveTab: (tab: string) => void, activeTab: string) => {
     // Clear all localStorage data for the three stages
     localStorage.removeItem('fieldStrategy_autonomous');
@@ -47,12 +20,7 @@ export const clearAllStrategies = (setActiveTab: (tab: string) => void, activeTa
     }, 50);
 };
 
-export const saveAllStrategyCanvases = (
-    matchNumber: string | number,
-    selectedTeams: (number | null)[],
-    fieldImagePath?: string,
-    options?: SaveAllStrategyOptions,
-) => {
+export const saveAllStrategyCanvases = (matchNumber: string | number, selectedTeams: (number | null)[], fieldImagePath?: string) => {
     // Add a small delay to ensure all canvases are rendered
     setTimeout(() => {
         // Try to get from localStorage first since it's more reliable
@@ -81,13 +49,7 @@ export const saveAllStrategyCanvases = (
         let loadedCount = 0;
         const totalImages = fieldImagePath ? 4 : 3; // Include field image if path provided
 
-        const compositeFieldWithDrawing = (
-            stageId: StrategyStageId,
-            fieldImage: HTMLImageElement,
-            drawingImage: HTMLImageElement,
-            width: number,
-            height: number,
-        ): HTMLCanvasElement => {
+        const compositeFieldWithDrawing = (fieldImage: HTMLImageElement, drawingImage: HTMLImageElement, width: number, height: number): HTMLCanvasElement => {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = width;
             tempCanvas.height = height;
@@ -96,25 +58,6 @@ export const saveAllStrategyCanvases = (
 
             // Draw field background first
             tempCtx.drawImage(fieldImage, 0, 0, width, height);
-            // Draw strategy overlays (team numbers, spots, and selected auto routines)
-            drawTeamNumbersAndSpots(
-                tempCtx,
-                width,
-                height,
-                selectedTeams,
-                stageId,
-                options?.teamSlotSpotVisibility,
-                options?.getTeamSpots,
-            );
-            drawSelectedAutoRoutines(
-                tempCtx,
-                width,
-                height,
-                selectedTeams,
-                stageId,
-                options?.selectedAutoRoutinesBySlot,
-                null,
-            );
             // Draw the user's drawings on top
             tempCtx.drawImage(drawingImage, 0, 0, width, height);
 
@@ -132,15 +75,18 @@ export const saveAllStrategyCanvases = (
                 let targetWidth = autonomousDrawingImg.width;
                 let targetHeight = autonomousDrawingImg.height;
 
+                if (fieldImagePath && fieldImg.complete && fieldImg.naturalWidth > 0) {
+                    targetWidth = fieldImg.naturalWidth;
+                    targetHeight = fieldImg.naturalHeight;
+                }
+
                 // Set composite canvas size (3x height for stacking + extra space for match number)
                 // Scale fonts relative to width
                 const scaleFactor = targetWidth / 1000; // Base scale on 1000px width
                 const topMargin = matchNumber ? Math.round(60 * scaleFactor) : Math.round(40 * scaleFactor);
-                const sectionHeaderHeight = Math.round(40 * scaleFactor);
-                const sectionBlockHeight = sectionHeaderHeight + targetHeight;
 
                 compositeCanvas.width = targetWidth;
-                compositeCanvas.height = topMargin + (sectionBlockHeight * 3);
+                compositeCanvas.height = targetHeight * 3 + topMargin;
 
                 // Clear canvas with white background
                 ctx.fillStyle = '#ffffff';
@@ -163,29 +109,30 @@ export const saveAllStrategyCanvases = (
                 ctx.textAlign = 'center';
 
                 // Helper to draw section
-                const drawSection = (label: string, stageId: StrategyStageId, drawingImg: HTMLImageElement, yOffset: number) => {
-                    const labelY = yOffset + Math.round(sectionHeaderHeight * 0.7);
-                    const imgY = yOffset + sectionHeaderHeight;
+                const drawSection = (label: string, drawingImg: HTMLImageElement, yOffset: number) => {
+                    const labelY = yOffset + Math.round(30 * scaleFactor);
+                    const imgY = yOffset + Math.round(40 * scaleFactor);
+                    const drawHeight = targetHeight - Math.round(40 * scaleFactor);
 
                     ctx.fillText(label, targetWidth / 2, labelY);
 
                     if (fieldImagePath && fieldImg.complete && fieldImg.naturalWidth > 0) {
-                        const composite = compositeFieldWithDrawing(stageId, fieldImg, drawingImg, targetWidth, targetHeight);
+                        const composite = compositeFieldWithDrawing(fieldImg, drawingImg, targetWidth, drawHeight);
                         ctx.drawImage(composite, 0, imgY);
                     } else {
                         // Scale drawing to target size
-                        ctx.drawImage(drawingImg, 0, imgY, targetWidth, targetHeight);
+                        ctx.drawImage(drawingImg, 0, imgY, targetWidth, drawHeight);
                     }
                 };
 
                 // Draw Autonomous section
-                drawSection('AUTONOMOUS', 'autonomous', autonomousDrawingImg, topMargin);
+                drawSection('AUTONOMOUS', autonomousDrawingImg, topMargin);
 
                 // Draw Teleop section
-                drawSection('TELEOP', 'teleop', teleopDrawingImg, topMargin + sectionBlockHeight);
+                drawSection('TELEOP', teleopDrawingImg, topMargin + targetHeight);
 
                 // Draw Endgame section
-                drawSection('ENDGAME', 'endgame', endgameDrawingImg, topMargin + (sectionBlockHeight * 2));
+                drawSection('ENDGAME', endgameDrawingImg, topMargin + (targetHeight * 2));
 
                 // Add team information at the top
                 const teamFontSize = Math.round(16 * scaleFactor);

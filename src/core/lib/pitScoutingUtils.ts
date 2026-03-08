@@ -248,22 +248,15 @@ export const importPitScoutingData = async (
  * Dynamically creates columns for all gameData fields found across entries
  * Each unique gameData key becomes its own column
  */
-export const exportPitScoutingToCSV = async (excludedFields: string[] = []): Promise<string> => {
+export const exportPitScoutingToCSV = async (): Promise<string> => {
   const data = await loadPitScoutingData();
 
   if (data.entries.length === 0) {
     return '';
   }
 
-  const shouldExcludeField = (fieldPath: string): boolean => {
-    return excludedFields.some(excluded =>
-      fieldPath === excluded || fieldPath.startsWith(`${excluded}.`)
-    );
-  };
-
   // Collect all unique gameData keys across all entries
   const gameDataKeys = new Set<string>();
-
   data.entries.forEach(entry => {
     if (entry.gameData && typeof entry.gameData === 'object') {
       // Recursively flatten nested objects with dot notation
@@ -271,10 +264,6 @@ export const exportPitScoutingToCSV = async (excludedFields: string[] = []): Pro
         Object.keys(obj).forEach(key => {
           const value = obj[key];
           const fullKey = prefix ? `${prefix}.${key}` : key;
-
-          if (shouldExcludeField(fullKey)) {
-            return;
-          }
 
           if (value && typeof value === 'object' && !Array.isArray(value)) {
             // Recursively flatten nested objects
@@ -345,7 +334,6 @@ export const exportPitScoutingToCSV = async (excludedFields: string[] = []): Pro
     // Add dynamic game data values in the same order as headers
     const gameDataValues = sortedGameDataKeys.map(key => {
       if (!entry.gameData) return '';
-      if (shouldExcludeField(key)) return '';
       const value = getNestedValue(entry.gameData as Record<string, unknown>, key);
       return formatValue(value);
     });

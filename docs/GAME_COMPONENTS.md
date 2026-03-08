@@ -274,58 +274,6 @@ function SomePage() {
 
 ## Migration Between Years
 
-## Scouting Keyboard Shortcuts (Maneuver-2026)
-
-These shortcuts are available on the field-map scouting pages to reduce tap load while tracking actions and fuel quickly.
-
-### Auto Scouting (`AutoFieldMap`)
-
-Hotkeys are context-aware: actions only trigger when that button/action is visible in the current zone.
-
-Before start is confirmed: `1/2/S/3/4` select start location (top-to-bottom visible order, with `S` for center hub).
-When start confirmation is open: `Space` confirms selected start, `Esc` cancels.
-
-- `A` → Pass mode (assist)
-- `S` → Score mode
-- `D` → Collect mode
-- `C` → Depot collect
-- `G` → Outpost collect
-- `V` → Foul action
-- `F` → Open climb action
-- `1` / `2` / `3` / `4` → Traversal actions (top-to-bottom visible order)
-- `Z` → Undo last action
-- `X` → Toggle broken down timer
-- `Enter` → Proceed to Teleop
-- `Esc` → Cancel current selection/popup
-
-### Teleop Scouting (`TeleopFieldMap`)
-
-Hotkeys are fully context-aware: actions only trigger when that action/button is visible in the current zone.
-
-- `C` → Move to zone on the left
-- `V` → Move to zone on the right
-- `1` / `2` / `3` / `4` → Toggle alliance-side traversal stuck (trench, bump, bump, trench)
-- `Q` / `W` / `E` / `R` → Toggle opponent-side traversal stuck (trench, bump, bump, trench)
-- `A` → Pass mode (assist)
-- `S` → Score mode in alliance zone, or Steal in opponent zone
-- `D` → Add defense action
-- `F` → Open climb action
-- `Z` → Undo last action
-- `X` → Toggle broken down timer
-- `Enter` → Proceed to Endgame
-- `Esc` → Cancel current selection/popup
-
-> Traversal stuck key order follows the visible top-to-bottom map order and reverses when the field is flipped.
-
-### Popups
-
-- **Fuel amount popup:** `Q/W/E/R/T` + `A/S/D/F/G` pick amount, `Z` undo, `Space` confirm or advance, `Esc` cancel
-- **Shot type popup:** `A` on-the-move, `F` stationary, `Esc` cancel
-- **Climb popup:** `A/S/D/F` (plus `G/H` when 6 presets are shown) select time presets, type exact time, `A` side, `F` middle, `Space` confirm location/advance, `A/S/D` for `L1/L2/L3`, `A` success, `F` fail, `Esc` cancel
-
-> [!TIP]
-> Shortcuts are ignored while typing in an input field, except supported climb-time keys (`A/S/D/F` and optional `G/H` presets, plus `Space`/`Esc`).
-
 When creating a new year's app (e.g., maneuver-2026):
 
 1. **Copy the template:**

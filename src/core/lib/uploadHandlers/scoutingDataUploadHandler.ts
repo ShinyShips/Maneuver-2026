@@ -6,35 +6,12 @@ import {
   type ConflictInfo
 } from "@/core/lib/scoutingDataUtils";
 import type { ScoutingEntryBase } from "@/types/scouting-entry";
-import { db } from "@/core/db/database";
 
 export type UploadMode = "append" | "overwrite" | "smart-merge";
 
 interface RawScoutingData {
   entries: ScoutingEntryBase[];
 }
-
-const isValidAllianceColor = (value: unknown): value is 'red' | 'blue' => {
-  return value === 'red' || value === 'blue';
-};
-
-const isValidScoutingEntry = (value: unknown): value is ScoutingEntryBase => {
-  if (!value || typeof value !== 'object') return false;
-
-  const entry = value as Record<string, unknown>;
-
-  return (
-    typeof entry.id === 'string' && entry.id.trim().length > 0 &&
-    typeof entry.teamNumber === 'number' && Number.isFinite(entry.teamNumber) &&
-    typeof entry.matchNumber === 'number' && Number.isFinite(entry.matchNumber) &&
-    typeof entry.matchKey === 'string' && entry.matchKey.trim().length > 0 &&
-    isValidAllianceColor(entry.allianceColor) &&
-    typeof entry.scoutName === 'string' && entry.scoutName.trim().length > 0 &&
-    typeof entry.eventKey === 'string' && entry.eventKey.trim().length > 0 &&
-    typeof entry.timestamp === 'number' && Number.isFinite(entry.timestamp) &&
-    typeof entry.gameData === 'object' && entry.gameData !== null
-  );
-};
 
 // Return type for async upload operations that may have conflicts
 export interface UploadResult {
@@ -58,13 +35,7 @@ export const handleScoutingDataUpload = async (jsonData: unknown, mode: UploadMo
     "entries" in jsonData &&
     Array.isArray((jsonData as RawScoutingData).entries)
   ) {
-    const rawEntries = (jsonData as RawScoutingData).entries as unknown[];
-    newEntries = rawEntries.filter(isValidScoutingEntry);
-
-    const invalidCount = rawEntries.length - newEntries.length;
-    if (invalidCount > 0) {
-      toast.warning(`Skipped ${invalidCount} invalid scouting ${invalidCount === 1 ? 'entry' : 'entries'} in upload file.`);
-    }
+    newEntries = (jsonData as RawScoutingData).entries;
   } else {
     toast.error("Invalid scouting data format. Expected { entries: ScoutingEntryBase[] }");
     return { hasConflicts: false };
@@ -99,6 +70,7 @@ export const handleScoutingDataUpload = async (jsonData: unknown, mode: UploadMo
     // Use field-based conflict detection for reliable cross-device matching
     const conflictResult = await detectConflicts(newEntries);
     
+    const { db } = await import('@/core/db/database');
     
     const results = { added: 0, replaced: 0 };
     
@@ -178,6 +150,7 @@ export const applyConflictResolutions = async (
   conflicts: ConflictInfo[],
   resolutions: Map<string, 'replace' | 'skip'>
 ): Promise<{ replaced: number; skipped: number }> => {
+  const { db } = await import('@/core/db/database');
   let replaced = 0;
   let skipped = 0;
   

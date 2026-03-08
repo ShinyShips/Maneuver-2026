@@ -4,9 +4,6 @@
  */
 
 import type { ScoutingDataExport } from '../types/scouting-entry';
-import * as pako from 'pako';
-import { benchmarkCompressionVariants } from './compressionBenchmark';
-import { getFountainEstimate } from './fountainUtils';
 
 /**
  * Type alias for data collections used in filtering
@@ -35,16 +32,6 @@ export interface FilteredDataStats {
   originalEntries: number;
   filteredEntries: number;
   estimatedQRCodes: number;
-  estimatedFountainPackets: number;
-  actualJsonBytes: number;
-  actualCompressedBytes: number;
-  avgBytesPerEntry: number;
-  estimatedFountainPacketsFast: number;
-  estimatedFountainPacketsReliable: number;
-  benchmarkBestMethod?: string;
-  benchmarkBestBytes?: number;
-  benchmarkBestPackets?: number;
-  benchmarkReductionPct?: number;
   compressionReduction?: string;
   scanTimeEstimate: string;
   warningLevel: 'safe' | 'warning' | 'danger';
@@ -179,23 +166,21 @@ export function calculateFilterStats(
   const originalEntries = originalData.entries.length;
   const filteredEntries = filteredData.entries.length;
 
-  // Measure actual payload size from the current filtered dataset
-  const filteredJson = JSON.stringify(filteredData);
-  const actualJsonBytes = new TextEncoder().encode(filteredJson).length;
-  const actualCompressedBytes = useCompression ? pako.gzip(filteredJson).length : actualJsonBytes;
-  const transferBytes = useCompression ? actualCompressedBytes : actualJsonBytes;
+  // Estimate bytes per entry based on compression
+  let bytesPerEntry: number;
+  if (useCompression) {
+    // Advanced compression achieves ~4.2 entries per QR code (2KB)
+    bytesPerEntry = 2000 / 4.2; // ~476 bytes per entry after compression
+  } else {
+    // Standard JSON encoding ~2-3KB per entry
+    bytesPerEntry = 2500;
+  }
 
-  // QR estimate (2KB target payload per code)
-  const estimatedQRCodes = Math.ceil(transferBytes / 2000);
+  const estimatedBytes = filteredEntries * bytesPerEntry;
+  const estimatedQRCodes = Math.ceil(estimatedBytes / 2000); // 2KB per QR code
 
-  // Fountain estimate mirrors UniversalFountainGenerator settings
-  const estimatedFountainPacketsFast = getFountainEstimate(transferBytes, 'fast').targetPackets;
-  const estimatedFountainPacketsReliable = getFountainEstimate(transferBytes, 'reliable').targetPackets;
-  const estimatedFountainPackets = estimatedFountainPacketsFast;
-  const avgBytesPerEntry = filteredEntries > 0 ? Math.round(transferBytes / filteredEntries) : 0;
-
-  // Estimate one full cycle at default speed (500ms per packet)
-  const scanTimeSeconds = Math.round(estimatedFountainPackets * 0.5);
+  // Calculate scan time estimate (assuming ~3 seconds per QR code)
+  const scanTimeSeconds = estimatedQRCodes * 3;
   const scanTimeMinutes = Math.floor(scanTimeSeconds / 60);
   const remainingSeconds = scanTimeSeconds % 60;
 
@@ -208,9 +193,9 @@ export function calculateFilterStats(
 
   // Determine warning level
   let warningLevel: 'safe' | 'warning' | 'danger';
-  if (estimatedFountainPackets <= 80) {
+  if (estimatedQRCodes <= 20) {
     warningLevel = 'safe';
-  } else if (estimatedFountainPackets <= 160) {
+  } else if (estimatedQRCodes <= 40) {
     warningLevel = 'warning';
   } else {
     warningLevel = 'danger';
@@ -218,47 +203,17 @@ export function calculateFilterStats(
 
   // Compression reduction info
   let compressionReduction: string | undefined;
-  let benchmarkBestMethod: string | undefined;
-  let benchmarkBestBytes: number | undefined;
-  let benchmarkBestPackets: number | undefined;
-  let benchmarkReductionPct: number | undefined;
-
-  if (useCompression) {
-    const benchmark = benchmarkCompressionVariants(filteredData);
-    const best = benchmark.bestVariant;
-
-    if (best.gzipBytes < actualCompressedBytes) {
-      benchmarkBestMethod = best.name;
-      benchmarkBestBytes = best.gzipBytes;
-      benchmarkBestPackets = best.estimatedFountainPackets;
-      benchmarkReductionPct = Number((((actualCompressedBytes - best.gzipBytes) / actualCompressedBytes) * 100).toFixed(1));
-    }
-  }
-
-  if (useCompression) {
-    const originalJson = JSON.stringify(originalData);
-    const originalBytes = new TextEncoder().encode(originalJson).length;
-    const compressedOriginalBytes = pako.gzip(originalJson).length;
-    if (originalBytes > 0) {
-      const reduction = ((1 - (compressedOriginalBytes / originalBytes)) * 100).toFixed(1);
-      compressionReduction = `${reduction}% smaller payload with compression`;
-    }
+  if (useCompression && originalEntries > 0) {
+    const originalQRs = Math.ceil((originalEntries * 2500) / 2000); // Uncompressed estimate
+    const compressedQRs = Math.ceil((originalEntries * bytesPerEntry) / 2000);
+    const reduction = ((originalQRs - compressedQRs) / originalQRs * 100).toFixed(1);
+    compressionReduction = `${reduction}% fewer codes with compression`;
   }
 
   return {
     originalEntries,
     filteredEntries,
     estimatedQRCodes,
-    estimatedFountainPackets,
-    actualJsonBytes,
-    actualCompressedBytes,
-    avgBytesPerEntry,
-    estimatedFountainPacketsFast,
-    estimatedFountainPacketsReliable,
-    benchmarkBestMethod,
-    benchmarkBestBytes,
-    benchmarkBestPackets,
-    benchmarkReductionPct,
     compressionReduction,
     scanTimeEstimate,
     warningLevel

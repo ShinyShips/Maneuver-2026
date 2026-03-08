@@ -69,20 +69,6 @@ export const matchStrategyConfig: {
                     format: 'number',
                     decimals: 1,
                     aggregation: 'average'
-                },
-                {
-                    key: 'brokeDownCount',
-                    label: 'Breakdowns',
-                    color: 'text-red-600',
-                    format: 'number',
-                    decimals: 0
-                },
-                {
-                    key: 'noShowCount',
-                    label: 'No Shows',
-                    color: 'text-orange-600',
-                    format: 'number',
-                    decimals: 0
                 }
             ]
         },
@@ -120,6 +106,14 @@ export const matchStrategyConfig: {
                     color: 'text-blue-600',
                     format: 'percent',
                     decimals: 0
+                },
+                {
+                    key: 'avgAutoShootingTime',
+                    label: 'Shooting Time',
+                    color: 'text-yellow-600',
+                    format: 'time',
+                    decimals: 1,
+                    aggregation: 'average'
                 }
             ]
         },
@@ -153,6 +147,14 @@ export const matchStrategyConfig: {
                     key: 'primaryInactiveRole',
                     label: 'Inactive Role',
                     color: 'text-purple-600'
+                },
+                {
+                    key: 'avgTeleopShootingTime',
+                    label: 'Shooting Time',
+                    color: 'text-yellow-600',
+                    format: 'time',
+                    decimals: 1,
+                    aggregation: 'average'
                 }
             ]
         },

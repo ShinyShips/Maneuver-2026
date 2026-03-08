@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Button } from "@/core/components/ui/button";
-import { Shuffle, Upload } from 'lucide-react';
+import { Shuffle } from 'lucide-react';
 import { createSpatialClusters, type TeamPosition } from '@/core/lib/spatialClustering';
 import type { NexusPitMap } from '@/core/lib/nexusUtils';
 import type { PitAssignment } from '@/core/lib/pitAssignmentTypes';
@@ -26,8 +26,6 @@ interface AssignmentControlsCardProps {
   scoutsList: string[];
   selectedEvent: string;
   hasAssignments: boolean;
-  readyConnectedScoutsCount: number;
-  onPushAssignments: () => void;
   onAssignmentModeChange: (mode: 'sequential' | 'spatial' | 'manual') => void;
   onAssignmentsGenerated: (assignments: PitAssignment[], confirmed: boolean) => void;
 }
@@ -40,8 +38,6 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
   scoutsList,
   selectedEvent,
   hasAssignments,
-  readyConnectedScoutsCount,
-  onPushAssignments,
   onAssignmentModeChange,
   onAssignmentsGenerated,
 }) => {
@@ -238,15 +234,6 @@ const AssignmentControlsCard: React.FC<AssignmentControlsCardProps> = ({
             >
               <Shuffle className="h-4 w-4" />
               Generate Assignments
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!hasAssignments || readyConnectedScoutsCount === 0}
-              onClick={onPushAssignments}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Push Assignments ({readyConnectedScoutsCount})
             </Button>
           </div>
         </div>

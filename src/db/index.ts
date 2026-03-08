@@ -92,24 +92,3 @@ export type {
   ConflictResolution,
   ConflictResult,
 } from '../core/db/dataUtils';
-
-// Experiment database (A/B interface study)
-export {
-  experimentDB,
-  saveExperimentSession,
-  getExperimentSession,
-  getAllSessions,
-  markExperimentSessionComplete,
-  saveExperimentResponse,
-  getResponsesBySession,
-  getAllResponses,
-  saveAnswerKey,
-  getAnswerKeyByClip,
-  getAllAnswerKeys,
-  deleteAnswerKeyByClip,
-  savePreferenceForm,
-  getPreferenceBySession,
-  getAllPreferences,
-  importExperimentBundle,
-  clearExperimentData,
-} from '../core/db/experimentDatabase';

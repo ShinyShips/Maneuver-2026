@@ -4,7 +4,6 @@ import { Badge } from "@/core/components/ui/badge";
 import { CheckCircle, XCircle, Database, Calendar, Users, MapPin, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { getStoredPitAddresses, getStoredPitData, getStoredNexusTeams, getAllStoredEventTeams } from '@/core/lib/tba';
 import { getCachedTBAEventMatches, getCacheExpiration } from '@/core/lib/tbaCache';
-import { getCachedEventStatboticsEPA } from '@/core/lib/statbotics/epaUtils';
 import { gamificationDB as gameDB } from '@/game-template/gamification';
 
 interface DataStatusCardProps {
@@ -175,9 +174,6 @@ export const DataStatusCard: React.FC<DataStatusCardProps> = ({
     }
   }
 
-  const statboticsTeams = getCachedEventStatboticsEPA(eventKey);
-  const hasStatboticsEPA = statboticsTeams.size > 0;
-
   const statusItems: StatusItem[] = [
     {
       label: 'Match Schedule',
@@ -190,15 +186,6 @@ export const DataStatusCard: React.FC<DataStatusCardProps> = ({
       status: validationStatus,
       count: validationData?.count || 0,
       details: validationDetails,
-      icon: ShieldCheck
-    },
-    {
-      label: 'Statbotics EPA',
-      status: hasStatboticsEPA ? 'loaded' : 'empty',
-      count: statboticsTeams.size,
-      details: hasStatboticsEPA
-        ? `Team-event EPA cached for ${statboticsTeams.size} teams`
-        : 'No team EPA data cached yet',
       icon: ShieldCheck
     },
     {

@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { CANVAS_CONSTANTS } from "../lib/canvasConstants";
-import { drawSelectedAutoRoutines, drawTeamNumbersAndSpots } from "../lib/canvasUtils";
-import type { StrategyAutoRoutine, StrategyStageId, TeamStageSpots } from "@/core/hooks/useMatchStrategy";
-
-interface TeamSlotSpotVisibility {
-  showShooting: boolean;
-  showPassing: boolean;
-}
+import { drawTeamNumbers } from "../lib/canvasUtils";
 
 // Global reference for background image (no longer needed for erasing, but kept for compatibility)
 let globalBackgroundImage: HTMLImageElement | null = null;
@@ -29,11 +23,6 @@ interface UseCanvasSetupProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   fullscreenRef: React.RefObject<HTMLDivElement | null>;
   selectedTeams?: (number | null)[];
-  teamSlotSpotVisibility?: TeamSlotSpotVisibility[];
-  getTeamSpots?: (teamNumber: number | null, stageId: StrategyStageId) => TeamStageSpots;
-  selectedAutoRoutinesBySlot?: (StrategyAutoRoutine | null)[];
-  isolatedAutoSlot?: number | null;
-  autoReplayProgress?: number;
   onCanvasReady?: () => void;
   onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
 }
@@ -50,11 +39,6 @@ export const useCanvasSetup = ({
   containerRef,
   fullscreenRef,
   selectedTeams = [],
-  teamSlotSpotVisibility = [],
-  getTeamSpots,
-  selectedAutoRoutinesBySlot = [],
-  isolatedAutoSlot = null,
-  autoReplayProgress,
   onCanvasReady,
   onDimensionsChange
 }: UseCanvasSetupProps) => {
@@ -79,7 +63,7 @@ export const useCanvasSetup = ({
 
       const bgCtx = bgCanvas.getContext('2d');
       const overlayCtx = overlayCanvas.getContext('2d');
-      const drawingCtx = drawingCanvas.getContext('2d', { willReadFrequently: true });
+      const drawingCtx = drawingCanvas.getContext('2d');
       if (!bgCtx || !overlayCtx || !drawingCtx) return;
 
       const img = new Image();
@@ -152,25 +136,7 @@ export const useCanvasSetup = ({
 
         // LAYER 2: Draw team number overlays
         overlayCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-        drawTeamNumbersAndSpots(
-          overlayCtx,
-          canvasWidth,
-          canvasHeight,
-          selectedTeams,
-          currentStageId as StrategyStageId,
-          teamSlotSpotVisibility,
-          getTeamSpots
-        );
-        drawSelectedAutoRoutines(
-          overlayCtx,
-          canvasWidth,
-          canvasHeight,
-          selectedTeams,
-          currentStageId as StrategyStageId,
-          selectedAutoRoutinesBySlot,
-          isolatedAutoSlot,
-          autoReplayProgress,
-        );
+        drawTeamNumbers(overlayCtx, canvasWidth, canvasHeight, selectedTeams);
 
         // LAYER 3: Load saved drawings or start fresh
         drawingCtx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -202,26 +168,8 @@ export const useCanvasSetup = ({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    drawTeamNumbersAndSpots(
-      ctx,
-      overlayCanvas.width,
-      overlayCanvas.height,
-      selectedTeams,
-      currentStageId as StrategyStageId,
-      teamSlotSpotVisibility,
-      getTeamSpots
-    );
-    drawSelectedAutoRoutines(
-      ctx,
-      overlayCanvas.width,
-      overlayCanvas.height,
-      selectedTeams,
-      currentStageId as StrategyStageId,
-      selectedAutoRoutinesBySlot,
-      isolatedAutoSlot,
-      autoReplayProgress,
-    );
-  }, [selectedTeams, currentStageId, teamSlotSpotVisibility, getTeamSpots, selectedAutoRoutinesBySlot, isolatedAutoSlot, autoReplayProgress, overlayCanvasRef]);
+    drawTeamNumbers(ctx, overlayCanvas.width, overlayCanvas.height, selectedTeams);
+  }, [selectedTeams, overlayCanvasRef]);
 
   useEffect(() => {
     setupCanvas();
@@ -253,7 +201,7 @@ export const useCanvasSetup = ({
   // Clear only the drawing layer
   const clearCanvas = useCallback(() => {
     const drawingCanvas = drawingCanvasRef.current;
-    const ctx = drawingCanvas?.getContext('2d', { willReadFrequently: true });
+    const ctx = drawingCanvas?.getContext('2d');
     if (!drawingCanvas || !ctx) return;
 
     ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);

@@ -12,7 +12,7 @@
 import { Button } from '@/core/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/core/components/ui/card';
 import { Badge } from '@/core/components/ui/badge';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import {
     ConnectedScoutCard,
     DataTransferControls,
@@ -131,6 +131,16 @@ export const LeadScoutMode = ({
                         <CardTitle className="flex items-center justify-between">
                             <span>Connected Scouts</span>
                             <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        console.log('🔄 Refreshing connected scouts state');
+                                        setRequestingScouts(new Set(requestingScouts));
+                                    }}
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
                                 <Badge variant="secondary">{connectedScouts.length} connected</Badge>
                             </div>
                         </CardTitle>

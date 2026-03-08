@@ -25,6 +25,11 @@ export const useTBAData = () => {
   const [isStored, setIsStored] = useState(false);
 
   const fetchMatchDataFromTBA = async (tbaApiKey: string, tbaEventKey: string, rememberForSession: boolean, setApiKey: (key: string) => void) => {
+    if (!tbaApiKey.trim()) {
+      toast.error("Please enter your TBA API key");
+      return;
+    }
+
     if (!tbaEventKey.trim()) {
       toast.error("Please enter an event key");
       return;
@@ -34,11 +39,11 @@ export const useTBAData = () => {
 
     try {
       const headers = {
-        ...(tbaApiKey.trim() ? { "X-Client-Api-Key": tbaApiKey } : {}),
+        "X-TBA-Auth-Key": tbaApiKey,
       };
 
       const res = await fetch(
-        `/.netlify/functions/api-proxy?provider=tba&endpoint=${encodeURIComponent(`/event/${tbaEventKey}/matches/simple`)}`,
+        `https://www.thebluealliance.com/api/v3/event/${tbaEventKey}/matches/simple`,
         { headers }
       );
 
@@ -118,13 +123,18 @@ export const useTBAData = () => {
       return;
     }
 
+    if (!tbaApiKey.trim()) {
+      toast.error('Please enter your TBA API key');
+      return;
+    }
+
     setMatchResultsLoading(true);
     try {
       const headers = {
-        ...(tbaApiKey.trim() ? { "X-Client-Api-Key": tbaApiKey } : {}),
+        "X-TBA-Auth-Key": tbaApiKey,
       };
       const response = await fetch(
-        `/.netlify/functions/api-proxy?provider=tba&endpoint=${encodeURIComponent(`/event/${tbaEventKey.trim()}/matches/simple`)}`,
+        `https://www.thebluealliance.com/api/v3/event/${tbaEventKey.trim()}/matches/simple`,
         { headers }
       );
 
@@ -173,6 +183,11 @@ export const useTBAData = () => {
   const loadEventTeams = async (tbaApiKey: string, tbaEventKey: string, rememberForSession: boolean, setApiKey: (key: string) => void) => {
     if (!tbaEventKey.trim()) {
       toast.error('Please enter an event key');
+      return;
+    }
+
+    if (!tbaApiKey.trim()) {
+      toast.error('Please enter your TBA API key');
       return;
     }
 
