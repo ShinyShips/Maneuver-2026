@@ -26,6 +26,27 @@ const COLORS = {
     amber: '#f59e0b',
 };
 
+const PATH_LINE_ALPHA = 0.45;
+const PATH_BORDER_ALPHA = 0.55;
+
+const hexToRgba = (hexColor: string, alpha: number): string => {
+    const hex = hexColor.replace('#', '');
+    const normalized = hex.length === 3
+        ? hex.split('').map((char) => char + char).join('')
+        : hex;
+
+    if (normalized.length !== 6) return hexColor;
+
+    const value = Number.parseInt(normalized, 16);
+    if (Number.isNaN(value)) return hexColor;
+
+    const red = (value >> 16) & 255;
+    const green = (value >> 8) & 255;
+    const blue = value & 255;
+
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+};
+
 // =============================================================================
 // COMPONENT
 // =============================================================================
@@ -75,6 +96,15 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             case 'pass': return COLORS.pass;
             case 'foul': return COLORS.foul;
             default: return COLORS.default;
+        }
+    };
+
+    const getWaypointPathColor = (type: PathWaypoint['type']): string => {
+        switch (type) {
+            case 'score': return hexToRgba(COLORS.score, PATH_LINE_ALPHA);
+            case 'collect': return hexToRgba(COLORS.collect, PATH_LINE_ALPHA);
+            case 'pass': return hexToRgba(COLORS.pass, PATH_LINE_ALPHA);
+            default: return getWaypointColor(type);
         }
     };
 
@@ -169,7 +199,16 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             ctx.lineJoin = 'round';
             ctx.setLineDash([]);
 
-            const replaySegments: Array<{ points: { x: number; y: number }[]; color: string; length: number }> = [];
+            const shouldUsePathBorder = (type: PathWaypoint['type']): boolean => (
+                type === 'score' || type === 'pass' || type === 'collect'
+            );
+
+            const replaySegments: Array<{
+                points: { x: number; y: number }[];
+                color: string;
+                length: number;
+                withBorder: boolean;
+            }> = [];
 
             if (drawConnectedPaths) {
                 for (let i = 1; i < actions.length; i++) {
@@ -187,12 +226,14 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                             points: [startPoint, pathStart],
                             color: allianceColor,
                             length: getPolylineLength([startPoint, pathStart]),
+                            withBorder: false,
                         });
 
                         replaySegments.push({
                             points: curr.pathPoints,
-                            color: getWaypointColor(curr.type),
+                            color: getWaypointPathColor(curr.type),
                             length: getPolylineLength(curr.pathPoints),
+                            withBorder: shouldUsePathBorder(curr.type),
                         });
                     } else {
                         const straight = [startPoint, curr.position];
@@ -200,6 +241,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                             points: straight,
                             color: allianceColor,
                             length: getPolylineLength(straight),
+                            withBorder: false,
                         });
                     }
                 }
@@ -208,8 +250,9 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                     if (!action.pathPoints || action.pathPoints.length === 0) return;
                     replaySegments.push({
                         points: action.pathPoints,
-                        color: getWaypointColor(action.type),
+                        color: getWaypointPathColor(action.type),
                         length: getPolylineLength(action.pathPoints),
+                        withBorder: shouldUsePathBorder(action.type),
                     });
                 });
             }
@@ -223,8 +266,18 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                 if (segment.length <= 0) return;
                 if (remainingLength <= 0) return;
 
+                const pathLineWidth = Math.max(2, 4 * scaleFactor);
+                if (segment.withBorder) {
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${PATH_BORDER_ALPHA})`;
+                    ctx.lineWidth = pathLineWidth + Math.max(1, 1.5 * scaleFactor);
+                    const borderMaxLength = replayProgress === null
+                        ? undefined
+                        : Math.min(segment.length, remainingLength);
+                    drawPolyline(ctx, segment.points, borderMaxLength);
+                }
+
                 ctx.strokeStyle = segment.color;
-                ctx.lineWidth = Math.max(2, 4 * scaleFactor);
+                ctx.lineWidth = pathLineWidth;
 
                 const maxLengthForSegment = replayProgress === null
                     ? undefined
