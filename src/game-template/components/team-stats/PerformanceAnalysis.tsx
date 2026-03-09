@@ -10,15 +10,20 @@ interface PerformanceAnalysisProps {
     compareStats: TeamStats | null;
     rateSections: RateSectionDefinition[];
     matchBadges: MatchBadgeDefinition[];
+    onMatchDataChanged?: () => void;
 }
 
 export function PerformanceAnalysis({
     teamStats,
     compareStats,
     rateSections,
-    matchBadges
+    matchBadges,
+    onMatchDataChanged,
 }: PerformanceAnalysisProps) {
-    if (teamStats.matchesPlayed === 0) {
+    const matchResults = (teamStats as TeamStats & { matchResults?: Record<string, unknown>[] })?.matchResults;
+    const hasMatchResults = Array.isArray(matchResults) && matchResults.length > 0;
+
+    if (teamStats.matchesPlayed === 0 && !hasMatchResults) {
         return (
             <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
@@ -36,7 +41,6 @@ export function PerformanceAnalysis({
     };
 
     const renderMatchResults = () => {
-        const matchResults = (teamStats as TeamStats & { matchResults?: Record<string, unknown>[] })?.matchResults;
         if (!matchResults || !Array.isArray(matchResults)) {
             return <p className="text-muted-foreground text-center py-4">No match data available</p>;
         }
@@ -53,6 +57,7 @@ export function PerformanceAnalysis({
                     const teleopPoints = String(match['teleopPoints'] || 0);
                     const endgamePoints = String(match['endgamePoints'] || 0);
                     const comment = typeof match['comment'] === 'string' ? match['comment'] : "";
+                    const ignoreForStats = !!match['ignoreForStats'];
 
                     return (
                         <div key={index} className="flex flex-col p-3 border rounded gap-3">
@@ -72,6 +77,11 @@ export function PerformanceAnalysis({
                                     </Badge>
                                     {startPos !== null && startPos >= 0 && (
                                         <Badge variant="secondary">Pos {startPos}</Badge>
+                                    )}
+                                    {ignoreForStats && (
+                                        <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300">
+                                            Excluded from stats
+                                        </Badge>
                                     )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
@@ -103,6 +113,7 @@ export function PerformanceAnalysis({
                             )}
                             <MatchStatsDialog
                                 matchData={{
+                                    id: typeof match['id'] === 'string' ? match['id'] : undefined,
                                     matchNumber,
                                     teamNumber: typeof match['teamNumber'] === 'number' ? match['teamNumber'] : undefined,
                                     alliance,
@@ -120,12 +131,14 @@ export function PerformanceAnalysis({
                                     parkAttempted: !!match['parkAttempted'],
                                     brokeDown: !!match['brokeDown'],
                                     playedDefense: !!match['playedDefense'],
+                                    ignoreForStats,
                                     gameData: match['gameData'] as {
                                         auto?: Record<string, unknown>;
                                         teleop?: Record<string, unknown>;
                                         endgame?: Record<string, unknown>;
                                     } | undefined,
                                 }}
+                                onMatchDataChanged={onMatchDataChanged}
                                 variant="outline"
                                 size="default"
                                 className="w-full mt-2"

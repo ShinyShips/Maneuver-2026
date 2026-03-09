@@ -70,6 +70,7 @@ interface TeamStatsTemplate extends TeamStats {
  * SINGLE SOURCE OF TRUTH: Used by PerformanceAnalysis and MatchStatsDialog
  */
 export interface MatchResult {
+    id?: string;
     matchNumber: string;
     alliance: string;
     eventKey: string;
@@ -81,6 +82,7 @@ export interface MatchResult {
     endgamePoints: number;
     endgameSuccess: boolean;
     brokeDown: boolean;
+    ignoreForStats?: boolean;
     startPosition: number;
     comment: string;
     // Allow additional game-specific fields
@@ -99,9 +101,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
      * CUSTOMIZE: Update this method with your game's scoring logic
      */
     calculateBasicStats(entries: ScoutingEntryTemplate[]): TeamStatsTemplate {
-        const matchCount = entries.length;
-
-        if (matchCount === 0) {
+        if (entries.length === 0) {
             return {
                 // Base TeamStats required fields
                 teamNumber: 0,
@@ -133,10 +133,14 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             };
         }
 
+        // Keep all matches for display, but exclude flagged ones from aggregate stats.
+        const includedEntries = entries.filter(entry => !entry.ignoreForStats);
+        const matchCount = includedEntries.length;
+
         // Calculate totals
         // CUSTOMIZE: Add your game's scoring calculations
         // Access game-specific data through entry.gameData
-        const totals = entries.reduce((acc, entry) => {
+        const totals = includedEntries.reduce((acc, entry) => {
             const gameData = entry.gameData;
             acc.autoAction1 += gameData?.auto?.action1Count || 0;
             acc.autoAction2 += gameData?.auto?.action2Count || 0;
@@ -171,6 +175,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             const endgameSuccess = entry.gameData?.endgame?.option1 || false;
 
             return {
+            id: entry.id,
                 matchNumber: String(entry.matchNumber),
                 teamNumber: entry.teamNumber,
                 scoutName: entry.scoutName,
@@ -182,6 +187,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 endgamePoints,
                 endgameSuccess: endgameSuccess || false,
                 brokeDown: entry.gameData?.endgame?.option2 || false,
+                ignoreForStats: !!entry.ignoreForStats,
                 startPosition: entry.gameData?.auto?.startPosition ?? -1,
                 comment: entry.comments || '',
                 // Include all action counts for the dialog
@@ -189,25 +195,57 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             };
         });
 
+        const includedMatchResults = matchResults.filter(match => !match.ignoreForStats);
+
+        if (matchCount === 0) {
+            return {
+                teamNumber: entries[0]?.teamNumber || 0,
+                eventKey: entries[0]?.eventKey || '',
+                matchCount: 0,
+                totalPoints: 0,
+                autoPoints: 0,
+                teleopPoints: 0,
+                endgamePoints: 0,
+                overall: { avgTotalPoints: 0, totalPiecesScored: 0, avgGamePiece1: 0, avgGamePiece2: 0 },
+                auto: { avgPoints: 0, avgGamePiece1: 0, avgGamePiece2: 0, mobilityRate: 0, startPositions: [] },
+                teleop: { avgPoints: 0, avgGamePiece1: 0, avgGamePiece2: 0 },
+                endgame: { avgPoints: 0, climbRate: 0, parkRate: 0 },
+                matchesPlayed: 0,
+                avgTotalPoints: 0,
+                avgAutoPoints: 0,
+                avgTeleopPoints: 0,
+                avgEndgamePoints: 0,
+                avgAutoAction1: 0,
+                avgAutoAction2: 0,
+                avgTeleopAction1: 0,
+                avgTeleopAction2: 0,
+                mobilityRate: 0,
+                endgameSuccessRate: 0,
+                breakdownRate: 0,
+                startPositions: {},
+                matchResults: matchResults.sort((a, b) => parseInt(a.matchNumber) - parseInt(b.matchNumber)),
+            };
+        }
+
         // Calculate start position percentages
         const startPositions: Record<string, number> = {};
         Object.entries(totals.startPositionCounts).forEach(([pos, count]) => {
             startPositions[`position${pos}`] = Math.round((count / matchCount) * 100);
         });
 
-        const avgAutoPoints = matchResults.reduce((sum, m) => sum + m.autoPoints, 0) / matchCount;
-        const avgTeleopPoints = matchResults.reduce((sum, m) => sum + m.teleopPoints, 0) / matchCount;
-        const avgEndgamePoints = matchResults.reduce((sum, m) => sum + m.endgamePoints, 0) / matchCount;
+        const avgAutoPoints = includedMatchResults.reduce((sum, m) => sum + m.autoPoints, 0) / matchCount;
+        const avgTeleopPoints = includedMatchResults.reduce((sum, m) => sum + m.teleopPoints, 0) / matchCount;
+        const avgEndgamePoints = includedMatchResults.reduce((sum, m) => sum + m.endgamePoints, 0) / matchCount;
 
         return {
             // Base TeamStats required fields
             teamNumber: entries[0]?.teamNumber || 0,
             eventKey: entries[0]?.eventKey || '',
             matchCount,
-            totalPoints: matchResults.reduce((sum, m) => sum + m.totalPoints, 0),
-            autoPoints: matchResults.reduce((sum, m) => sum + m.autoPoints, 0),
-            teleopPoints: matchResults.reduce((sum, m) => sum + m.teleopPoints, 0),
-            endgamePoints: matchResults.reduce((sum, m) => sum + m.endgamePoints, 0),
+            totalPoints: includedMatchResults.reduce((sum, m) => sum + m.totalPoints, 0),
+            autoPoints: includedMatchResults.reduce((sum, m) => sum + m.autoPoints, 0),
+            teleopPoints: includedMatchResults.reduce((sum, m) => sum + m.teleopPoints, 0),
+            endgamePoints: includedMatchResults.reduce((sum, m) => sum + m.endgamePoints, 0),
             overall: {
                 avgTotalPoints: Math.round((avgAutoPoints + avgTeleopPoints + avgEndgamePoints) * 10) / 10,
                 totalPiecesScored: totals.autoAction1 + totals.autoAction2 + totals.teleopAction1 + totals.teleopAction2,

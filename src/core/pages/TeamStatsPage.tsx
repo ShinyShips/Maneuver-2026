@@ -106,6 +106,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
     const [isFieldSettingsOpen, setIsFieldSettingsOpen] = useState(false);
     const [hiddenStatKeys, setHiddenStatKeys] = useState<Set<string>>(new Set());
     const [autoHideUncollected, setAutoHideUncollected] = useState(true);
+    const [statsRefreshKey, setStatsRefreshKey] = useState(0);
 
     const getTabCategoryLabel = (tab: 'overview' | 'scoring' | 'performance') => {
         if (tab === 'overview') return 'Overview';
@@ -316,7 +317,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
             }
         };
         updateStats();
-    }, [selectedTeam, selectedEvent, calculateStats]);
+    }, [selectedTeam, selectedEvent, calculateStats, statsRefreshKey]);
 
     useEffect(() => {
         const updateCompareStats = async () => {
@@ -328,7 +329,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
             }
         };
         updateCompareStats();
-    }, [compareTeam, selectedEvent, calculateStats]);
+    }, [compareTeam, selectedEvent, calculateStats, statsRefreshKey]);
 
     return (
         <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24">
@@ -519,6 +520,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
                                     compareStats={compareStats}
                                     rateSections={visibleRateSections}
                                     matchBadges={matchBadges}
+                                    onMatchDataChanged={() => setStatsRefreshKey(prev => prev + 1)}
                                 />
                             </TabsContent>
 
