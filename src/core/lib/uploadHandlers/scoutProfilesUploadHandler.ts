@@ -136,30 +136,36 @@ export const handleScoutProfilesUpload = async (jsonData: unknown, mode: UploadM
 
         if (existing) {
           if (mode === 'smart-merge') {
+            const existingLastUpdated = typeof existing.lastUpdated === 'number' ? existing.lastUpdated : 0;
+            const existingStakes = typeof existing.stakes === 'number' ? existing.stakes : 0;
+            const existingTotalPredictions = typeof existing.totalPredictions === 'number' ? existing.totalPredictions : 0;
+            const existingStakesFromPredictions = typeof existing.stakesFromPredictions === 'number' ? existing.stakesFromPredictions : 0;
+            const existingDetailedCommentsCount = typeof existing.detailedCommentsCount === 'number' ? existing.detailedCommentsCount : 0;
+
             // Only update if new data is newer or has higher values
             const shouldUpdate =
-              scout.lastUpdated > existing.lastUpdated ||
-              scout.stakes > existing.stakes ||
-              scout.totalPredictions > existing.totalPredictions ||
-              scout.stakesFromPredictions > existing.stakesFromPredictions ||
-              scout.detailedCommentsCount > existing.detailedCommentsCount;
+              scout.lastUpdated > existingLastUpdated ||
+              scout.stakes > existingStakes ||
+              scout.totalPredictions > existingTotalPredictions ||
+              scout.stakesFromPredictions > existingStakesFromPredictions ||
+              scout.detailedCommentsCount > existingDetailedCommentsCount;
 
             if (shouldUpdate) {
               await gameDB.scouts.update(scout.name, {
-                stakes: Math.max(scout.stakes, existing.stakes),
+                stakes: Math.max(scout.stakes, existingStakes),
                 stakesFromPredictions: Math.max(
                   typeof scout.stakesFromPredictions === 'number' ? scout.stakesFromPredictions : 0,
-                  typeof existing.stakesFromPredictions === 'number' ? existing.stakesFromPredictions : 0
+                  existingStakesFromPredictions
                 ),
-                totalPredictions: Math.max(scout.totalPredictions, existing.totalPredictions),
-                correctPredictions: Math.max(scout.correctPredictions, existing.correctPredictions),
-                currentStreak: scout.lastUpdated > existing.lastUpdated ? scout.currentStreak : existing.currentStreak,
-                longestStreak: Math.max(scout.longestStreak, existing.longestStreak),
+                totalPredictions: Math.max(scout.totalPredictions, existingTotalPredictions),
+                correctPredictions: Math.max(scout.correctPredictions, typeof existing.correctPredictions === 'number' ? existing.correctPredictions : 0),
+                currentStreak: scout.lastUpdated > existingLastUpdated ? scout.currentStreak : existing.currentStreak,
+                longestStreak: Math.max(scout.longestStreak, typeof existing.longestStreak === 'number' ? existing.longestStreak : 0),
                 detailedCommentsCount: Math.max(
                   typeof scout.detailedCommentsCount === 'number' ? scout.detailedCommentsCount : 0,
-                  typeof existing.detailedCommentsCount === 'number' ? existing.detailedCommentsCount : 0
+                  existingDetailedCommentsCount
                 ),
-                lastUpdated: Math.max(scout.lastUpdated, existing.lastUpdated)
+                lastUpdated: Math.max(scout.lastUpdated, existingLastUpdated)
               });
               scoutsUpdated++;
             }

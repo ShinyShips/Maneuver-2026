@@ -64,11 +64,18 @@ gamificationDB.open().catch(error => {
 // SCOUT PROFILE OPERATIONS
 // ============================================================================
 
+const normalizeScoutKey = (name: string): string => name.trim();
+
 /**
  * Get or create scout profile
  */
 export const getOrCreateScout = async (name: string): Promise<Scout> => {
-    const existingScout = await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) {
+        throw new Error('Scout name is required');
+    }
+
+    const existingScout = await gamificationDB.scouts.get(key);
 
     if (existingScout) {
         existingScout.lastUpdated = Date.now();
@@ -77,7 +84,7 @@ export const getOrCreateScout = async (name: string): Promise<Scout> => {
     }
 
     const newScout: Scout = {
-        name: name.trim(),
+        name: key,
         stakes: 0,
         stakesFromPredictions: 0,
         totalPredictions: 0,
@@ -97,7 +104,9 @@ export const getOrCreateScout = async (name: string): Promise<Scout> => {
  * Get scout profile
  */
 export const getScout = async (name: string): Promise<Scout | undefined> => {
-    return await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return undefined;
+    return await gamificationDB.scouts.get(key);
 };
 
 /**
@@ -111,7 +120,9 @@ export const getAllScouts = async (): Promise<Scout[]> => {
  * Update scout stakes (add points)
  */
 export const updateScoutPoints = async (name: string, pointsToAdd: number): Promise<void> => {
-    const scout = await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return;
+    const scout = await gamificationDB.scouts.get(key);
     if (scout) {
         scout.stakes += pointsToAdd;
         scout.lastUpdated = Date.now();
@@ -131,7 +142,9 @@ export const updateScoutStats = async (
     longestStreak?: number,
     additionalStakesFromPredictions: number = 0
 ): Promise<void> => {
-    const scout = await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return;
+    const scout = await gamificationDB.scouts.get(key);
     if (scout) {
         scout.stakes = newStakes;
         scout.stakesFromPredictions += additionalStakesFromPredictions;
@@ -154,15 +167,16 @@ export const updateScoutStats = async (
  * Increment scout's substantive comment count
  */
 export const incrementScoutDetailedComments = async (name: string, incrementBy: number = 1): Promise<void> => {
+    const key = normalizeScoutKey(name);
     const safeIncrement = Math.max(0, incrementBy);
-    if (safeIncrement === 0) {
+    if (!key || safeIncrement === 0) {
         return;
     }
 
     await gamificationDB.transaction('rw', gamificationDB.scouts, async () => {
         await gamificationDB.scouts
             .where('name')
-            .equals(name)
+            .equals(key)
             .modify((scout) => {
                 const currentCount = typeof scout.detailedCommentsCount === 'number'
                     ? scout.detailedCommentsCount
@@ -178,7 +192,9 @@ export const incrementScoutDetailedComments = async (name: string, incrementBy: 
  * Delete scout profile
  */
 export const deleteScout = async (name: string): Promise<void> => {
-    await gamificationDB.scouts.delete(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return;
+    await gamificationDB.scouts.delete(key);
 };
 
 /**
@@ -203,9 +219,14 @@ export const createMatchPrediction = async (
     matchNumber: number,
     predictedWinner: 'red' | 'blue'
 ): Promise<MatchPrediction> => {
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    if (!normalizedScoutName) {
+        throw new Error('Scout name is required');
+    }
+
     const existingPrediction = await gamificationDB.predictions
         .where('[scoutName+eventKey+matchNumber]')
-        .equals([scoutName, eventKey, matchNumber])
+        .equals([normalizedScoutName, eventKey, matchNumber])
         .first();
 
     if (existingPrediction) {
@@ -217,7 +238,7 @@ export const createMatchPrediction = async (
 
     const prediction: MatchPrediction = {
         id: `prediction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        scoutName,
+        scoutName: normalizedScoutName,
         eventKey,
         matchNumber,
         predictedWinner,
@@ -228,7 +249,7 @@ export const createMatchPrediction = async (
     await gamificationDB.predictions.put(prediction);
 
     // Ensure scout exists
-    await getOrCreateScout(scoutName);
+    await getOrCreateScout(normalizedScoutName);
 
     return prediction;
 };
