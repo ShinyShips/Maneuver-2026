@@ -16,11 +16,14 @@ const PickListPage = () => {
         alliances,
         backups,
         availableTeams,
+        eventFilteredTeamCount,
         newListName,
         newListDescription,
         searchFilter,
         sortBy,
         activeFilterIds,
+        eventFilter,
+        availableEventKeys,
         activeTab,
         showAllianceSelection,
         filteredAndSortedTeams,
@@ -31,6 +34,7 @@ const PickListPage = () => {
         setSearchFilter,
         setSortBy,
         setActiveFilterIds,
+        setEventFilter,
         setActiveTab,
         setAlliances,
         setBackups,
@@ -72,15 +76,19 @@ const PickListPage = () => {
                     alliances={alliances}
                     backups={backups}
                     availableTeams={availableTeams}
+                    eventFilteredTeamCount={eventFilteredTeamCount}
                     newListName={newListName}
                     newListDescription={newListDescription}
                     searchFilter={searchFilter}
                     sortBy={sortBy}
                     activeFilterIds={activeFilterIds}
+                    eventFilter={eventFilter}
+                    availableEventKeys={availableEventKeys}
                     onTabChange={setActiveTab}
                     onSearchChange={setSearchFilter}
                     onSortChange={setSortBy}
                     onFilterChange={setActiveFilterIds}
+                    onEventFilterChange={setEventFilter}
                     onAddTeamToList={addTeamToList}
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}
@@ -105,14 +113,18 @@ const PickListPage = () => {
                     alliances={alliances}
                     backups={backups}
                     availableTeams={availableTeams}
+                    eventFilteredTeamCount={eventFilteredTeamCount}
                     newListName={newListName}
                     newListDescription={newListDescription}
                     searchFilter={searchFilter}
                     sortBy={sortBy}
                     activeFilterIds={activeFilterIds}
+                    eventFilter={eventFilter}
+                    availableEventKeys={availableEventKeys}
                     onSearchChange={setSearchFilter}
                     onSortChange={setSortBy}
                     onFilterChange={setActiveFilterIds}
+                    onEventFilterChange={setEventFilter}
                     onAddTeamToList={addTeamToList}
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}

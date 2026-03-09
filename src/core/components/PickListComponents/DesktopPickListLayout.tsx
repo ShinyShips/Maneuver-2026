@@ -21,15 +21,19 @@ interface DesktopPickListLayoutProps {
     alliances: Alliance[];
     backups: BackupTeam[];
     availableTeams: TeamStats[];
+    eventFilteredTeamCount: number;
     newListName: string;
     newListDescription: string;
     searchFilter: string;
     sortBy: PickListSortOption;
     activeFilterIds: string[];
+    eventFilter: string;
+    availableEventKeys: string[];
     canDeleteAll?: boolean;
     onSearchChange: (search: string) => void;
     onSortChange: (sort: PickListSortOption) => void;
     onFilterChange: (filters: string[]) => void;
+    onEventFilterChange: (eventKey: string) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
@@ -49,15 +53,19 @@ export const DesktopPickListLayout = ({
     alliances,
     backups,
     availableTeams,
+    eventFilteredTeamCount,
     newListName,
     newListDescription,
     searchFilter,
     sortBy,
     activeFilterIds,
+    eventFilter,
+    availableEventKeys,
     canDeleteAll = true,
     onSearchChange,
     onSortChange,
     onFilterChange,
+    onEventFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance,
     onUpdateAlliances,
@@ -76,15 +84,18 @@ export const DesktopPickListLayout = ({
                 {/* Available Teams Panel */}
                 <AvailableTeamsPanel
                     teams={filteredAndSortedTeams}
-                    totalTeams={availableTeams.length}
+                    totalTeams={eventFilteredTeamCount}
                     pickLists={pickLists}
                     alliances={alliances}
                     searchFilter={searchFilter}
                     sortBy={sortBy}
                     activeFilterIds={activeFilterIds}
+                    eventFilter={eventFilter}
+                    availableEventKeys={availableEventKeys}
                     onSearchChange={onSearchChange}
                     onSortChange={onSortChange}
                     onFilterChange={onFilterChange}
+                    onEventFilterChange={onEventFilterChange}
                     onAddTeamToList={onAddTeamToList}
                     onAddTeamToAlliance={onAddTeamToAlliance}
                 />

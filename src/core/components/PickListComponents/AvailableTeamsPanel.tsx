@@ -12,6 +12,13 @@ import { Button } from "@/core/components/ui/button";
 import { Checkbox } from "@/core/components/ui/checkbox";
 import { Label } from "@/core/components/ui/label";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/core/components/ui/select";
+import {
     Dialog,
     DialogContent,
     DialogHeader,
@@ -35,9 +42,12 @@ interface AvailableTeamsPanelProps {
     searchFilter: string;
     sortBy: PickListSortOption;
     activeFilterIds: string[];
+    eventFilter: string;
+    availableEventKeys: string[];
     onSearchChange: (value: string) => void;
     onSortChange: (value: PickListSortOption) => void;
     onFilterChange: (value: string[]) => void;
+    onEventFilterChange: (eventKey: string) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
 }
@@ -50,9 +60,12 @@ export const AvailableTeamsPanel = ({
     searchFilter,
     sortBy,
     activeFilterIds,
+    eventFilter,
+    availableEventKeys,
     onSearchChange,
     onSortChange,
     onFilterChange,
+    onEventFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance
 }: AvailableTeamsPanelProps) => {
@@ -131,6 +144,19 @@ export const AvailableTeamsPanel = ({
                         value={searchFilter}
                         onChange={(e) => onSearchChange(e.target.value)}
                     />
+                    <Select value={eventFilter} onValueChange={onEventFilterChange}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Filter by event" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Events</SelectItem>
+                            {availableEventKeys.map((eventKey) => (
+                                <SelectItem key={eventKey} value={eventKey}>
+                                    {eventKey}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <SortSelector sortBy={sortBy} onSortChange={onSortChange} />
                     {filterOptions.length > 0 && (
                         <div className="flex items-center justify-between rounded-md border p-3">
