@@ -8,15 +8,31 @@
  * Compare with TeamStatsDialog which shows aggregated stats.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRef } from "react";
 import { Button } from "@/core/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/core/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/animate-ui/radix/tabs";
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogOverlay,
+    AlertDialogPortal,
+    AlertDialogTitle,
+} from "@/core/components/ui/alert-dialog";
+import { Checkbox } from "@/core/components/ui/checkbox";
+import { Label } from "@/core/components/ui/label";
 import { Eye } from "lucide-react";
 import { cn } from "@/core/lib/utils";
 import { FieldCanvas, type FieldCanvasRef } from "@/game-template/components/field-map";
 import fieldImage from "@/game-template/assets/2026-field.png";
+import { toast } from "sonner";
 import { type MatchResult } from "@/game-template/analysis";
+import { deleteScoutingEntry, updateScoutingEntryIgnoreForStats } from "@/core/db/database";
 
 /**
  * MatchData for the dialog - uses MatchResult as base (single source of truth)
@@ -47,6 +63,7 @@ type MatchData = Partial<MatchResult> & {
 
 interface MatchStatsDialogProps {
     matchData: MatchData;
+    onMatchDataChanged?: () => void;
     variant?: "default" | "outline" | "ghost";
     size?: "default" | "sm" | "lg";
     className?: string;
@@ -60,6 +77,7 @@ interface MatchStatsDialogProps {
  */
 export function MatchStatsDialog({
     matchData,
+    onMatchDataChanged,
     variant = "outline",
     size = "sm",
     className = "",
@@ -71,6 +89,11 @@ export function MatchStatsDialog({
     const fieldCanvasRef = useRef<FieldCanvasRef>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [canvasDimensions, setCanvasDimensions] = useState({ width: 640, height: 320 });
+
+    const [ignoreForStats, setIgnoreForStats] = useState(!!matchData.ignoreForStats);
+    const [isSavingIgnore, setIsSavingIgnore] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
     // Update canvas dimensions when container resizes or auto tab is active
     useEffect(() => {
@@ -87,6 +110,10 @@ export function MatchStatsDialog({
         window.addEventListener('resize', updateDimensions);
         return () => window.removeEventListener('resize', updateDimensions);
     }, [activeTab]);
+
+    useEffect(() => {
+        setIgnoreForStats(!!matchData.ignoreForStats);
+    }, [matchData.id, matchData.ignoreForStats]);
 
     if (!matchData) {
         return (
@@ -118,6 +145,47 @@ export function MatchStatsDialog({
 
     // Simplify alliance name
     const allianceName = String(matchData.alliance || '').replace(/Alliance$/i, '').trim();
+
+    const handleIgnoreToggle = async (checked: boolean) => {
+        if (!matchData.id) {
+            toast.error("Cannot update this entry: missing entry ID.");
+            return;
+        }
+
+        setIsSavingIgnore(true);
+        try {
+            await updateScoutingEntryIgnoreForStats(matchData.id, checked);
+            setIgnoreForStats(checked);
+            onMatchDataChanged?.();
+            toast.success(checked ? "Match excluded from stats." : "Match included in stats.");
+        } catch (error) {
+            console.error("Failed to update ignore-for-stats flag:", error);
+            toast.error("Failed to update match stats setting.");
+        } finally {
+            setIsSavingIgnore(false);
+        }
+    };
+
+    const handleDeleteMatch = async () => {
+        if (!matchData.id) {
+            toast.error("Cannot delete this entry: missing entry ID.");
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            await deleteScoutingEntry(matchData.id);
+            toast.success("Match entry deleted.");
+            setIsDeleteConfirmOpen(false);
+            setIsOpen(false);
+            onMatchDataChanged?.();
+        } catch (error) {
+            console.error("Failed to delete scouting entry:", error);
+            toast.error("Failed to delete match entry.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -465,6 +533,39 @@ export function MatchStatsDialog({
                                                 <p className="text-sm">{matchData.comment}</p>
                                             </div>
                                         )}
+
+                                        <div className="p-4 border rounded space-y-4">
+                                            <div className="space-y-2">
+                                                <h5 className="font-semibold">Data Controls</h5>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Excluding a match keeps the record but removes it from aggregate team stats.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                    id={`ignore-${matchData.id ?? matchData.matchNumber ?? 'match'}`}
+                                                    checked={ignoreForStats}
+                                                    disabled={!matchData.id || isSavingIgnore || isDeleting}
+                                                    onCheckedChange={(value) => {
+                                                        void handleIgnoreToggle(value === true);
+                                                    }}
+                                                />
+                                                <Label htmlFor={`ignore-${matchData.id ?? matchData.matchNumber ?? 'match'}`}>
+                                                    Ignore this match in team stat calculations
+                                                </Label>
+                                            </div>
+
+                                            <Button
+                                                className="p-2"
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={() => setIsDeleteConfirmOpen(true)}
+                                                disabled={!matchData.id || isDeleting || isSavingIgnore}
+                                            >
+                                                Delete This Match
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </TabsContent>
@@ -472,6 +573,31 @@ export function MatchStatsDialog({
                     </Tabs>
                 </div>
             </DialogContent>
+
+            <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                <AlertDialogPortal>
+                    <AlertDialogOverlay className="z-220" />
+                    <AlertDialogContent className="z-220">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Match Entry?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Delete Team {matchData.teamNumber ?? "?"} Match {matchData.matchNumber ?? "?"}? This cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel className="p-2" disabled={isDeleting}>Cancel</AlertDialogCancel>
+                            <Button
+                                type="button"
+                                className="p-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => { void handleDeleteMatch(); }}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? "Deleting..." : "Delete Match"}
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialogPortal>
+            </AlertDialog>
         </Dialog>
     );
 }

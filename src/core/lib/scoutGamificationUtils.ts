@@ -10,6 +10,7 @@
 
 import type { Scout } from '@/game-template/gamification';
 import type { Achievement } from './achievementTypes';
+import { isSubstantiveComment } from './commentValidation';
 import {
   STAKE_VALUES,
   calculateStreakBonus,
@@ -19,6 +20,7 @@ import {
   getAllScouts,
   updateScoutPoints,
   updateScoutStats,
+  incrementScoutDetailedComments,
   updateScoutWithPredictionResult,
   getLeaderboard,
   createMatchPrediction,
@@ -34,9 +36,11 @@ import { checkForNewAchievements } from './achievementUtils';
 // Re-export stake values
 export { STAKE_VALUES, calculateStreakBonus };
 
+const normalizeScoutName = (name: string): string => name.trim();
+
 // Get or create a scout by name (linked to sidebar selection)
 export const getOrCreateScoutByName = async (name: string): Promise<Scout> => {
-  return await getOrCreateScout(name);
+  return await getOrCreateScout(normalizeScoutName(name));
 };
 
 // Re-export accuracy calculation
@@ -54,8 +58,16 @@ export const updateScoutStatsWithAchievements = async (
   currentStreak?: number,
   longestStreak?: number
 ): Promise<{ newAchievements: Achievement[] }> => {
-  await updateScoutStats(name, newStakes, correctPredictions, totalPredictions, currentStreak, longestStreak);
-  const newAchievements = await checkForNewAchievements(name);
+  const normalizedScoutName = normalizeScoutName(name);
+  await updateScoutStats(
+    normalizedScoutName,
+    newStakes,
+    correctPredictions,
+    totalPredictions,
+    currentStreak,
+    longestStreak
+  );
+  const newAchievements = await checkForNewAchievements(normalizedScoutName);
   return { newAchievements };
 };
 
@@ -67,8 +79,26 @@ export const updateScoutWithPredictionAndAchievements = async (
   eventKey: string,
   matchNumber: number
 ): Promise<{ newAchievements: Achievement[] }> => {
-  await updateScoutWithPredictionResult(name, isCorrect, basePoints, eventKey, matchNumber);
-  const newAchievements = await checkForNewAchievements(name);
+  const normalizedScoutName = normalizeScoutName(name);
+  await updateScoutWithPredictionResult(normalizedScoutName, isCorrect, basePoints, eventKey, matchNumber);
+  const newAchievements = await checkForNewAchievements(normalizedScoutName);
+  return { newAchievements };
+};
+
+export const recordMatchCommentForAchievements = async (
+  scoutName: string,
+  comment?: string
+): Promise<{ newAchievements: Achievement[] }> => {
+  const trimmedScoutName = normalizeScoutName(scoutName);
+  const normalizedComment = (comment ?? '').trim();
+
+  if (!trimmedScoutName || !isSubstantiveComment(normalizedComment)) {
+    return { newAchievements: [] };
+  }
+
+  await getOrCreateScout(trimmedScoutName);
+  await incrementScoutDetailedComments(trimmedScoutName, 1);
+  const newAchievements = await checkForNewAchievements(trimmedScoutName);
   return { newAchievements };
 };
 
@@ -79,6 +109,7 @@ export {
   getAllScouts,
   updateScoutPoints,
   updateScoutStats,
+  incrementScoutDetailedComments,
   updateScoutWithPredictionResult,
   createMatchPrediction,
   getPredictionForMatch,

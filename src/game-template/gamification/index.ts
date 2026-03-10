@@ -31,6 +31,7 @@ export {
     getAllScouts,
     updateScoutPoints,
     updateScoutStats,
+    incrementScoutDetailedComments,
     deleteScout,
     clearGamificationData,
     createMatchPrediction,

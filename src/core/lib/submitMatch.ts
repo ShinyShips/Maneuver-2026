@@ -6,6 +6,7 @@
  */
 
 import { db } from '@/core/db/database';
+import { isSubstantiveComment } from '@/core/lib/commentValidation';
 import { clearScoutingLocalStorage } from '@/core/lib/utils';
 import { toast } from 'sonner';
 import type { DataTransformation } from '@/types';
@@ -88,17 +89,32 @@ export async function submitMatchData({
     onSuccess,
     onError,
 }: SubmitOptions): Promise<boolean> {
+    const maybeRecordCommentAchievement = async (existingComment?: unknown) => {
+        const hasScoutName = typeof inputs.scoutName === 'string' && inputs.scoutName.trim().length > 0;
+        const hasSubstantiveComment = typeof comment === 'string' && isSubstantiveComment(comment);
+        const existingWasSubstantive = typeof existingComment === 'string' && isSubstantiveComment(existingComment);
+
+        if (!hasScoutName || !hasSubstantiveComment || existingWasSubstantive) {
+            return;
+        }
+
+        const { recordMatchCommentForAchievements } = await import('@/core/lib/scoutGamificationUtils');
+        await recordMatchCommentForAchievements(inputs.scoutName, comment);
+    };
+
     try {
         // Build match key
         const { matchKey, numericMatch } = buildMatchKey(
             inputs.matchType || 'qm',
             inputs.matchNumber
         );
+        const entryId = `${inputs.eventKey}::${matchKey}::${inputs.selectTeam}::${inputs.alliance}`;
+        const existingEntry = await db.scoutingData.get(entryId);
 
         // For no-show, skip data collection and submit minimal entry
         if (noShow) {
             const entry: Record<string, unknown> = {
-                id: `${inputs.eventKey}::${matchKey}::${inputs.selectTeam}::${inputs.alliance}`,
+                id: entryId,
                 scoutName: inputs.scoutName || '',
                 teamNumber: parseInt(inputs.selectTeam) || 0,
                 matchNumber: numericMatch,
@@ -116,6 +132,13 @@ export async function submitMatchData({
             };
 
             await db.scoutingData.put(entry as never);
+
+            try {
+                await maybeRecordCommentAchievement(existingEntry?.comments);
+            } catch (gamificationError) {
+                console.warn('Failed to process comment achievement tracking:', gamificationError);
+            }
+
             toast.success('No-show match submitted');
             clearScoutingLocalStorage();
             
@@ -144,7 +167,7 @@ export async function submitMatchData({
 
         // Create the scouting entry
         const scoutingEntry: Record<string, unknown> = {
-            id: `${inputs.eventKey}::${matchKey}::${inputs.selectTeam}::${inputs.alliance}`,
+            id: entryId,
             scoutName: inputs.scoutName || '',
             teamNumber: parseInt(inputs.selectTeam) || 0,
             matchNumber: numericMatch,
@@ -158,6 +181,12 @@ export async function submitMatchData({
 
         // Save to database
         await db.scoutingData.put(scoutingEntry as never);
+
+        try {
+            await maybeRecordCommentAchievement(existingEntry?.comments);
+        } catch (gamificationError) {
+            console.warn('Failed to process comment achievement tracking:', gamificationError);
+        }
 
         // Clear action stacks and robot status
         clearScoutingLocalStorage();

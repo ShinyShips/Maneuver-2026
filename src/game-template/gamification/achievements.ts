@@ -250,6 +250,38 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
         stakesReward: 200
     },
 
+    // Commentary Achievements
+    {
+        id: 'comments_5',
+        name: 'Debrief Starter',
+        description: 'Submit 5 detailed match comments',
+        icon: '📝',
+        category: 'special',
+        tier: 'bronze',
+        requirements: { type: 'minimum', value: 5, property: 'detailedCommentsCount' },
+        stakesReward: 15
+    },
+    {
+        id: 'comments_20',
+        name: 'Field Reporter',
+        description: 'Submit 20 detailed match comments',
+        icon: '📓',
+        category: 'special',
+        tier: 'silver',
+        requirements: { type: 'minimum', value: 20, property: 'detailedCommentsCount' },
+        stakesReward: 40
+    },
+    {
+        id: 'comments_50',
+        name: 'Robot Storyteller',
+        description: 'Submit 50 detailed match comments',
+        icon: '📚',
+        category: 'special',
+        tier: 'gold',
+        requirements: { type: 'minimum', value: 50, property: 'detailedCommentsCount' },
+        stakesReward: 90
+    },
+
     // Special Achievements
     {
         id: 'perfectionist',

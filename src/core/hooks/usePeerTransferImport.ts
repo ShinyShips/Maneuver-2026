@@ -10,6 +10,11 @@ import { importPitAssignmentsPayload, type PitAssignmentTransferPayload } from '
 import type { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import { debugLog } from '@/core/lib/peerTransferUtils';
 import { db, pitDB, saveScoutingEntry } from '@/core/db/database';
+import { normalizeTransferredScoutProfile } from '@/core/lib/normalizeTransferredScoutProfile';
+import { normalizeTransferredMatchPrediction } from '@/core/lib/normalizeTransferredMatchPrediction';
+import { normalizeTransferredScoutAchievement } from '@/core/lib/normalizeTransferredScoutAchievement';
+import type { MatchPrediction } from '@/game-template/gamification';
+import type { ScoutAchievement } from '@/game-template/gamification';
 
 const getSafeJsonSize = (value: unknown): number => {
     const seen = new WeakSet<object>();
@@ -76,19 +81,28 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
         let importedCount = 0;
 
         if (scoutData.scouts && Array.isArray(scoutData.scouts)) {
-            await gamificationDB.scouts.bulkPut(scoutData.scouts as never[]);
-            importedCount += scoutData.scouts.length;
-            console.log(`✅ Imported ${scoutData.scouts.length} scouts`);
+            const normalizedScouts = scoutData.scouts
+                .map((scout) => normalizeTransferredScoutProfile(scout))
+                .filter((scout): scout is NonNullable<ReturnType<typeof normalizeTransferredScoutProfile>> => !!scout);
+            await gamificationDB.scouts.bulkPut(normalizedScouts as never[]);
+            importedCount += normalizedScouts.length;
+            console.log(`✅ Imported ${normalizedScouts.length} scouts`);
         }
         if (scoutData.predictions && Array.isArray(scoutData.predictions)) {
-            await gamificationDB.predictions.bulkPut(scoutData.predictions as never[]);
-            importedCount += scoutData.predictions.length;
-            console.log(`✅ Imported ${scoutData.predictions.length} predictions`);
+            const normalizedPredictions = scoutData.predictions
+                .map((prediction) => normalizeTransferredMatchPrediction(prediction))
+                .filter((prediction): prediction is MatchPrediction => !!prediction);
+            await gamificationDB.predictions.bulkPut(normalizedPredictions as never[]);
+            importedCount += normalizedPredictions.length;
+            console.log(`✅ Imported ${normalizedPredictions.length} predictions`);
         }
         if (scoutData.achievements && Array.isArray(scoutData.achievements)) {
-            await gamificationDB.scoutAchievements.bulkPut(scoutData.achievements as never[]);
-            importedCount += scoutData.achievements.length;
-            console.log(`✅ Imported ${scoutData.achievements.length} achievements`);
+            const normalizedAchievements = scoutData.achievements
+                .map((achievement) => normalizeTransferredScoutAchievement(achievement))
+                .filter((achievement): achievement is ScoutAchievement => !!achievement);
+            await gamificationDB.scoutAchievements.bulkPut(normalizedAchievements as never[]);
+            importedCount += normalizedAchievements.length;
+            console.log(`✅ Imported ${normalizedAchievements.length} achievements`);
         }
 
         return importedCount;

@@ -126,6 +126,7 @@ export interface TeamStatsTemplate extends TeamStats {
  * Match result data for performance display
  */
 export interface MatchResult {
+    id?: string;
     matchNumber: string;
     alliance: string;
     eventKey: string;
@@ -141,6 +142,7 @@ export interface MatchResult {
     climbLevel: number; // 0=none, 1-3=level
     brokeDown: boolean;
     noShow: boolean;
+    ignoreForStats?: boolean;
     startPosition: number;
     comment: string;
     // Fuel data
@@ -163,9 +165,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
      * Calculate basic statistics for a team
      */
     calculateBasicStats(entries: ScoutingEntryTemplate[]): TeamStatsTemplate {
-        const matchCount = entries.length;
-
-        if (matchCount === 0) {
+        if (entries.length === 0) {
             return {
                 // Base TeamStats required fields
                 teamNumber: 0,
@@ -260,8 +260,12 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             };
         }
 
+        // Keep all matches for display, but exclude flagged ones from aggregate stats.
+        const includedEntries = entries.filter(entry => !entry.ignoreForStats);
+        const matchCount = includedEntries.length;
+
         // Calculate totals
-        const totals = entries.reduce((acc, entry) => {
+        const totals = includedEntries.reduce((acc, entry) => {
             const gameData = entry.gameData;
 
             const scaledMetrics = gameData?.scaledMetrics as {
@@ -408,6 +412,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 || /no\s*show/i.test(entry.comments || '');
 
             return {
+                id: entry.id,
                 matchNumber: String(entry.matchNumber),
                 teamNumber: entry.teamNumber,
                 scoutName: entry.scoutName,
@@ -424,6 +429,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 brokeDown: (entry.gameData?.auto?.brokenDownCount || 0) > 0
                     || (entry.gameData?.teleop?.brokenDownCount || 0) > 0,
                 noShow: isNoShow,
+                ignoreForStats: !!entry.ignoreForStats,
                 startPosition: entry.gameData?.auto?.startPosition ?? -1,
                 comment: entry.comments || '',
                 autoFuel: entry.gameData?.auto?.fuelScoredCount || 0,
@@ -441,15 +447,26 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             };
         });
 
+        const includedMatchResults = matchResults.filter(match => !match.ignoreForStats);
+
+        if (matchCount === 0) {
+            return {
+                ...(strategyAnalysis.calculateBasicStats([]) as TeamStatsTemplate),
+                teamNumber: entries[0]?.teamNumber || 0,
+                eventKey: entries[0]?.eventKey || '',
+                matchResults: matchResults.sort((a, b) => parseInt(a.matchNumber) - parseInt(b.matchNumber)),
+            };
+        }
+
         // Calculate start position percentages
         const startPositions: Record<string, number> = {};
         Object.entries(totals.startPositionCounts).forEach(([pos, count]) => {
             startPositions[`position${pos}`] = Math.round((count / matchCount) * 100);
         });
 
-        const avgAutoPoints = matchResults.reduce((sum, m) => sum + m.autoPoints, 0) / matchCount;
-        const avgTeleopPoints = matchResults.reduce((sum, m) => sum + m.teleopPoints, 0) / matchCount;
-        const avgEndgamePoints = matchResults.reduce((sum, m) => sum + m.endgamePoints, 0) / matchCount;
+        const avgAutoPoints = includedMatchResults.reduce((sum, m) => sum + m.autoPoints, 0) / matchCount;
+        const avgTeleopPoints = includedMatchResults.reduce((sum, m) => sum + m.teleopPoints, 0) / matchCount;
+        const avgEndgamePoints = includedMatchResults.reduce((sum, m) => sum + m.endgamePoints, 0) / matchCount;
         const climbSuccessCount = totals.climbL1 + totals.climbL2 + totals.climbL3;
         const autoClimbLocationAttemptCount = totals.autoClimbFromSide + totals.autoClimbFromMiddle;
         const autoClimbAttemptCount = Math.max(totals.autoClimb, autoClimbLocationAttemptCount);
@@ -603,10 +620,10 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
             teamNumber: entries[0]?.teamNumber || 0,
             eventKey: entries[0]?.eventKey || '',
             matchCount,
-            totalPoints: matchResults.reduce((sum, m) => sum + m.totalPoints, 0),
-            autoPoints: matchResults.reduce((sum, m) => sum + m.autoPoints, 0),
-            teleopPoints: matchResults.reduce((sum, m) => sum + m.teleopPoints, 0),
-            endgamePoints: matchResults.reduce((sum, m) => sum + m.endgamePoints, 0),
+            totalPoints: includedMatchResults.reduce((sum, m) => sum + m.totalPoints, 0),
+            autoPoints: includedMatchResults.reduce((sum, m) => sum + m.autoPoints, 0),
+            teleopPoints: includedMatchResults.reduce((sum, m) => sum + m.teleopPoints, 0),
+            endgamePoints: includedMatchResults.reduce((sum, m) => sum + m.endgamePoints, 0),
             overall: {
                 avgTotalPoints: Math.round((avgAutoPoints + avgTeleopPoints + avgEndgamePoints) * 10) / 10,
                 totalPiecesScored: Math.round((totals.autoFuel + totals.teleopFuel) / matchCount * 10) / 10,

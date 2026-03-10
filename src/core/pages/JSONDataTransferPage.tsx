@@ -228,7 +228,7 @@ const JSONDataTransferPage = () => {
           }
 
           // Create CSV for scout profiles
-          const scoutHeaders = ['Name', 'Stakes', 'Stakes From Predictions', 'Total Predictions', 'Correct Predictions', 'Accuracy %', 'Current Streak', 'Longest Streak', 'Created At', 'Last Updated'];
+          const scoutHeaders = ['Name', 'Stakes', 'Stakes From Predictions', 'Total Predictions', 'Correct Predictions', 'Accuracy %', 'Current Streak', 'Longest Streak', 'Detailed Comments', 'Created At', 'Last Updated'];
           const scoutRows = scoutsData.map(scout => [
             scout.name,
             scout.stakes,
@@ -238,6 +238,7 @@ const JSONDataTransferPage = () => {
             scout.totalPredictions > 0 ? Math.round((scout.correctPredictions / scout.totalPredictions) * 100) : 0,
             scout.currentStreak,
             scout.longestStreak,
+            typeof scout.detailedCommentsCount === 'number' ? scout.detailedCommentsCount : 0,
             new Date(scout.createdAt).toLocaleDateString(),
             new Date(scout.lastUpdated).toLocaleDateString()
           ]);

@@ -28,6 +28,9 @@ export interface Scout {
     /** Best streak ever achieved */
     longestStreak: number;
 
+    /** Number of substantive match comments submitted */
+    detailedCommentsCount: number;
+
     /** Unix timestamp when scout profile was created */
     createdAt: number;
 

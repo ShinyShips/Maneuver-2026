@@ -1,15 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDataStats } from "@/core/hooks/useDataStats";
 import { useDataCleaning } from "@/core/hooks/useDataCleaning";
 import { DeviceInfoCard } from "@/core/components/data-management/ClearComponents/DeviceInfoCard";
 import { BackupRecommendationAlert } from "@/core/components/data-management/ClearComponents/BackupRecommendationAlert";
 import { ClearAllDataDialog } from "@/core/components/data-management/ClearComponents/ClearAllDataDialog";
 import { DataClearCard } from "@/core/components/data-management/ClearComponents/DataClearCard";
+import { EventDataClearCard } from "@/core/components/data-management/ClearComponents/EventDataClearCard";
+import { db, pitDB } from "@/core/db/database";
+import { gamificationDB as gameDB } from "@/game-template/gamification";
 
 
 const ClearDataPage = () => {
   const [playerStation, setPlayerStation] = useState("");
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [eventKeys, setEventKeys] = useState<string[]>([]);
 
   const { stats, refreshData, resetStats, updateMatchData } = useDataStats();
   const {
@@ -18,13 +22,116 @@ const ClearDataPage = () => {
     handleClearScoutGameData,
     handleClearMatchData,
     handleClearApiData,
+    handleClearEventData,
     handleClearAllData,
   } = useDataCleaning(refreshData, resetStats, updateMatchData);
+
+  const getEventKeysFromStorage = useCallback(() => {
+    const keys = new Set<string>();
+
+    const addIfValid = (value: unknown) => {
+      if (typeof value !== 'string') return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      keys.add(trimmed);
+    };
+
+    const addFromArrayStorage = (storageKey: string) => {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+
+        parsed.forEach(item => {
+          if (typeof item === 'string') {
+            addIfValid(item);
+            return;
+          }
+
+          if (
+            typeof item === 'object' &&
+            item !== null &&
+            'eventKey' in item &&
+            typeof (item as { eventKey: unknown }).eventKey === 'string'
+          ) {
+            addIfValid((item as { eventKey: string }).eventKey);
+          }
+        });
+      } catch (error) {
+        console.warn(`Failed to parse ${storageKey}`, error);
+      }
+    };
+
+    addIfValid(localStorage.getItem('eventKey'));
+    addIfValid(localStorage.getItem('current_event'));
+    addFromArrayStorage('eventsList');
+    addFromArrayStorage('customEventsList');
+    addFromArrayStorage('event_history');
+
+    const eventKeyPattern = /^(?:tba_event_teams_|nexus_pit_addresses_|nexus_pit_map_|nexus_event_teams_|matches_|match_results_|event_info_|pit_assignments_|pit_assignments_meta_|pit_assignments_mine_|tba_match_schedule_|tba_match_data_|matchResults_|stakesAwarded_)(.+)$/;
+
+    Object.keys(localStorage).forEach(storageKey => {
+      const match = storageKey.match(eventKeyPattern);
+      if (match && match[1]) {
+        addIfValid(match[1]);
+      }
+    });
+
+    return keys;
+  }, []);
+
+  const refreshEventKeys = useCallback(async () => {
+    try {
+      const [scoutingEventKeys, pitEventKeys, predictionEventKeys] = await Promise.all([
+        db.scoutingData.orderBy('eventKey').uniqueKeys(),
+        pitDB.pitScoutingData.orderBy('eventKey').uniqueKeys(),
+        gameDB.predictions.orderBy('eventKey').uniqueKeys(),
+      ]);
+
+      const allKeys = new Set<string>([...getEventKeysFromStorage()]);
+
+      scoutingEventKeys.forEach(key => {
+        if (typeof key === 'string' && key.trim()) {
+          allKeys.add(key.trim());
+        }
+      });
+
+      pitEventKeys.forEach(key => {
+        if (typeof key === 'string' && key.trim()) {
+          allKeys.add(key.trim());
+        }
+      });
+
+      predictionEventKeys.forEach(key => {
+        if (typeof key === 'string' && key.trim()) {
+          allKeys.add(key.trim());
+        }
+      });
+
+      setEventKeys(Array.from(allKeys));
+    } catch (error) {
+      console.error('Failed to refresh event keys:', error);
+      setEventKeys(Array.from(getEventKeysFromStorage()));
+    }
+  }, [getEventKeysFromStorage]);
 
   useEffect(() => {
     const station = localStorage.getItem("playerStation") || "Unknown";
     setPlayerStation(station);
   }, []);
+
+  useEffect(() => {
+    void refreshEventKeys();
+  }, [
+    refreshEventKeys,
+    stats.scoutingDataCount,
+    stats.pitScoutingDataCount,
+    stats.scoutGameDataCount,
+    stats.apiDataCount,
+    stats.matchDataCount,
+  ]);
 
   return (
     <div className="min-h-screen w-full px-4 pt-12 pb-24">
@@ -92,6 +199,14 @@ const ClearDataPage = () => {
             entryLabel="matches"
             storageSize={stats.matchDataSize}
             onClear={handleClearMatchData}
+          />
+
+          <EventDataClearCard
+            eventKeys={eventKeys}
+            onClearEventData={async (eventKey: string) => {
+              await handleClearEventData(eventKey);
+              await refreshEventKeys();
+            }}
           />
         </div>
       </div>

@@ -14,7 +14,7 @@ import type { Scout, MatchPrediction, ScoutAchievement } from './types';
 export class ScoutGamificationDB extends Dexie {
     scouts!: Table<Scout, string>;
     predictions!: Table<MatchPrediction, string>;
-    scoutAchievements!: Table<ScoutAchievement, string>;
+    scoutAchievements!: Table<ScoutAchievement, [string, string]>;
 
     constructor() {
         super('ScoutGamificationDB');
@@ -36,6 +36,212 @@ export class ScoutGamificationDB extends Dexie {
                 scout.stakesFromPredictions = scout.stakes || 0;
             });
         });
+
+        // Version 3: Add detailedCommentsCount field
+        this.version(3).stores({
+            scouts: 'name, stakes, stakesFromPredictions, totalPredictions, correctPredictions, currentStreak, longestStreak, lastUpdated',
+            predictions: 'id, scoutName, eventKey, matchNumber, predictedWinner, timestamp, verified, [scoutName+eventKey+matchNumber]',
+            scoutAchievements: '[scoutName+achievementId], scoutName, achievementId, unlockedAt'
+        }).upgrade(tx => {
+            return tx.table('scouts').toCollection().modify(scout => {
+                scout.detailedCommentsCount = typeof scout.detailedCommentsCount === 'number'
+                    ? scout.detailedCommentsCount
+                    : 0;
+            });
+        });
+
+        // Version 4: Normalize scoutName keys in predictions/achievements to preserve lookups.
+        this.version(4).stores({
+            scouts: 'name, stakes, stakesFromPredictions, totalPredictions, correctPredictions, currentStreak, longestStreak, lastUpdated',
+            predictions: 'id, scoutName, eventKey, matchNumber, predictedWinner, timestamp, verified, [scoutName+eventKey+matchNumber]',
+            scoutAchievements: '[scoutName+achievementId], scoutName, achievementId, unlockedAt'
+        }).upgrade(async tx => {
+            const scoutTable = tx.table('scouts');
+            const predictionTable = tx.table('predictions');
+            const achievementTable = tx.table('scoutAchievements');
+
+            const asNonNegativeNumber = (value: unknown): number => {
+                if (typeof value === 'number' && Number.isFinite(value)) {
+                    return Math.max(0, value);
+                }
+                return 0;
+            };
+
+            const asTimestampOrZero = (value: unknown): number => {
+                if (typeof value === 'number' && Number.isFinite(value)) {
+                    return value;
+                }
+                return 0;
+            };
+
+            // Normalize and merge scout primary keys so historical whitespace variants collapse into one profile.
+            const scouts = (await scoutTable.toArray()) as Scout[];
+            const mergedScoutsByName = new Map<string, Scout>();
+
+            for (const scout of scouts) {
+                const normalizedScoutName = typeof scout.name === 'string' ? scout.name.trim() : '';
+                if (!normalizedScoutName) {
+                    continue;
+                }
+
+                const normalizedScout: Scout = {
+                    ...scout,
+                    name: normalizedScoutName,
+                    stakes: asNonNegativeNumber(scout.stakes),
+                    stakesFromPredictions: asNonNegativeNumber(scout.stakesFromPredictions),
+                    totalPredictions: asNonNegativeNumber(scout.totalPredictions),
+                    correctPredictions: asNonNegativeNumber(scout.correctPredictions),
+                    currentStreak: asNonNegativeNumber(scout.currentStreak),
+                    longestStreak: asNonNegativeNumber(scout.longestStreak),
+                    detailedCommentsCount: asNonNegativeNumber(scout.detailedCommentsCount),
+                    createdAt: asTimestampOrZero(scout.createdAt),
+                    lastUpdated: asTimestampOrZero(scout.lastUpdated),
+                };
+
+                const existing = mergedScoutsByName.get(normalizedScoutName);
+                if (!existing) {
+                    mergedScoutsByName.set(normalizedScoutName, normalizedScout);
+                    continue;
+                }
+
+                mergedScoutsByName.set(normalizedScoutName, {
+                    ...existing,
+                    name: normalizedScoutName,
+                    stakes: existing.stakes + normalizedScout.stakes,
+                    stakesFromPredictions: existing.stakesFromPredictions + normalizedScout.stakesFromPredictions,
+                    totalPredictions: existing.totalPredictions + normalizedScout.totalPredictions,
+                    correctPredictions: existing.correctPredictions + normalizedScout.correctPredictions,
+                    currentStreak: Math.max(existing.currentStreak, normalizedScout.currentStreak),
+                    longestStreak: Math.max(existing.longestStreak, normalizedScout.longestStreak),
+                    detailedCommentsCount: existing.detailedCommentsCount + normalizedScout.detailedCommentsCount,
+                    createdAt: Math.min(existing.createdAt, normalizedScout.createdAt),
+                    lastUpdated: Math.max(existing.lastUpdated, normalizedScout.lastUpdated),
+                });
+            }
+
+            await scoutTable.clear();
+            if (mergedScoutsByName.size > 0) {
+                await scoutTable.bulkPut(Array.from(mergedScoutsByName.values()) as never[]);
+            }
+
+            const getAchievementPrimaryKey = (achievement: ScoutAchievement): [string, string] => [
+                achievement.scoutName,
+                achievement.achievementId,
+            ];
+            const serializeAchievementPrimaryKey = (primaryKey: [string, string]): string =>
+                `${primaryKey[0]}\u0000${primaryKey[1]}`;
+
+            const predictions = (await predictionTable.toArray()) as MatchPrediction[];
+            const winningPredictionByKey = new Map<string, MatchPrediction>();
+
+            for (const prediction of predictions) {
+                const normalizedScoutName = typeof prediction.scoutName === 'string' ? prediction.scoutName.trim() : '';
+                const normalizedEventKey = typeof prediction.eventKey === 'string' ? prediction.eventKey.trim() : '';
+
+                if (!normalizedScoutName || !normalizedEventKey) {
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${normalizedEventKey}\u0000${prediction.matchNumber}`;
+                const candidate: MatchPrediction = {
+                    ...prediction,
+                    scoutName: normalizedScoutName,
+                    eventKey: normalizedEventKey,
+                };
+
+                const existing = winningPredictionByKey.get(compositeKey);
+                const candidateTimestamp = typeof candidate.timestamp === 'number' ? candidate.timestamp : 0;
+                const existingTimestamp = typeof existing?.timestamp === 'number' ? existing.timestamp : 0;
+
+                if (!existing || candidateTimestamp >= existingTimestamp) {
+                    winningPredictionByKey.set(compositeKey, candidate);
+                }
+            }
+
+            for (const prediction of predictions) {
+                const normalizedScoutName = typeof prediction.scoutName === 'string' ? prediction.scoutName.trim() : '';
+                const normalizedEventKey = typeof prediction.eventKey === 'string' ? prediction.eventKey.trim() : '';
+
+                if (!normalizedScoutName || !normalizedEventKey) {
+                    await predictionTable.delete(prediction.id);
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${normalizedEventKey}\u0000${prediction.matchNumber}`;
+                const winner = winningPredictionByKey.get(compositeKey);
+
+                if (!winner || winner.id !== prediction.id) {
+                    await predictionTable.delete(prediction.id);
+                    continue;
+                }
+
+                if (prediction.scoutName !== normalizedScoutName || prediction.eventKey !== normalizedEventKey) {
+                    await predictionTable.put({
+                        ...prediction,
+                        scoutName: normalizedScoutName,
+                        eventKey: normalizedEventKey,
+                    });
+                }
+            }
+
+            const achievements = (await achievementTable.toArray()) as ScoutAchievement[];
+            const winningAchievementByKey = new Map<string, {
+                row: ScoutAchievement;
+                sourcePrimaryKey: [string, string];
+            }>();
+
+            for (const achievement of achievements) {
+                const normalizedScoutName = typeof achievement.scoutName === 'string' ? achievement.scoutName.trim() : '';
+                if (!normalizedScoutName) {
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${achievement.achievementId}`;
+                const candidate: ScoutAchievement = {
+                    ...achievement,
+                    scoutName: normalizedScoutName,
+                };
+                const existing = winningAchievementByKey.get(compositeKey)?.row;
+                const candidateUnlockedAt = typeof candidate.unlockedAt === 'number' ? candidate.unlockedAt : Number.MAX_SAFE_INTEGER;
+                const existingUnlockedAt = typeof existing?.unlockedAt === 'number' ? existing.unlockedAt : Number.MAX_SAFE_INTEGER;
+
+                if (!existing || candidateUnlockedAt <= existingUnlockedAt) {
+                    winningAchievementByKey.set(compositeKey, {
+                        row: candidate,
+                        sourcePrimaryKey: getAchievementPrimaryKey(achievement),
+                    });
+                }
+            }
+
+            for (const achievement of achievements) {
+                const sourcePrimaryKey = getAchievementPrimaryKey(achievement);
+                const normalizedScoutName = typeof achievement.scoutName === 'string' ? achievement.scoutName.trim() : '';
+                if (!normalizedScoutName) {
+                    await achievementTable.delete(sourcePrimaryKey);
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${achievement.achievementId}`;
+                const winner = winningAchievementByKey.get(compositeKey);
+                const isWinner = winner
+                    ? serializeAchievementPrimaryKey(winner.sourcePrimaryKey) === serializeAchievementPrimaryKey(sourcePrimaryKey)
+                    : false;
+
+                if (!winner || !isWinner) {
+                    await achievementTable.delete(sourcePrimaryKey);
+                    continue;
+                }
+
+                if (achievement.scoutName !== normalizedScoutName) {
+                    // Compound primary key changes when scoutName changes, so delete old key first.
+                    await achievementTable.delete(sourcePrimaryKey);
+                    await achievementTable.put({
+                        ...achievement,
+                        scoutName: normalizedScoutName,
+                    });
+                }
+            }
+        });
     }
 }
 
@@ -51,11 +257,19 @@ gamificationDB.open().catch(error => {
 // SCOUT PROFILE OPERATIONS
 // ============================================================================
 
+const normalizeScoutKey = (name: string): string => name.trim();
+const normalizeEventKey = (eventKey: string): string => eventKey.trim();
+
 /**
  * Get or create scout profile
  */
 export const getOrCreateScout = async (name: string): Promise<Scout> => {
-    const existingScout = await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) {
+        throw new Error('Scout name is required');
+    }
+
+    const existingScout = await gamificationDB.scouts.get(key);
 
     if (existingScout) {
         existingScout.lastUpdated = Date.now();
@@ -64,13 +278,14 @@ export const getOrCreateScout = async (name: string): Promise<Scout> => {
     }
 
     const newScout: Scout = {
-        name: name.trim(),
+        name: key,
         stakes: 0,
         stakesFromPredictions: 0,
         totalPredictions: 0,
         correctPredictions: 0,
         currentStreak: 0,
         longestStreak: 0,
+        detailedCommentsCount: 0,
         createdAt: Date.now(),
         lastUpdated: Date.now(),
     };
@@ -83,7 +298,9 @@ export const getOrCreateScout = async (name: string): Promise<Scout> => {
  * Get scout profile
  */
 export const getScout = async (name: string): Promise<Scout | undefined> => {
-    return await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return undefined;
+    return await gamificationDB.scouts.get(key);
 };
 
 /**
@@ -97,7 +314,9 @@ export const getAllScouts = async (): Promise<Scout[]> => {
  * Update scout stakes (add points)
  */
 export const updateScoutPoints = async (name: string, pointsToAdd: number): Promise<void> => {
-    const scout = await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return;
+    const scout = await gamificationDB.scouts.get(key);
     if (scout) {
         scout.stakes += pointsToAdd;
         scout.lastUpdated = Date.now();
@@ -117,7 +336,9 @@ export const updateScoutStats = async (
     longestStreak?: number,
     additionalStakesFromPredictions: number = 0
 ): Promise<void> => {
-    const scout = await gamificationDB.scouts.get(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return;
+    const scout = await gamificationDB.scouts.get(key);
     if (scout) {
         scout.stakes = newStakes;
         scout.stakesFromPredictions += additionalStakesFromPredictions;
@@ -137,10 +358,39 @@ export const updateScoutStats = async (
 };
 
 /**
+ * Increment scout's substantive comment count
+ */
+export const incrementScoutDetailedComments = async (name: string, incrementBy: number = 1): Promise<void> => {
+    const key = normalizeScoutKey(name);
+    const safeIncrement = Number.isFinite(incrementBy)
+        ? Math.max(0, Math.trunc(incrementBy))
+        : 0;
+    if (!key || safeIncrement === 0) {
+        return;
+    }
+
+    await gamificationDB.transaction('rw', gamificationDB.scouts, async () => {
+        await gamificationDB.scouts
+            .where('name')
+            .equals(key)
+            .modify((scout) => {
+                const currentCount = typeof scout.detailedCommentsCount === 'number'
+                    ? scout.detailedCommentsCount
+                    : 0;
+
+                scout.detailedCommentsCount = currentCount + safeIncrement;
+                scout.lastUpdated = Date.now();
+            });
+    });
+};
+
+/**
  * Delete scout profile
  */
 export const deleteScout = async (name: string): Promise<void> => {
-    await gamificationDB.scouts.delete(name);
+    const key = normalizeScoutKey(name);
+    if (!key) return;
+    await gamificationDB.scouts.delete(key);
 };
 
 /**
@@ -165,9 +415,18 @@ export const createMatchPrediction = async (
     matchNumber: number,
     predictedWinner: 'red' | 'blue'
 ): Promise<MatchPrediction> => {
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    const normalizedEventKey = normalizeEventKey(eventKey);
+    if (!normalizedScoutName) {
+        throw new Error('Scout name is required');
+    }
+    if (!normalizedEventKey) {
+        throw new Error('Event key is required');
+    }
+
     const existingPrediction = await gamificationDB.predictions
         .where('[scoutName+eventKey+matchNumber]')
-        .equals([scoutName, eventKey, matchNumber])
+        .equals([normalizedScoutName, normalizedEventKey, matchNumber])
         .first();
 
     if (existingPrediction) {
@@ -179,8 +438,8 @@ export const createMatchPrediction = async (
 
     const prediction: MatchPrediction = {
         id: `prediction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        scoutName,
-        eventKey,
+        scoutName: normalizedScoutName,
+        eventKey: normalizedEventKey,
         matchNumber,
         predictedWinner,
         timestamp: Date.now(),
@@ -190,7 +449,7 @@ export const createMatchPrediction = async (
     await gamificationDB.predictions.put(prediction);
 
     // Ensure scout exists
-    await getOrCreateScout(scoutName);
+    await getOrCreateScout(normalizedScoutName);
 
     return prediction;
 };
@@ -203,9 +462,18 @@ export const getPredictionForMatch = async (
     eventKey: string,
     matchNumber: number
 ): Promise<MatchPrediction | undefined> => {
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    const normalizedEventKey = normalizeEventKey(eventKey);
+    if (!normalizedScoutName) {
+        return undefined;
+    }
+    if (!normalizedEventKey) {
+        return undefined;
+    }
+
     return await gamificationDB.predictions
         .where('[scoutName+eventKey+matchNumber]')
-        .equals([scoutName, eventKey, matchNumber])
+        .equals([normalizedScoutName, normalizedEventKey, matchNumber])
         .first();
 };
 
@@ -213,9 +481,14 @@ export const getPredictionForMatch = async (
  * Get all predictions for a scout
  */
 export const getAllPredictionsForScout = async (scoutName: string): Promise<MatchPrediction[]> => {
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    if (!normalizedScoutName) {
+        return [];
+    }
+
     return await gamificationDB.predictions
         .where('scoutName')
-        .equals(scoutName)
+        .equals(normalizedScoutName)
         .reverse()
         .toArray();
 };
@@ -227,9 +500,14 @@ export const getAllPredictionsForMatch = async (
     eventKey: string,
     matchNumber: number
 ): Promise<MatchPrediction[]> => {
+    const normalizedEventKey = normalizeEventKey(eventKey);
+    if (!normalizedEventKey) {
+        return [];
+    }
+
     return await gamificationDB.predictions
         .where('eventKey')
-        .equals(eventKey)
+        .equals(normalizedEventKey)
         .and(prediction => prediction.matchNumber === matchNumber)
         .toArray();
 };
@@ -252,15 +530,20 @@ export const unlockAchievement = async (
     scoutName: string,
     achievementId: string
 ): Promise<void> => {
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    if (!normalizedScoutName) {
+        return;
+    }
+
     const existing = await gamificationDB.scoutAchievements
         .where('[scoutName+achievementId]')
-        .equals([scoutName, achievementId])
+        .equals([normalizedScoutName, achievementId])
         .first();
 
     if (!existing) {
         await gamificationDB.scoutAchievements.put({
-            id: `${scoutName}_${achievementId}_${Date.now()}`,
-            scoutName,
+            id: `${normalizedScoutName}_${achievementId}_${Date.now()}`,
+            scoutName: normalizedScoutName,
             achievementId,
             unlockedAt: Date.now(),
         });
@@ -271,7 +554,15 @@ export const unlockAchievement = async (
  * Get all achievements for scout
  */
 export const getScoutAchievements = async (scoutName: string): Promise<ScoutAchievement[]> => {
-    return await gamificationDB.scoutAchievements.where('scoutName').equals(scoutName).toArray();
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    if (!normalizedScoutName) {
+        return [];
+    }
+
+    return await gamificationDB.scoutAchievements
+        .where('scoutName')
+        .equals(normalizedScoutName)
+        .toArray();
 };
 
 /**
@@ -281,9 +572,14 @@ export const hasAchievement = async (
     scoutName: string,
     achievementId: string
 ): Promise<boolean> => {
+    const normalizedScoutName = normalizeScoutKey(scoutName);
+    if (!normalizedScoutName) {
+        return false;
+    }
+
     const achievement = await gamificationDB.scoutAchievements
         .where('[scoutName+achievementId]')
-        .equals([scoutName, achievementId])
+        .equals([normalizedScoutName, achievementId])
         .first();
     return !!achievement;
 };

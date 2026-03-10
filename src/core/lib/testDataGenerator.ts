@@ -166,6 +166,7 @@ export const generateRandomScouts = async () => {
             correctPredictions,
             currentStreak: randomInt(0, 5),
             longestStreak: randomInt(5, 12),
+            detailedCommentsCount: randomInt(0, 20),
             createdAt: Date.now() - (1000 * 60 * 60 * 24 * 30),
             lastUpdated: Date.now()
         };

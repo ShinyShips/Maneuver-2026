@@ -24,6 +24,7 @@ interface MobilePickListLayoutProps {
     alliances: Alliance[];
     backups: BackupTeam[];
     availableTeams: TeamStats[];
+    eventFilteredTeamCount: number;
     newListName: string;
     newListDescription: string;
     searchFilter: string;
@@ -31,12 +32,15 @@ interface MobilePickListLayoutProps {
     activeFilterIds: string[];
     defenseTargetTeamFilter: string;
     hideAllianceAssignedTeams: boolean;
+    eventFilter: string;
+    availableEventKeys: string[];
     canDeleteAll?: boolean;
     onTabChange: (tab: string) => void;
     onSearchChange: (search: string) => void;
     onSortChange: (sort: PickListSortOption) => void;
     onFilterChange: (filters: string[]) => void;
     onDefenseTargetTeamFilterChange: (value: string) => void;
+    onEventFilterChange: (eventKey: string) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
@@ -62,6 +66,7 @@ export const MobilePickListLayout = ({
     alliances,
     backups,
     availableTeams,
+    eventFilteredTeamCount,
     newListName,
     newListDescription,
     searchFilter,
@@ -69,12 +74,15 @@ export const MobilePickListLayout = ({
     activeFilterIds,
     defenseTargetTeamFilter,
     hideAllianceAssignedTeams,
+    eventFilter,
+    availableEventKeys,
     canDeleteAll = true,
     onTabChange,
     onSearchChange,
     onSortChange,
     onFilterChange,
     onDefenseTargetTeamFilterChange,
+    onEventFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance,
     onUpdateAlliances,
@@ -111,7 +119,7 @@ export const MobilePickListLayout = ({
                 <TabsContent value="teams">
                     <AvailableTeamsPanel
                         teams={filteredAndSortedTeams}
-                        totalTeams={availableTeams.length}
+                        totalTeams={eventFilteredTeamCount}
                         pickLists={pickLists}
                         alliances={alliances}
                         searchFilter={searchFilter}
@@ -124,6 +132,9 @@ export const MobilePickListLayout = ({
                         onFilterChange={onFilterChange}
                         onDefenseTargetTeamFilterChange={onDefenseTargetTeamFilterChange}
                         onToggleHideAllianceAssignedTeams={onToggleHideAllianceAssignedTeams}
+                        eventFilter={eventFilter}
+                        availableEventKeys={availableEventKeys}
+                        onEventFilterChange={onEventFilterChange}
                         onAddTeamToList={onAddTeamToList}
                         onAddTeamToAlliance={onAddTeamToAlliance}
                     />

@@ -202,6 +202,19 @@ export const deleteScoutingEntry = async (id: string): Promise<void> => {
 };
 
 /**
+ * Toggle whether a scouting entry should be excluded from aggregate stats.
+ */
+export const updateScoutingEntryIgnoreForStats = async (
+  id: string,
+  ignoreForStats: boolean
+): Promise<void> => {
+  const updatedCount = await db.scoutingData.update(id, { ignoreForStats });
+  if (updatedCount === 0) {
+    throw new Error(`Scouting entry not found: ${id}`);
+  }
+};
+
+/**
  * Clear all scouting data
  */
 export const clearAllScoutingData = async (): Promise<void> => {

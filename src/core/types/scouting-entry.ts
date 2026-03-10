@@ -51,6 +51,9 @@ export interface ScoutingEntryBase<TGameData = Record<string, unknown>> {
   /** Robot did not show up for this match */
   noShow?: boolean;
 
+  /** Exclude this match from aggregate team statistics while keeping the raw entry */
+  ignoreForStats?: boolean;
+
   // === Correction Tracking ===
   // These fields support re-scouting workflows for data quality
 

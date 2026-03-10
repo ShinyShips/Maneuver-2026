@@ -21,6 +21,7 @@ interface DesktopPickListLayoutProps {
     alliances: Alliance[];
     backups: BackupTeam[];
     availableTeams: TeamStats[];
+    eventFilteredTeamCount: number;
     newListName: string;
     newListDescription: string;
     searchFilter: string;
@@ -28,12 +29,15 @@ interface DesktopPickListLayoutProps {
     activeFilterIds: string[];
     defenseTargetTeamFilter: string;
     hideAllianceAssignedTeams: boolean;
+    eventFilter: string;
+    availableEventKeys: string[];
     canDeleteAll?: boolean;
     onSearchChange: (search: string) => void;
     onSortChange: (sort: PickListSortOption) => void;
     onFilterChange: (filters: string[]) => void;
     onDefenseTargetTeamFilterChange: (value: string) => void;
     onToggleHideAllianceAssignedTeams: (hide: boolean) => void;
+    onEventFilterChange: (eventKey: string) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
@@ -53,6 +57,7 @@ export const DesktopPickListLayout = ({
     alliances,
     backups,
     availableTeams,
+    eventFilteredTeamCount,
     newListName,
     newListDescription,
     searchFilter,
@@ -60,12 +65,15 @@ export const DesktopPickListLayout = ({
     activeFilterIds,
     defenseTargetTeamFilter,
     hideAllianceAssignedTeams,
+    eventFilter,
+    availableEventKeys,
     canDeleteAll = true,
     onSearchChange,
     onSortChange,
     onFilterChange,
     onDefenseTargetTeamFilterChange,
     onToggleHideAllianceAssignedTeams,
+    onEventFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance,
     onUpdateAlliances,
@@ -84,7 +92,7 @@ export const DesktopPickListLayout = ({
                 {/* Available Teams Panel */}
                 <AvailableTeamsPanel
                     teams={filteredAndSortedTeams}
-                    totalTeams={availableTeams.length}
+                    totalTeams={eventFilteredTeamCount}
                     pickLists={pickLists}
                     alliances={alliances}
                     searchFilter={searchFilter}
@@ -97,6 +105,9 @@ export const DesktopPickListLayout = ({
                     onFilterChange={onFilterChange}
                     onDefenseTargetTeamFilterChange={onDefenseTargetTeamFilterChange}
                     onToggleHideAllianceAssignedTeams={onToggleHideAllianceAssignedTeams}
+                    eventFilter={eventFilter}
+                    availableEventKeys={availableEventKeys}
+                    onEventFilterChange={onEventFilterChange}
                     onAddTeamToList={onAddTeamToList}
                     onAddTeamToAlliance={onAddTeamToAlliance}
                 />
