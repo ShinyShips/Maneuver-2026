@@ -1,90 +1,8 @@
 import { toast } from "sonner";
 import { gamificationDB as gameDB, type Scout, type MatchPrediction } from "@/game-template/gamification";
 import { normalizeTransferredScoutProfile } from "@/core/lib/normalizeTransferredScoutProfile";
+import { normalizeTransferredMatchPrediction } from "@/core/lib/normalizeTransferredMatchPrediction";
 import type { UploadMode } from "./scoutingDataUploadHandler";
-
-const asFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim());
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return null;
-};
-
-const asBoolean = (value: unknown): boolean | null => {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'true') return true;
-    if (normalized === 'false') return false;
-  }
-
-  return null;
-};
-
-const normalizePrediction = (prediction: unknown): MatchPrediction | null => {
-  if (!prediction || typeof prediction !== 'object') {
-    return null;
-  }
-
-  const value = prediction as Record<string, unknown>;
-  const id = typeof value.id === 'string' ? value.id.trim() : '';
-  const scoutName = typeof value.scoutName === 'string' ? value.scoutName.trim() : '';
-  const eventKey = typeof value.eventKey === 'string' ? value.eventKey.trim() : '';
-  const predictedWinnerRaw = typeof value.predictedWinner === 'string' ? value.predictedWinner.trim().toLowerCase() : '';
-  const matchNumber = asFiniteNumber(value.matchNumber);
-  const timestamp = asFiniteNumber(value.timestamp);
-  const verified = asBoolean(value.verified);
-  const actualWinnerRaw = typeof value.actualWinner === 'string' ? value.actualWinner.trim().toLowerCase() : null;
-  const isCorrect = asBoolean(value.isCorrect);
-  const pointsAwarded = asFiniteNumber(value.pointsAwarded);
-
-  if (!id || !scoutName || !eventKey) {
-    return null;
-  }
-
-  if (predictedWinnerRaw !== 'red' && predictedWinnerRaw !== 'blue') {
-    return null;
-  }
-
-  if (matchNumber === null || timestamp === null || verified === null) {
-    return null;
-  }
-
-  const normalized: MatchPrediction = {
-    id,
-    scoutName,
-    eventKey,
-    matchNumber,
-    predictedWinner: predictedWinnerRaw,
-    timestamp,
-    verified,
-  };
-
-  if (actualWinnerRaw === 'red' || actualWinnerRaw === 'blue' || actualWinnerRaw === 'tie') {
-    normalized.actualWinner = actualWinnerRaw;
-  }
-
-  if (isCorrect !== null) {
-    normalized.isCorrect = isCorrect;
-  }
-
-  if (pointsAwarded !== null) {
-    normalized.pointsAwarded = pointsAwarded;
-  }
-
-  return normalized;
-};
 
 export const handleScoutProfilesUpload = async (jsonData: unknown, mode: UploadMode): Promise<void> => {
   if (!jsonData || typeof jsonData !== 'object') {
@@ -105,7 +23,7 @@ export const handleScoutProfilesUpload = async (jsonData: unknown, mode: UploadM
   const skippedScoutCount = data.scouts.length - scoutsToImport.length;
 
   const predictionsToImport = data.predictions
-    .map((prediction) => normalizePrediction(prediction))
+    .map((prediction) => normalizeTransferredMatchPrediction(prediction))
     .filter((prediction): prediction is MatchPrediction => !!prediction);
   const skippedPredictionCount = data.predictions.length - predictionsToImport.length;
 

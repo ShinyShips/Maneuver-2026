@@ -49,6 +49,115 @@ export class ScoutGamificationDB extends Dexie {
                     : 0;
             });
         });
+
+        // Version 4: Normalize scoutName keys in predictions/achievements to preserve lookups.
+        this.version(4).stores({
+            scouts: 'name, stakes, stakesFromPredictions, totalPredictions, correctPredictions, currentStreak, longestStreak, lastUpdated',
+            predictions: 'id, scoutName, eventKey, matchNumber, predictedWinner, timestamp, verified, [scoutName+eventKey+matchNumber]',
+            scoutAchievements: '[scoutName+achievementId], scoutName, achievementId, unlockedAt'
+        }).upgrade(async tx => {
+            const predictionTable = tx.table('predictions');
+            const achievementTable = tx.table('scoutAchievements');
+
+            const predictions = (await predictionTable.toArray()) as MatchPrediction[];
+            const winningPredictionByKey = new Map<string, MatchPrediction>();
+
+            for (const prediction of predictions) {
+                const normalizedScoutName = typeof prediction.scoutName === 'string' ? prediction.scoutName.trim() : '';
+                const normalizedEventKey = typeof prediction.eventKey === 'string' ? prediction.eventKey.trim() : '';
+
+                if (!normalizedScoutName || !normalizedEventKey) {
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${normalizedEventKey}\u0000${prediction.matchNumber}`;
+                const candidate: MatchPrediction = {
+                    ...prediction,
+                    scoutName: normalizedScoutName,
+                    eventKey: normalizedEventKey,
+                };
+
+                const existing = winningPredictionByKey.get(compositeKey);
+                const candidateTimestamp = typeof candidate.timestamp === 'number' ? candidate.timestamp : 0;
+                const existingTimestamp = typeof existing?.timestamp === 'number' ? existing.timestamp : 0;
+
+                if (!existing || candidateTimestamp >= existingTimestamp) {
+                    winningPredictionByKey.set(compositeKey, candidate);
+                }
+            }
+
+            for (const prediction of predictions) {
+                const normalizedScoutName = typeof prediction.scoutName === 'string' ? prediction.scoutName.trim() : '';
+                const normalizedEventKey = typeof prediction.eventKey === 'string' ? prediction.eventKey.trim() : '';
+
+                if (!normalizedScoutName || !normalizedEventKey) {
+                    await predictionTable.delete(prediction.id);
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${normalizedEventKey}\u0000${prediction.matchNumber}`;
+                const winner = winningPredictionByKey.get(compositeKey);
+
+                if (!winner || winner.id !== prediction.id) {
+                    await predictionTable.delete(prediction.id);
+                    continue;
+                }
+
+                if (prediction.scoutName !== normalizedScoutName || prediction.eventKey !== normalizedEventKey) {
+                    await predictionTable.put({
+                        ...prediction,
+                        scoutName: normalizedScoutName,
+                        eventKey: normalizedEventKey,
+                    });
+                }
+            }
+
+            const achievements = (await achievementTable.toArray()) as ScoutAchievement[];
+            const winningAchievementByKey = new Map<string, ScoutAchievement>();
+
+            for (const achievement of achievements) {
+                const normalizedScoutName = typeof achievement.scoutName === 'string' ? achievement.scoutName.trim() : '';
+                if (!normalizedScoutName) {
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${achievement.achievementId}`;
+                const candidate: ScoutAchievement = {
+                    ...achievement,
+                    scoutName: normalizedScoutName,
+                };
+                const existing = winningAchievementByKey.get(compositeKey);
+                const candidateUnlockedAt = typeof candidate.unlockedAt === 'number' ? candidate.unlockedAt : Number.MAX_SAFE_INTEGER;
+                const existingUnlockedAt = typeof existing?.unlockedAt === 'number' ? existing.unlockedAt : Number.MAX_SAFE_INTEGER;
+
+                if (!existing || candidateUnlockedAt <= existingUnlockedAt) {
+                    winningAchievementByKey.set(compositeKey, candidate);
+                }
+            }
+
+            for (const achievement of achievements) {
+                const normalizedScoutName = typeof achievement.scoutName === 'string' ? achievement.scoutName.trim() : '';
+                if (!normalizedScoutName) {
+                    await achievementTable.delete(achievement.id);
+                    continue;
+                }
+
+                const compositeKey = `${normalizedScoutName}\u0000${achievement.achievementId}`;
+                const winner = winningAchievementByKey.get(compositeKey);
+
+                if (!winner || winner.id !== achievement.id) {
+                    await achievementTable.delete(achievement.id);
+                    continue;
+                }
+
+                if (achievement.scoutName !== normalizedScoutName) {
+                    await achievementTable.put({
+                        ...achievement,
+                        scoutName: normalizedScoutName,
+                    });
+                }
+            }
+        });
     }
 }
 
