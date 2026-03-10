@@ -211,6 +211,11 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
             return;
         }
 
+        // Don't validate/reset until we actually have keys to validate against.
+        if (availableEventKeys.length === 0) {
+            return;
+        }
+
         const canonicalEventKey = availableEventKeys.find(
             (key) => key.trim().toLowerCase() === eventFilter.trim().toLowerCase()
         );

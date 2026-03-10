@@ -14,7 +14,7 @@ import type { Scout, MatchPrediction, ScoutAchievement } from './types';
 export class ScoutGamificationDB extends Dexie {
     scouts!: Table<Scout, string>;
     predictions!: Table<MatchPrediction, string>;
-    scoutAchievements!: Table<ScoutAchievement, string>;
+    scoutAchievements!: Table<ScoutAchievement, [string, string]>;
 
     constructor() {
         super('ScoutGamificationDB');
@@ -58,6 +58,12 @@ export class ScoutGamificationDB extends Dexie {
         }).upgrade(async tx => {
             const predictionTable = tx.table('predictions');
             const achievementTable = tx.table('scoutAchievements');
+            const getAchievementPrimaryKey = (achievement: ScoutAchievement): [string, string] => [
+                achievement.scoutName,
+                achievement.achievementId,
+            ];
+            const serializeAchievementPrimaryKey = (primaryKey: [string, string]): string =>
+                `${primaryKey[0]}\u0000${primaryKey[1]}`;
 
             const predictions = (await predictionTable.toArray()) as MatchPrediction[];
             const winningPredictionByKey = new Map<string, MatchPrediction>();
@@ -113,7 +119,10 @@ export class ScoutGamificationDB extends Dexie {
             }
 
             const achievements = (await achievementTable.toArray()) as ScoutAchievement[];
-            const winningAchievementByKey = new Map<string, ScoutAchievement>();
+            const winningAchievementByKey = new Map<string, {
+                row: ScoutAchievement;
+                sourcePrimaryKey: [string, string];
+            }>();
 
             for (const achievement of achievements) {
                 const normalizedScoutName = typeof achievement.scoutName === 'string' ? achievement.scoutName.trim() : '';
@@ -126,31 +135,40 @@ export class ScoutGamificationDB extends Dexie {
                     ...achievement,
                     scoutName: normalizedScoutName,
                 };
-                const existing = winningAchievementByKey.get(compositeKey);
+                const existing = winningAchievementByKey.get(compositeKey)?.row;
                 const candidateUnlockedAt = typeof candidate.unlockedAt === 'number' ? candidate.unlockedAt : Number.MAX_SAFE_INTEGER;
                 const existingUnlockedAt = typeof existing?.unlockedAt === 'number' ? existing.unlockedAt : Number.MAX_SAFE_INTEGER;
 
                 if (!existing || candidateUnlockedAt <= existingUnlockedAt) {
-                    winningAchievementByKey.set(compositeKey, candidate);
+                    winningAchievementByKey.set(compositeKey, {
+                        row: candidate,
+                        sourcePrimaryKey: getAchievementPrimaryKey(achievement),
+                    });
                 }
             }
 
             for (const achievement of achievements) {
+                const sourcePrimaryKey = getAchievementPrimaryKey(achievement);
                 const normalizedScoutName = typeof achievement.scoutName === 'string' ? achievement.scoutName.trim() : '';
                 if (!normalizedScoutName) {
-                    await achievementTable.delete(achievement.id);
+                    await achievementTable.delete(sourcePrimaryKey);
                     continue;
                 }
 
                 const compositeKey = `${normalizedScoutName}\u0000${achievement.achievementId}`;
                 const winner = winningAchievementByKey.get(compositeKey);
+                const isWinner = winner
+                    ? serializeAchievementPrimaryKey(winner.sourcePrimaryKey) === serializeAchievementPrimaryKey(sourcePrimaryKey)
+                    : false;
 
-                if (!winner || winner.id !== achievement.id) {
-                    await achievementTable.delete(achievement.id);
+                if (!winner || !isWinner) {
+                    await achievementTable.delete(sourcePrimaryKey);
                     continue;
                 }
 
                 if (achievement.scoutName !== normalizedScoutName) {
+                    // Compound primary key changes when scoutName changes, so delete old key first.
+                    await achievementTable.delete(sourcePrimaryKey);
                     await achievementTable.put({
                         ...achievement,
                         scoutName: normalizedScoutName,
@@ -174,6 +192,7 @@ gamificationDB.open().catch(error => {
 // ============================================================================
 
 const normalizeScoutKey = (name: string): string => name.trim();
+const normalizeEventKey = (eventKey: string): string => eventKey.trim();
 
 /**
  * Get or create scout profile
@@ -277,7 +296,9 @@ export const updateScoutStats = async (
  */
 export const incrementScoutDetailedComments = async (name: string, incrementBy: number = 1): Promise<void> => {
     const key = normalizeScoutKey(name);
-    const safeIncrement = Math.max(0, incrementBy);
+    const safeIncrement = Number.isFinite(incrementBy)
+        ? Math.max(0, Math.trunc(incrementBy))
+        : 0;
     if (!key || safeIncrement === 0) {
         return;
     }
@@ -329,13 +350,17 @@ export const createMatchPrediction = async (
     predictedWinner: 'red' | 'blue'
 ): Promise<MatchPrediction> => {
     const normalizedScoutName = normalizeScoutKey(scoutName);
+    const normalizedEventKey = normalizeEventKey(eventKey);
     if (!normalizedScoutName) {
         throw new Error('Scout name is required');
+    }
+    if (!normalizedEventKey) {
+        throw new Error('Event key is required');
     }
 
     const existingPrediction = await gamificationDB.predictions
         .where('[scoutName+eventKey+matchNumber]')
-        .equals([normalizedScoutName, eventKey, matchNumber])
+        .equals([normalizedScoutName, normalizedEventKey, matchNumber])
         .first();
 
     if (existingPrediction) {
@@ -348,7 +373,7 @@ export const createMatchPrediction = async (
     const prediction: MatchPrediction = {
         id: `prediction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         scoutName: normalizedScoutName,
-        eventKey,
+        eventKey: normalizedEventKey,
         matchNumber,
         predictedWinner,
         timestamp: Date.now(),
@@ -372,13 +397,17 @@ export const getPredictionForMatch = async (
     matchNumber: number
 ): Promise<MatchPrediction | undefined> => {
     const normalizedScoutName = normalizeScoutKey(scoutName);
+    const normalizedEventKey = normalizeEventKey(eventKey);
     if (!normalizedScoutName) {
+        return undefined;
+    }
+    if (!normalizedEventKey) {
         return undefined;
     }
 
     return await gamificationDB.predictions
         .where('[scoutName+eventKey+matchNumber]')
-        .equals([normalizedScoutName, eventKey, matchNumber])
+        .equals([normalizedScoutName, normalizedEventKey, matchNumber])
         .first();
 };
 
@@ -405,9 +434,14 @@ export const getAllPredictionsForMatch = async (
     eventKey: string,
     matchNumber: number
 ): Promise<MatchPrediction[]> => {
+    const normalizedEventKey = normalizeEventKey(eventKey);
+    if (!normalizedEventKey) {
+        return [];
+    }
+
     return await gamificationDB.predictions
         .where('eventKey')
-        .equals(eventKey)
+        .equals(normalizedEventKey)
         .and(prediction => prediction.matchNumber === matchNumber)
         .toArray();
 };
