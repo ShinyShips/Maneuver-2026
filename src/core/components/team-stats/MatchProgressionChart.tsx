@@ -47,6 +47,7 @@ function getSeriesColor(index: number, dashed: boolean): string {
 }
 
 interface ChartSeries {
+    eventKey: string;
     key: string;
     label: string;
     color: string;
@@ -79,11 +80,13 @@ function getMetricValue(match: MatchProgressionMatchResult, metricKey: string): 
 function buildSeries(
     matches: MatchProgressionMatchResult[],
     teamNumber: number,
+    source: 'primary' | 'compare',
     dashed: boolean
 ): ChartSeries[] {
     const events = [...new Set(matches.map(getEventKey))].sort();
     return events.map((eventKey, index) => ({
-        key: `team_${teamNumber}_${eventKey}`,
+        eventKey,
+        key: `team_${teamNumber}_${source}_${index}`,
         label: `Team ${teamNumber} (${eventKey})`,
         color: getSeriesColor(index, dashed),
         dashed,
@@ -98,11 +101,14 @@ export function MatchProgressionChart({
 }: MatchProgressionChartProps) {
     const [selectedMetric, setSelectedMetric] = useState('totalPoints');
 
-    const primarySeries = buildSeries(matchResults, teamNumber, false);
+    const primarySeries = buildSeries(matchResults, teamNumber, 'primary', false);
     const compareSeries = compareTeamNumber
-        ? buildSeries(compareMatchResults ?? [], compareTeamNumber, true)
+        ? buildSeries(compareMatchResults ?? [], compareTeamNumber, 'compare', true)
         : [];
     const allSeries = [...primarySeries, ...compareSeries];
+
+    const primarySeriesKeyByEvent = new Map(primarySeries.map(series => [series.eventKey, series.key]));
+    const compareSeriesKeyByEvent = new Map(compareSeries.map(series => [series.eventKey, series.key]));
 
     // Prepare chart data: one row per match number so events share the same x-axis for comparison.
     const chartRows = new Map<number, Record<string, number | string>>();
@@ -110,8 +116,11 @@ export function MatchProgressionChart({
     for (const match of matchResults) {
         const matchNumber = getMatchNumber(match);
         const eventKey = getEventKey(match);
+        const seriesKey = primarySeriesKeyByEvent.get(eventKey);
+        if (!seriesKey) continue;
+
         const row = chartRows.get(matchNumber) ?? { match: matchNumber };
-        row[`team_${teamNumber}_${eventKey}`] = getMetricValue(match, selectedMetric);
+        row[seriesKey] = getMetricValue(match, selectedMetric);
         chartRows.set(matchNumber, row);
     }
 
@@ -119,8 +128,11 @@ export function MatchProgressionChart({
         for (const match of compareMatchResults) {
             const matchNumber = getMatchNumber(match);
             const eventKey = getEventKey(match);
+            const seriesKey = compareSeriesKeyByEvent.get(eventKey);
+            if (!seriesKey) continue;
+
             const row = chartRows.get(matchNumber) ?? { match: matchNumber };
-            row[`team_${compareTeamNumber}_${eventKey}`] = getMetricValue(match, selectedMetric);
+            row[seriesKey] = getMetricValue(match, selectedMetric);
             chartRows.set(matchNumber, row);
         }
     }

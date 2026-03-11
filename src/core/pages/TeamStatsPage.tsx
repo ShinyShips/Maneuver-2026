@@ -128,10 +128,13 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
     }, [selectedEvents]);
 
     const selectedEventForChildren = useMemo<string>(() => {
-        if (selectedEvents.length === 1 && selectedEvents[0] && selectedEvents[0] !== "all") {
-            return selectedEvents[0];
+        if (selectedEvents.length === 1) {
+            const only = selectedEvents[0];
+            return only === "all" ? "" : only || "";
         }
-        return "all";
+
+        const firstRealEvent = selectedEvents.find(eventCode => eventCode !== "all");
+        return firstRealEvent || "";
     }, [selectedEvents]);
 
     const getTabCategoryLabel = (tab: 'overview' | 'scoring' | 'performance') => {
@@ -571,7 +574,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
                                 {PitDataComponent ? (
                                     <PitDataComponent
                                         teamNumber={selectedTeam}
-                                        selectedEvent={selectedEventForChildren === "all" ? undefined : selectedEventForChildren}
+                                        selectedEvent={selectedEventForChildren || undefined}
                                     />
                                 ) : (
                                     <Card>

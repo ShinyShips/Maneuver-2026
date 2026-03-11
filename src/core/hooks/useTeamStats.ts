@@ -75,6 +75,12 @@ export const useTeamStats = () => {
                 ? [...new Set(eventFilter.filter((key): key is string => !!key && key !== 'all'))]
                 : (eventFilter && eventFilter !== 'all' ? [eventFilter] : []);
 
+            const resolvedEventKey = selectedEventKeys.length === 0
+                ? 'all'
+                : selectedEventKeys.length === 1
+                    ? selectedEventKeys[0] || 'all'
+                    : 'multiple';
+
             const singleEventKey = selectedEventKeys[0];
 
             if (selectedEventKeys.length === 1 && singleEventKey) {
@@ -91,7 +97,7 @@ export const useTeamStats = () => {
                 // Return a basic object with matchesPlayed: 0
                 return {
                     teamNumber: teamNum,
-                    eventKey: typeof eventFilter === 'string' ? eventFilter : '',
+                    eventKey: resolvedEventKey,
                     matchCount: 0,
                     totalPoints: 0,
                     autoPoints: 0,
@@ -105,8 +111,12 @@ export const useTeamStats = () => {
                 } as TeamStats;
             }
 
-            // Use the game-specific analysis implementation
-            return analysis.calculateBasicStats(entries);
+            // Use the game-specific analysis implementation and normalize the event context.
+            const stats = analysis.calculateBasicStats(entries);
+            return {
+                ...stats,
+                eventKey: resolvedEventKey,
+            };
         } catch (error) {
             console.error(`Error calculating stats for team ${teamNumber}:`, error);
             return null;
