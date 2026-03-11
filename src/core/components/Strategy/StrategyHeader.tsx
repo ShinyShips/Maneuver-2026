@@ -7,8 +7,8 @@ interface StrategyHeaderProps {
     filteredTeamCount: number;
     totalTeamCount: number;
     activeFilterCount: number;
-    selectedEvent: string;
-    onEventChange: (event: string) => void;
+    selectedEvents: string[];
+    onEventChange: (events: string[]) => void;
     availableEvents: string[];
     aggregationType: AggregationType;
     onAggregationTypeChange: (type: AggregationType) => void;
@@ -23,7 +23,7 @@ export const StrategyHeader = ({
     filteredTeamCount,
     totalTeamCount,
     activeFilterCount,
-    selectedEvent,
+    selectedEvents,
     onEventChange,
     availableEvents,
     aggregationType,
@@ -62,11 +62,12 @@ export const StrategyHeader = ({
                 {/* Event Filter */}
                 <GenericSelector
                     label="Select Event"
-                    value={selectedEvent}
+                    multiSelect={true}
+                    values={selectedEvents}
                     availableOptions={["all", ...availableEvents]}
-                    onValueChange={onEventChange}
+                    onValuesChange={onEventChange}
                     placeholder="All Events"
-                    displayFormat={(val: string) => val}
+                    displayFormat={(val: string) => val === "all" ? "All Events" : val}
                     className="w-48"
                 />
 

@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Badge } from "@/core/components/ui/badge";
 import { ProgressCard } from "@/core/components/team-stats/ProgressCard";
+import { MatchProgressionChart } from "./MatchProgressionChart";
+import type { MatchProgressionMatchResult } from "./MatchProgressionChart";
 import { MatchStatsDialog } from "./MatchStatsDialog";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { RateSectionDefinition, MatchBadgeDefinition } from "@/types/team-stats-display";
@@ -21,6 +23,7 @@ export function PerformanceAnalysis({
     onMatchDataChanged,
 }: PerformanceAnalysisProps) {
     const matchResults = (teamStats as TeamStats & { matchResults?: Record<string, unknown>[] })?.matchResults;
+    const compareMatchResults = (compareStats as (TeamStats & { matchResults?: Record<string, unknown>[] }) | null)?.matchResults;
     const hasMatchResults = Array.isArray(matchResults) && matchResults.length > 0;
 
     if (teamStats.matchesPlayed === 0 && !hasMatchResults) {
@@ -152,6 +155,17 @@ export function PerformanceAnalysis({
 
     return (
         <div className="space-y-6 pb-6">
+            {hasMatchResults && (
+                <MatchProgressionChart
+                    matchResults={matchResults as MatchProgressionMatchResult[]}
+                    compareMatchResults={Array.isArray(compareMatchResults)
+                        ? compareMatchResults as MatchProgressionMatchResult[]
+                        : undefined}
+                    teamNumber={teamStats.teamNumber}
+                    compareTeamNumber={compareStats?.teamNumber}
+                />
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>

@@ -5,7 +5,7 @@
  * by game implementations through the StrategyAnalysis interface.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Badge } from "@/core/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/animate-ui/radix/tabs";
@@ -32,6 +32,12 @@ interface TeamStatsPageProps {
      * Defaults to useTeamStats hook implementation
      */
     calculateStats?: (teamNumber: string, eventFilter?: string) => Promise<TeamStats | null>;
+
+    /**
+     * Optional: Multi-event stats calculator for subset event filtering
+     * Falls back to useTeamStats hook implementation when not provided
+     */
+    calculateStatsMultiEvent?: (teamNumber: string, eventFilter?: string | string[]) => Promise<TeamStats | null>;
 
     /**
      * Optional: Stat sections configuration
@@ -94,12 +100,13 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
     const rateSections = props.rateSections ?? displayConfig.rateSections;
     const matchBadges = props.matchBadges ?? displayConfig.matchBadges;
     const startPositionConfig = props.startPositionConfig ?? displayConfig.startPositionConfig;
-    const calculateStats = props.calculateStats ?? hookCalculate;
+    const calculateStatsSingle = props.calculateStats ?? hookCalculate;
+    const calculateStatsMulti = props.calculateStatsMultiEvent ?? hookCalculate;
     const PitDataComponent = props.PitDataComponent ?? PitDataDisplay;
 
     const [selectedTeam, setSelectedTeam] = useState<string>("");
     const [compareTeam, setCompareTeam] = useState<string>("none");
-    const [selectedEvent, setSelectedEvent] = useState<string>("all");
+    const [selectedEvents, setSelectedEvents] = useState<string[]>(["all"]);
     const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
     const [compareStats, setCompareStats] = useState<TeamStats | null>(null);
     const [activeTab, setActiveTab] = useState("overview");
@@ -107,6 +114,27 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
     const [hiddenStatKeys, setHiddenStatKeys] = useState<Set<string>>(new Set());
     const [autoHideUncollected, setAutoHideUncollected] = useState(true);
     const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+    const teamStatsRequestIdRef = useRef(0);
+    const compareStatsRequestIdRef = useRef(0);
+
+    const selectedEventFilter = useMemo<string | string[] | undefined>(() => {
+        if (selectedEvents.length === 0 || selectedEvents.includes("all")) {
+            return undefined;
+        }
+        if (selectedEvents.length === 1) {
+            return selectedEvents[0];
+        }
+        return selectedEvents;
+    }, [selectedEvents]);
+
+    const selectedEventForChildren = useMemo<string | undefined>(() => {
+        if (selectedEvents.length === 1) {
+            const only = selectedEvents[0];
+            return only === "all" ? undefined : only || undefined;
+        }
+
+        return undefined;
+    }, [selectedEvents]);
 
     const getTabCategoryLabel = (tab: 'overview' | 'scoring' | 'performance') => {
         if (tab === 'overview') return 'Overview';
@@ -308,28 +336,42 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
 
     // Calculate stats when team selection or event filter changes
     useEffect(() => {
+        teamStatsRequestIdRef.current += 1;
+        const requestId = teamStatsRequestIdRef.current;
+
         const updateStats = async () => {
             if (selectedTeam) {
-                const stats = await calculateStats(selectedTeam, selectedEvent === "all" ? undefined : selectedEvent);
-                setTeamStats(stats);
+                const stats = Array.isArray(selectedEventFilter)
+                    ? await calculateStatsMulti(selectedTeam, selectedEventFilter)
+                    : await calculateStatsSingle(selectedTeam, selectedEventFilter);
+                if (requestId === teamStatsRequestIdRef.current) {
+                    setTeamStats(stats);
+                }
             } else {
                 setTeamStats(null);
             }
         };
         updateStats();
-    }, [selectedTeam, selectedEvent, calculateStats, statsRefreshKey]);
+    }, [selectedTeam, selectedEventFilter, calculateStatsSingle, calculateStatsMulti, statsRefreshKey]);
 
     useEffect(() => {
+        compareStatsRequestIdRef.current += 1;
+        const requestId = compareStatsRequestIdRef.current;
+
         const updateCompareStats = async () => {
             if (compareTeam && compareTeam !== "none") {
-                const stats = await calculateStats(compareTeam, selectedEvent === "all" ? undefined : selectedEvent);
-                setCompareStats(stats);
+                const stats = Array.isArray(selectedEventFilter)
+                    ? await calculateStatsMulti(compareTeam, selectedEventFilter)
+                    : await calculateStatsSingle(compareTeam, selectedEventFilter);
+                if (requestId === compareStatsRequestIdRef.current) {
+                    setCompareStats(stats);
+                }
             } else {
                 setCompareStats(null);
             }
         };
         updateCompareStats();
-    }, [compareTeam, selectedEvent, calculateStats, statsRefreshKey]);
+    }, [compareTeam, selectedEventFilter, calculateStatsSingle, calculateStatsMulti, statsRefreshKey]);
 
     return (
         <div className="min-h-screen w-full flex flex-col items-center px-4 pt-12 pb-24">
@@ -381,10 +423,12 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
                             <div className="w-full min-w-0 sm:min-w-35 sm:max-w-62.5">
                                 <GenericSelector
                                     label="Select Event"
-                                    value={selectedEvent}
+                                    multiSelect={true}
+                                    values={selectedEvents}
                                     availableOptions={["all", ...availableEvents]}
-                                    onValueChange={setSelectedEvent}
+                                    onValuesChange={setSelectedEvents}
                                     placeholder="All events"
+                                    displayFormat={(value: string) => value === "all" ? "All Events" : value}
                                     className="bg-background border-muted-foreground/20"
                                 />
                             </div>
@@ -529,7 +573,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
                                 {PitDataComponent ? (
                                     <PitDataComponent
                                         teamNumber={selectedTeam}
-                                        selectedEvent={selectedEvent === "all" ? undefined : selectedEvent}
+                                        selectedEvent={selectedEventForChildren}
                                     />
                                 ) : (
                                     <Card>

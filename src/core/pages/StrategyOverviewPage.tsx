@@ -5,14 +5,11 @@ import { strategyConfig } from "@/game/strategy-config";
 import { StrategyHeader } from "@/core/components/Strategy/StrategyHeader";
 import { StrategyChart } from "@/core/components/Strategy/StrategyChart";
 import { TeamStatsTableEnhanced } from "@/core/components/Strategy/TeamStatsTableEnhanced";
-import { loadScoutingData } from "@/core/lib/scoutingDataUtils";
-import { ScoutingEntryBase } from "@/types/scouting-entry";
 import { AggregationType, ColumnFilter, FilterOperator } from "@/core/types/strategy";
 import { Skeleton } from "@/core/components/ui/skeleton";
 
 export default function StrategyOverviewPage() {
-    const [scoutingData, setScoutingData] = useState<ScoutingEntryBase[]>([]);
-    const [selectedEvent, setSelectedEvent] = useState<string>("all");
+    const [selectedEvents, setSelectedEvents] = useState<string[]>(["all"]);
     const [aggregationType, setAggregationType] = useState<AggregationType>("average");
     const [chartType, setChartType] = useState<"bar" | "scatter" | "box" | "stacked">("bar");
     const [chartMetric, setChartMetric] = useState<string>(
@@ -29,12 +26,6 @@ export default function StrategyOverviewPage() {
 
     // Load data on mount
     useEffect(() => {
-        const fetchData = async () => {
-            const data = await loadScoutingData();
-            setScoutingData(data);
-        };
-        fetchData();
-
         // Load saved settings from localStorage
         const savedAggregation = localStorage.getItem("strategy_aggregation");
         if (savedAggregation) setAggregationType(savedAggregation as AggregationType);
@@ -90,14 +81,19 @@ export default function StrategyOverviewPage() {
         localStorage.setItem("strategy_visibleColumns", JSON.stringify(visibleKeys));
     }, [columnConfig]);
 
-    // Derived state
-    const availableEvents = useMemo(() => {
-        return Array.from(new Set(scoutingData.map((d) => d.eventKey))).sort();
-    }, [scoutingData]);
+    const selectedEventFilter = useMemo<string | string[] | undefined>(() => {
+        if (selectedEvents.length === 0 || selectedEvents.includes("all")) {
+            return undefined;
+        }
+        if (selectedEvents.length === 1) {
+            return selectedEvents[0];
+        }
+        return selectedEvents;
+    }, [selectedEvents]);
 
     // Calculate statistics using centralized hook
-    const { teamStats, filteredTeamStats, isLoading, error } = useTeamStatistics(
-        selectedEvent === "all" ? undefined : selectedEvent,
+    const { teamStats, filteredTeamStats, isLoading, error, availableEvents } = useTeamStatistics(
+        selectedEventFilter,
         { ...strategyConfig, columns: columnConfig },
         columnFilters,
         aggregationType
@@ -189,8 +185,8 @@ export default function StrategyOverviewPage() {
                 filteredTeamCount={filteredTeamStats.length}
                 totalTeamCount={teamStats.length}
                 activeFilterCount={Object.keys(columnFilters).length}
-                selectedEvent={selectedEvent}
-                onEventChange={setSelectedEvent}
+                selectedEvents={selectedEvents}
+                onEventChange={setSelectedEvents}
                 availableEvents={availableEvents}
                 aggregationType={aggregationType}
                 onAggregationTypeChange={setAggregationType}

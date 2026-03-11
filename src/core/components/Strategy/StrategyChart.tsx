@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, ScatterChart, Scatter
 import { ChartContainer, ChartTooltip } from "@/core/components/ui/chart";
 import { BoxPlot } from "./BoxPlot";
 import { StrategyColumnConfig } from "@/core/types/strategy";
+import { getDistributedColor } from "@/core/lib/chartColors";
 
 // Custom hook to replace ResponsiveContainer - works with Suspense
 function useContainerDimensions() {
@@ -263,7 +264,7 @@ export const StrategyChart = ({
                                         />
                                         <Scatter dataKey="y" fill="var(--color-y)">
                                             {chartData.map((_, index) => (
-                                                <Cell key={`cell-${index}`} fill={`hsl(${(index * 137.5) % 360}, 70%, 50%)`} />
+                                                <Cell key={`cell-${index}`} fill={getDistributedColor(index)} />
                                             ))}
                                         </Scatter>
                                     </ScatterChart>
@@ -390,7 +391,7 @@ export const StrategyChart = ({
                                         />
                                         <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]}>
                                             {chartData.map((_, index) => (
-                                                <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 15}, 70%, 50%)`} />
+                                                <Cell key={`cell-${index}`} fill={getDistributedColor(index)} />
                                             ))}
                                         </Bar>
                                     </BarChart>
