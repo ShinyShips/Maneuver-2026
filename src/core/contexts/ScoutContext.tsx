@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getOrCreateScoutByName } from '@/core/lib/scoutGamificationUtils';
+import { getAllScouts, getOrCreateScoutByName } from '@/core/lib/scoutGamificationUtils';
 
 interface ScoutContextType {
   currentScout: string;
@@ -35,12 +35,40 @@ export const ScoutProvider: React.FC<ScoutProviderProps> = ({ children }) => {
   const [playerStation, setPlayerStationState] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const parseStoredScouts = (raw: string | null): string[] => {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
   // Load initial data from localStorage
   const loadScouts = useCallback(async () => {
     try {
       // Load scouts list
       const savedScouts = localStorage.getItem('scoutsList');
-      const scouts = savedScouts ? JSON.parse(savedScouts) : [];
+      let scouts = parseStoredScouts(savedScouts);
+
+      if (scouts.length === 0) {
+        const existingScouts = await getAllScouts();
+
+        if (existingScouts.length === 0) {
+          // Fresh install fallback: seed official team scouts so selector is not empty.
+          const { initializeTeamScouts } = await import('@/core/lib/teamScouts');
+          const seedResult = await initializeTeamScouts();
+
+          if (seedResult.success) {
+            scouts = parseStoredScouts(localStorage.getItem('scoutsList'));
+          }
+        } else {
+          scouts = existingScouts.map((scout) => scout.name).sort();
+          localStorage.setItem('scoutsList', JSON.stringify(scouts));
+        }
+      }
+
       setScoutsList(scouts);
 
       // Load current scout
