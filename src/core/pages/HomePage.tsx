@@ -1,6 +1,16 @@
 import { cn } from "@/core/lib/utils";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent } from "@/core/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/core/components/ui/alert-dialog";
 import { DataAttribution } from "@/core/components/DataAttribution";
 import { useState, useEffect } from "react";
 import { analytics } from '@/core/lib/analytics';
@@ -27,7 +37,7 @@ interface HomePageProps {
 const HomePage = ({
   logo,
   appName = "Maneuver",
-  version = "2026.2.1",
+  version = "2026.3.0",
   onLoadDemoData,
   onLoadDemoScheduleOnly,
   onClearData,
@@ -40,6 +50,7 @@ const HomePage = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedType, setLoadedType] = useState<'demo' | 'schedule'>('demo');
   const [loadingType, setLoadingType] = useState<'demo' | 'schedule' | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<'demo' | 'schedule' | null>(null);
 
   useEffect(() => {
     const checkData = async () => {
@@ -134,6 +145,28 @@ const HomePage = ({
     }
   };
 
+  const confirmDemoAction = async () => {
+    if (pendingConfirmation === 'demo') {
+      await loadDemoData();
+    }
+
+    if (pendingConfirmation === 'schedule') {
+      await loadDemoScheduleOnly();
+    }
+
+    setPendingConfirmation(null);
+  };
+
+  const confirmationCopy = pendingConfirmation === 'schedule'
+    ? {
+        title: 'Load Demo Schedule?',
+        description: 'This will add the demo event schedule to this device. Use this only for testing or walkthroughs.'
+      }
+    : {
+        title: 'Load Demo Data?',
+        description: 'This will inject demo scouting data onto this device, including sample events and entries. Use this only for testing or walkthroughs.'
+      };
+
   return (
     <main className="relative h-screen w-full">
       <div
@@ -178,7 +211,7 @@ const HomePage = ({
                   <div className="space-y-2">
                     {onLoadDemoData && (
                       <Button
-                        onClick={loadDemoData}
+                        onClick={() => setPendingConfirmation('demo')}
                         disabled={isLoading}
                         className="w-full"
                       >
@@ -187,7 +220,7 @@ const HomePage = ({
                     )}
                     {onLoadDemoScheduleOnly && (
                       <Button
-                        onClick={loadDemoScheduleOnly}
+                        onClick={() => setPendingConfirmation('schedule')}
                         disabled={isLoading}
                         variant="outline"
                         className="w-full"
@@ -231,6 +264,29 @@ const HomePage = ({
           </Card>
         )}
       </div>
+      <AlertDialog
+        open={pendingConfirmation !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingConfirmation(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmationCopy.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmationCopy.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="p-2" disabled={isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="p-2" onClick={() => void confirmDemoAction()} disabled={isLoading}>
+              {pendingConfirmation === 'schedule' ? 'Load Schedule' : 'Load Demo Data'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white mask-[radial-gradient(ellipse_at_center,transparent_70%,black)] dark:bg-black"></div>
     </main>
   );
