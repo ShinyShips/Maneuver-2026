@@ -10,12 +10,13 @@ import { Button } from "@/core/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/core/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/core/components/animate-ui/radix/tabs";
 import { Eye } from "lucide-react";
-import { Card, CardContent } from "@/core/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { ConfiguredStatsSections } from "@/core/components/team-stats";
 import type { TeamStats } from '@/core/types/team-stats';
 import { strategyAnalysis } from "@/game-template/analysis";
 import { AutoAnalysis } from "@/game-template/components/team-stats/AutoAnalysis";
 import { DefenseAgainstTeamAnalysis } from "@/game-template/components/team-stats/DefenseAgainstTeamAnalysis";
+import { getDisplayMatchLabel } from "@/game-template/matchLabel";
 
 interface TeamStatsDialogProps {
     teamNumber: string | number;
@@ -55,6 +56,36 @@ export function TeamStatsDialog({
     const overviewRateSections = rateSections.filter((section) => section.tab === 'overview');
     const performanceRateSections = rateSections.filter((section) => section.tab === 'performance');
     const startPositionConfig = strategyAnalysis.getStartPositionConfig();
+    const comments = Array.isArray(teamStats.matchResults)
+        ? teamStats.matchResults
+            .map((match) => {
+                const comment = typeof match?.comment === 'string' ? match.comment.trim() : '';
+                if (!comment) {
+                    return null;
+                }
+
+                const eventKey = typeof match?.eventKey === 'string' ? match.eventKey.trim() : '';
+                const matchNumber = String(match?.matchNumber || '');
+                const matchLabel = typeof match?.matchLabel === 'string' && match.matchLabel.trim() !== ''
+                    ? match.matchLabel.trim()
+                    : getDisplayMatchLabel(matchNumber);
+
+                return {
+                    key: typeof match?.id === 'string' ? match.id : `${eventKey}:${matchNumber}:${comment}`,
+                    comment,
+                    eventKey,
+                    matchLabel,
+                    scoutName: typeof match?.scoutName === 'string' ? match.scoutName.trim() : '',
+                };
+            })
+            .filter((comment): comment is {
+                key: string;
+                comment: string;
+                eventKey: string;
+                matchLabel: string;
+                scoutName: string;
+            } => comment !== null)
+        : [];
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -116,6 +147,33 @@ export function TeamStatsDialog({
                                     statSections={overviewStatSections}
                                     rateSections={overviewRateSections}
                                 />
+                                <Card>
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="text-base">Scout Comments</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {comments.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">No scout comments recorded for this team yet.</p>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {comments.map((entry) => (
+                                                    <div key={entry.key} className="rounded-md border p-3 space-y-2">
+                                                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                            {entry.eventKey && (
+                                                                <span className="rounded bg-muted px-2 py-0.5 font-medium text-foreground/80">
+                                                                    {entry.eventKey}
+                                                                </span>
+                                                            )}
+                                                            <span>{entry.matchLabel}</span>
+                                                            {entry.scoutName && <span>Scout: {entry.scoutName}</span>}
+                                                        </div>
+                                                        <p className="text-sm leading-relaxed">{entry.comment}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
 
                             <TabsContent value="scoring" className="space-y-4 h-full mt-0">

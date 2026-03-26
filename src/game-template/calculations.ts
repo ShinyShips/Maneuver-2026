@@ -139,11 +139,13 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
                 : []);
 
         return {
+            id: match.id,
             matchNumber: String(match.matchNumber),
             alliance: match.allianceColor,
             eventKey: match.eventKey || '',
             teamNumber: match.teamNumber,
             scoutName: match.scoutName,
+            comment: match.comments || '',
             totalPoints: autoPoints + teleopPoints + endgamePoints,
             autoPoints,
             teleopPoints,
