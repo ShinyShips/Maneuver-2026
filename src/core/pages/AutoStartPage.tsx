@@ -3,6 +3,16 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Button } from "@/core/components/ui/button";
 import { Badge } from "@/core/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/core/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { AutoStartFieldSelector } from "@/game-template/components";
@@ -36,6 +46,7 @@ const AutoStartPage = () => {
   const [startPos6, setStartPos6] = useState(
     states?.inputs?.startPoses?.[5] || null
   );
+  const [showNoShowDialog, setShowNoShowDialog] = useState(false);
 
   const startPosition = [
     startPos1,
@@ -106,6 +117,26 @@ const AutoStartPage = () => {
           ...(states?.rescout && { rescout: states.rescout }),
         },
       });
+    }
+  };
+
+  const handleNoShow = async () => {
+    const updatedInputs = {
+      ...(states?.inputs || {}),
+      startPosition: startPosition.every((pos) => pos === false)
+        ? [null, null, null, null, null, null]
+        : startPosition,
+    };
+
+    const success = await submitMatchData({
+      inputs: updatedInputs,
+      transformation,
+      noShow: true,
+      onSuccess: () => navigate('/game-start'),
+    });
+
+    if (success) {
+      setShowNoShowDialog(false);
     }
   };
 
@@ -206,6 +237,13 @@ const AutoStartPage = () => {
           {/* Action Buttons */}
           <div className="flex gap-4 w-full lg:mt-auto">
             <Button
+              variant="destructive"
+              onClick={() => setShowNoShowDialog(true)}
+              className="h-12 px-4 text-base font-semibold"
+            >
+              No Show
+            </Button>
+            <Button
               variant="outline"
               onClick={handleBack}
               className="flex-1 h-12 text-lg"
@@ -223,6 +261,23 @@ const AutoStartPage = () => {
         </div>
 
       </div>
+
+      <AlertDialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm No Show</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately submit a no-show entry for this match and advance to the next match.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="p-2">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="p-2" onClick={handleNoShow}>
+              Confirm No Show
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

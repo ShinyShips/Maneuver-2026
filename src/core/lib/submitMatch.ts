@@ -28,7 +28,12 @@ interface SubmitOptions {
     transformation: DataTransformation;
     /** Optional comment */
     comment?: string;
-    /** Flag for no-show submission (robot did not appear for match) */
+    /**
+     * Optional framework hook for no-show submissions when a robot never
+     * appears for the match. The core template exposes this from the Auto
+     * scoring page, and yearly implementations can keep or customize that UI
+     * without changing persistence behavior.
+     */
     noShow?: boolean;
     /** Callback on successful submission */
     onSuccess?: () => void;
@@ -68,6 +73,18 @@ function buildMatchKey(matchType: string, matchNumber: string): { matchKey: stri
         // Qualification match: qm24
         return { matchKey: `qm${matchNumber}`, numericMatch };
     }
+}
+
+function advanceStoredMatchNumber(submittedMatchNumber: string): void {
+    const parsedSubmittedMatchNumber = Number.parseInt(submittedMatchNumber, 10);
+    const storedMatchNumber = Number.parseInt(localStorage.getItem('currentMatchNumber') || '1', 10);
+    const currentMatchNumber = Number.isFinite(parsedSubmittedMatchNumber) && parsedSubmittedMatchNumber > 0
+        ? parsedSubmittedMatchNumber
+        : Number.isFinite(storedMatchNumber) && storedMatchNumber > 0
+            ? storedMatchNumber
+            : 1;
+
+    localStorage.setItem('currentMatchNumber', String(currentMatchNumber + 1));
 }
 
 /**
@@ -141,6 +158,7 @@ export async function submitMatchData({
 
             toast.success('No-show match submitted');
             clearScoutingLocalStorage();
+            advanceStoredMatchNumber(inputs.matchNumber);
             
             if (onSuccess) {
                 onSuccess();
@@ -192,9 +210,7 @@ export async function submitMatchData({
         clearScoutingLocalStorage();
 
         // Update match counter
-        const currentMatchNumber = localStorage.getItem('currentMatchNumber') || '1';
-        const nextMatchNumber = (parseInt(currentMatchNumber) + 1).toString();
-        localStorage.setItem('currentMatchNumber', nextMatchNumber);
+        advanceStoredMatchNumber(inputs.matchNumber);
 
         toast.success('Match data saved successfully!');
         onSuccess?.();
