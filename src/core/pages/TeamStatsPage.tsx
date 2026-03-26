@@ -567,6 +567,7 @@ export function TeamStatsPage(props: TeamStatsPageProps) {
                                     compareStats={compareStats}
                                     rateSections={visibleRateSections}
                                     matchBadges={matchBadges}
+                                    selectedEvent={selectedEventForChildren}
                                     onMatchDataChanged={() => setStatsRefreshKey(prev => prev + 1)}
                                 />
                             </TabsContent>

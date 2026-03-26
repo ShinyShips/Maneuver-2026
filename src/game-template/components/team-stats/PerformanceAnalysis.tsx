@@ -4,6 +4,7 @@ import { ProgressCard } from "@/core/components/team-stats/ProgressCard";
 import { MatchProgressionChart } from "./MatchProgressionChart";
 import type { MatchProgressionMatchResult } from "./MatchProgressionChart";
 import { MatchStatsDialog } from "./MatchStatsDialog";
+import { DefenseAgainstTeamAnalysis } from "./DefenseAgainstTeamAnalysis";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { RateSectionDefinition, MatchBadgeDefinition } from "@/types/team-stats-display";
 import { getDisplayMatchLabel } from "@/game-template/matchLabel";
@@ -13,6 +14,7 @@ interface PerformanceAnalysisProps {
     compareStats: TeamStats | null;
     rateSections: RateSectionDefinition[];
     matchBadges: MatchBadgeDefinition[];
+    selectedEvent?: string;
     onMatchDataChanged?: () => void;
 }
 
@@ -21,6 +23,7 @@ export function PerformanceAnalysis({
     compareStats,
     rateSections,
     matchBadges,
+    selectedEvent,
     onMatchDataChanged,
 }: PerformanceAnalysisProps) {
     const matchResults = (teamStats as TeamStats & { matchResults?: Record<string, unknown>[] })?.matchResults;
@@ -169,6 +172,11 @@ export function PerformanceAnalysis({
                     compareTeamNumber={compareStats?.teamNumber}
                 />
             )}
+
+            <DefenseAgainstTeamAnalysis
+                teamNumber={String(teamStats.teamNumber)}
+                selectedEvent={selectedEvent}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
