@@ -55,6 +55,8 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
     const {
         selectedTeams,
         availableTeams,
+        availableEvents,
+        selectedEvent,
         matchNumber,
         isLookingUpMatch,
         confirmedAlliances,
@@ -72,6 +74,7 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
         handleTeamChange,
         applyAllianceToRed,
         applyAllianceToBlue,
+        setSelectedEvent,
         setMatchNumber
     } = useMatchStrategy();
 
@@ -137,8 +140,11 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
             </div>
             <div className="flex flex-col items-center gap-4 max-w-7xl w-full">
                 <MatchHeader
+                    selectedEvent={selectedEvent}
+                    availableEvents={availableEvents}
                     matchNumber={matchNumber}
                     isLookingUpMatch={isLookingUpMatch}
+                    onEventChange={setSelectedEvent}
                     onMatchNumberChange={setMatchNumber}
                     onClearAll={handleClearAll}
                     onSaveAll={handleSaveAll}

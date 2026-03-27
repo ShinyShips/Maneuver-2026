@@ -120,7 +120,7 @@ const FieldCanvas = ({
     const [isolatedAutoSlot, setIsolatedAutoSlot] = useState<number | null>(null);
     const [isAutoReplayPlaying, setIsAutoReplayPlaying] = useState(false);
     const [autoReplayElapsedMs, setAutoReplayElapsedMs] = useState(0);
-    const [autoReplaySpeed, setAutoReplaySpeed] = useState<0.5 | 1 | 2>(1);
+    const autoReplaySpeed = 2;
     const isMobile = useIsMobile();
 
     // Canvas dimensions (shared across all layers) - starts at 0 until image loads
@@ -395,18 +395,6 @@ const FieldCanvas = ({
                 <RotateCcw className="h-3.5 w-3.5" />
                 Restart
             </Button>
-            {[0.5, 1, 2].map((speed) => (
-                <Button
-                    key={speed}
-                    variant={autoReplaySpeed === speed ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8"
-                    disabled={visibleAutoRoutines.length === 0}
-                    onClick={() => setAutoReplaySpeed(speed as 0.5 | 1 | 2)}
-                >
-                    {speed}x
-                </Button>
-            ))}
         </div>
     ) : null;
 

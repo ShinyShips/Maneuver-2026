@@ -126,47 +126,51 @@ export const AllianceCard = ({
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={visibility.showShooting ? "default" : "outline"}
-                                            className="h-7 px-2 text-xs"
-                                            disabled={!team}
-                                            onClick={() => onTeamSlotSpotToggle(teamIndex, 'shooting')}
-                                        >
-                                            Shooting Spots
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={visibility.showPassing ? "default" : "outline"}
-                                            className="h-7 px-2 text-xs"
-                                            disabled={!team}
-                                            onClick={() => onTeamSlotSpotToggle(teamIndex, 'passing')}
-                                        >
-                                            Passing Spots
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 px-2 text-xs"
-                                            disabled={!team}
-                                            onClick={() => setActiveRoutineSlot(teamIndex)}
-                                        >
-                                            Auto Routine
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 px-2 text-xs"
-                                            disabled={!team || !getSelectedAutoRoutineForSlot(teamIndex)}
-                                            onClick={() => onSelectAutoRoutineForSlot(teamIndex, null)}
-                                        >
-                                            Clear Auto
-                                        </Button>
+                                    <div className="space-y-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={visibility.showShooting ? "default" : "outline"}
+                                                className="h-7 px-2 text-xs"
+                                                disabled={!team}
+                                                onClick={() => onTeamSlotSpotToggle(teamIndex, 'shooting')}
+                                            >
+                                                Shooting Spots
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={visibility.showPassing ? "default" : "outline"}
+                                                className="h-7 px-2 text-xs"
+                                                disabled={!team}
+                                                onClick={() => onTeamSlotSpotToggle(teamIndex, 'passing')}
+                                            >
+                                                Passing Spots
+                                            </Button>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                disabled={!team}
+                                                onClick={() => setActiveRoutineSlot(teamIndex)}
+                                            >
+                                                Auto Routine
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                disabled={!team || !getSelectedAutoRoutineForSlot(teamIndex)}
+                                                onClick={() => onSelectAutoRoutineForSlot(teamIndex, null)}
+                                            >
+                                                Clear Auto
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     {team && getSelectedAutoRoutineForSlot(teamIndex) ? (

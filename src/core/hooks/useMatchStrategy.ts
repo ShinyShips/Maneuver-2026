@@ -16,6 +16,8 @@ import type { Alliance } from "../lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { PitScoutingEntryBase } from "@/core/types/pit-scouting";
 
+const MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY = "matchStrategyEventFilter";
+
 export type StrategyStageId = 'autonomous' | 'teleop' | 'endgame';
 
 export type AutoRoutineSource = 'scouted' | 'reported';
@@ -359,6 +361,45 @@ function areNumberArraysEqual(a: number[], b: number[]): boolean {
     return true;
 }
 
+function getCurrentEventKey(): string {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return (localStorage.getItem('eventKey') || '').trim();
+}
+
+function getInitialSelectedEvent(): string {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    const savedEvent = (localStorage.getItem(MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY) || '').trim();
+    if (savedEvent) {
+        return savedEvent;
+    }
+
+    return getCurrentEventKey();
+}
+
+function getCanonicalEventKey(eventKey: string, availableEvents: string[]): string {
+    const normalizedEventKey = eventKey.trim().toLowerCase();
+    if (!normalizedEventKey) {
+        return '';
+    }
+
+    return availableEvents.find((candidate) => candidate.trim().toLowerCase() === normalizedEventKey) ?? '';
+}
+
+function filterEntriesByEvent<T extends { eventKey?: string | null }>(entries: T[], eventKey: string): T[] {
+    const normalizedEventKey = eventKey.trim().toLowerCase();
+    if (!normalizedEventKey) {
+        return entries;
+    }
+
+    return entries.filter((entry) => entry.eventKey?.trim().toLowerCase() === normalizedEventKey);
+}
+
 function buildAvailableTeams(
     scoutingEntries: Array<{ teamNumber?: number | null }>,
     pitEntries: PitScoutingEntryBase[],
@@ -386,6 +427,8 @@ function buildAvailableTeams(
 export const useMatchStrategy = () => {
     const [selectedTeams, setSelectedTeams] = useState<(number | null)[]>(Array(6).fill(null));
     const [availableTeams, setAvailableTeams] = useState<number[]>([]);
+    const [availableEvents, setAvailableEvents] = useState<string[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<string>(getInitialSelectedEvent);
     const [matchNumber, setMatchNumber] = useState<string>("");
     const [isLookingUpMatch, setIsLookingUpMatch] = useState(false);
     const [confirmedAlliances, setConfirmedAlliances] = useState<Alliance[]>([]);
@@ -417,25 +460,8 @@ export const useMatchStrategy = () => {
         });
     }, [teamAutoRoutinesByTeam]);
 
-    const refreshAvailableTeams = useCallback(async () => {
-        try {
-            const [scoutingEntries, pitEntries] = await Promise.all([
-                loadScoutingData(),
-                loadAllPitScoutingEntries(),
-            ]);
-
-            const scheduleTeamNumbers = getMatchScheduleTeamNumbersFromStorage();
-            const nextTeams = buildAvailableTeams(scoutingEntries, pitEntries, scheduleTeamNumbers);
-
-            setAvailableTeams((prevTeams) => (areNumberArraysEqual(prevTeams, nextTeams) ? prevTeams : nextTeams));
-        } catch (error) {
-            console.error('Error refreshing available teams:', error);
-        }
-    }, []);
-
-
     // Get all team stats using centralized hook
-    const { teamStats: allTeamStats } = useAllTeamStats();
+    const { teamStats: allTeamStats } = useAllTeamStats(selectedEvent || undefined);
 
     // Function to get stats for a specific team
     const getTeamStats = useCallback((teamNumber: number | null): TeamStats | null => {
@@ -451,9 +477,13 @@ export const useMatchStrategy = () => {
         setIsLookingUpMatch(true);
         try {
             const matchNumberValue = parseInt(matchNum.trim());
+            const currentEventKey = getCurrentEventKey();
+            const shouldUseStoredMatchData = !!selectedEvent
+                && !!currentEventKey
+                && selectedEvent.trim().toLowerCase() === currentEventKey.trim().toLowerCase();
 
             // First check localStorage match data (from TBA API)
-            const matchDataStr = localStorage.getItem("matchData");
+            const matchDataStr = shouldUseStoredMatchData ? localStorage.getItem("matchData") : null;
             if (matchDataStr) {
                 try {
                     const matchData = JSON.parse(matchDataStr);
@@ -483,7 +513,7 @@ export const useMatchStrategy = () => {
             }
 
             // Fallback: Try scouting database
-            const matchEntries = await loadScoutingEntriesByMatch(matchNumberValue);
+            const matchEntries = filterEntriesByEvent(await loadScoutingEntriesByMatch(matchNumberValue), selectedEvent);
 
             const redTeams: number[] = [];
             const blueTeams: number[] = [];
@@ -525,102 +555,134 @@ export const useMatchStrategy = () => {
         } finally {
             setIsLookingUpMatch(false);
         }
-    }, [applySelectedTeams]);
+    }, [applySelectedTeams, selectedEvent]);
+    const loadStrategyData = useCallback(async () => {
+        try {
+            const [data, pitEntries] = await Promise.all([
+                loadScoutingData(),
+                loadAllPitScoutingEntries(),
+            ]);
+
+            const currentEventKey = getCurrentEventKey();
+            const nextAvailableEvents = Array.from(new Set(
+                data
+                    .map((entry) => entry.eventKey)
+                    .filter((eventKey): eventKey is string => typeof eventKey === "string" && eventKey.trim().length > 0)
+                    .concat(
+                        pitEntries
+                            .map((entry) => entry.eventKey)
+                            .filter((eventKey): eventKey is string => typeof eventKey === "string" && eventKey.trim().length > 0)
+                    )
+                    .concat(currentEventKey ? [currentEventKey] : [])
+            )).sort((a, b) => a.localeCompare(b));
+
+            setAvailableEvents(nextAvailableEvents);
+
+            const effectiveSelectedEvent = getCanonicalEventKey(selectedEvent, nextAvailableEvents)
+                || getCanonicalEventKey(currentEventKey, nextAvailableEvents)
+                || nextAvailableEvents[0]
+                || "";
+
+            if (effectiveSelectedEvent !== selectedEvent) {
+                setSelectedEvent(effectiveSelectedEvent);
+            }
+
+            const filteredScoutingEntries = filterEntriesByEvent(data, effectiveSelectedEvent);
+            const filteredPitEntries = filterEntriesByEvent(pitEntries, effectiveSelectedEvent);
+            const shouldUseScheduleTeams = !!effectiveSelectedEvent
+                && !!currentEventKey
+                && effectiveSelectedEvent.trim().toLowerCase() === currentEventKey.trim().toLowerCase();
+            const scheduleTeamNumbers = shouldUseScheduleTeams ? getMatchScheduleTeamNumbersFromStorage() : [];
+            const nextTeams = buildAvailableTeams(filteredScoutingEntries, filteredPitEntries, scheduleTeamNumbers);
+
+            setAvailableTeams((prevTeams) => (areNumberArraysEqual(prevTeams, nextTeams) ? prevTeams : nextTeams));
+
+            const spotsByTeam: Record<number, TeamSpotsByStage> = {};
+            const routinesByTeam: Record<number, TeamAutoRoutines> = {};
+
+            filteredScoutingEntries.forEach((entry) => {
+                const teamNumber = entry.teamNumber;
+                if (!teamNumber || !isRecord(entry.gameData)) return;
+
+                const autoPath = isRecord(entry.gameData.auto)
+                    ? entry.gameData.auto.autoPath
+                    : undefined;
+                const teleopPath = isRecord(entry.gameData.teleop)
+                    ? entry.gameData.teleop.teleopPath
+                    : undefined;
+
+                const autoSpots = extractStageSpotsFromPath(autoPath);
+                const teleopSpots = extractStageSpotsFromPath(teleopPath);
+
+                if (!spotsByTeam[teamNumber]) {
+                    spotsByTeam[teamNumber] = {
+                        autonomous: { shooting: [], passing: [] },
+                        teleop: { shooting: [], passing: [] },
+                    };
+                }
+
+                if (!routinesByTeam[teamNumber]) {
+                    routinesByTeam[teamNumber] = { scouted: [], reported: [] };
+                }
+
+                const teamRoutines = routinesByTeam[teamNumber];
+                if (!teamRoutines) return;
+
+                spotsByTeam[teamNumber].autonomous.shooting.push(...autoSpots.shooting);
+                spotsByTeam[teamNumber].autonomous.passing.push(...autoSpots.passing);
+                spotsByTeam[teamNumber].teleop.shooting.push(...teleopSpots.shooting);
+                spotsByTeam[teamNumber].teleop.passing.push(...teleopSpots.passing);
+
+                const scoutedActions = extractRoutineActionsFromPath(autoPath);
+                if (scoutedActions.length > 0) {
+                    const startPositionRaw = isRecord(entry.gameData.auto)
+                        ? entry.gameData.auto.startPosition
+                        : undefined;
+                    const startLabel = getStartLabel(startPositionRaw);
+
+                    routinesByTeam[teamNumber].scouted.push({
+                        id: `scouted-${entry.id}`,
+                        teamNumber,
+                        source: 'scouted',
+                        label: `Match ${entry.matchNumber}`,
+                        startPosition: START_LABEL_TO_INDEX[startLabel],
+                        startLabel,
+                        actions: scoutedActions,
+                        matchNumber: entry.matchNumber,
+                        allianceColor: entry.allianceColor,
+                    });
+                }
+            });
+
+            const latestPitByTeam = getMostRecentPitEntriesByTeam(filteredPitEntries);
+            setLatestPitEntryByTeam(latestPitByTeam);
+
+            Object.entries(latestPitByTeam).forEach(([teamKey, pitEntry]) => {
+                const teamNumber = Number(teamKey);
+                if (!teamNumber || !isRecord(pitEntry.gameData)) return;
+
+                if (!routinesByTeam[teamNumber]) {
+                    routinesByTeam[teamNumber] = { scouted: [], reported: [] };
+                }
+
+                const reportedAutosByStart = coerceReportedAutosByStart(pitEntry.gameData.reportedAutosByStart);
+                routinesByTeam[teamNumber].reported = buildReportedRoutinesFromReportedAutos(teamNumber, reportedAutosByStart);
+            });
+
+            Object.values(routinesByTeam).forEach((teamRoutines) => {
+                teamRoutines.scouted.sort((a, b) => a.label.localeCompare(b.label));
+                teamRoutines.reported.sort((a, b) => a.label.localeCompare(b.label));
+            });
+
+            setTeamSpotsByTeam(spotsByTeam);
+            setTeamAutoRoutinesByTeam(routinesByTeam);
+        } catch (error) {
+            console.error("Error loading scouting data:", error);
+        }
+    }, [selectedEvent]);
 
     // Load initial data
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                const data = await loadScoutingData();
-
-                const scheduleTeamNumbers = getMatchScheduleTeamNumbersFromStorage();
-                const pitEntries = await loadAllPitScoutingEntries();
-                const teams = buildAvailableTeams(data, pitEntries, scheduleTeamNumbers);
-                setAvailableTeams(teams);
-
-                const spotsByTeam: Record<number, TeamSpotsByStage> = {};
-                const routinesByTeam: Record<number, TeamAutoRoutines> = {};
-
-                data.forEach((entry) => {
-                    const teamNumber = entry.teamNumber;
-                    if (!teamNumber || !isRecord(entry.gameData)) return;
-
-                    const autoPath = isRecord(entry.gameData.auto)
-                        ? entry.gameData.auto.autoPath
-                        : undefined;
-                    const teleopPath = isRecord(entry.gameData.teleop)
-                        ? entry.gameData.teleop.teleopPath
-                        : undefined;
-
-                    const autoSpots = extractStageSpotsFromPath(autoPath);
-                    const teleopSpots = extractStageSpotsFromPath(teleopPath);
-
-                    if (!spotsByTeam[teamNumber]) {
-                        spotsByTeam[teamNumber] = {
-                            autonomous: { shooting: [], passing: [] },
-                            teleop: { shooting: [], passing: [] },
-                        };
-                    }
-
-                    if (!routinesByTeam[teamNumber]) {
-                        routinesByTeam[teamNumber] = { scouted: [], reported: [] };
-                    }
-                    const teamRoutines = routinesByTeam[teamNumber];
-                    if (!teamRoutines) return;
-
-                    spotsByTeam[teamNumber].autonomous.shooting.push(...autoSpots.shooting);
-                    spotsByTeam[teamNumber].autonomous.passing.push(...autoSpots.passing);
-                    spotsByTeam[teamNumber].teleop.shooting.push(...teleopSpots.shooting);
-                    spotsByTeam[teamNumber].teleop.passing.push(...teleopSpots.passing);
-
-                    const scoutedActions = extractRoutineActionsFromPath(autoPath);
-                    if (scoutedActions.length > 0) {
-                        const startPositionRaw = isRecord(entry.gameData.auto)
-                            ? entry.gameData.auto.startPosition
-                            : undefined;
-                        const startLabel = getStartLabel(startPositionRaw);
-
-                        routinesByTeam[teamNumber].scouted.push({
-                            id: `scouted-${entry.id}`,
-                            teamNumber,
-                            source: 'scouted',
-                            label: `Match ${entry.matchNumber}`,
-                            startPosition: START_LABEL_TO_INDEX[startLabel],
-                            startLabel,
-                            actions: scoutedActions,
-                            matchNumber: entry.matchNumber,
-                            allianceColor: entry.allianceColor,
-                        });
-                    }
-                });
-
-                const latestPitByTeam = getMostRecentPitEntriesByTeam(pitEntries);
-                setLatestPitEntryByTeam(latestPitByTeam);
-
-                Object.entries(latestPitByTeam).forEach(([teamKey, pitEntry]) => {
-                    const teamNumber = Number(teamKey);
-                    if (!teamNumber || !isRecord(pitEntry.gameData)) return;
-
-                    if (!routinesByTeam[teamNumber]) {
-                        routinesByTeam[teamNumber] = { scouted: [], reported: [] };
-                    }
-
-                    const reportedAutosByStart = coerceReportedAutosByStart(pitEntry.gameData.reportedAutosByStart);
-                    routinesByTeam[teamNumber].reported = buildReportedRoutinesFromReportedAutos(teamNumber, reportedAutosByStart);
-                });
-
-                Object.values(routinesByTeam).forEach((teamRoutines) => {
-                    teamRoutines.scouted.sort((a, b) => a.label.localeCompare(b.label));
-                    teamRoutines.reported.sort((a, b) => a.label.localeCompare(b.label));
-                });
-
-                setTeamSpotsByTeam(spotsByTeam);
-                setTeamAutoRoutinesByTeam(routinesByTeam);
-            } catch (error) {
-                console.error("Error loading scouting data:", error);
-            }
-        };
-
         const loadConfirmedAlliances = () => {
             try {
                 const savedAlliances = localStorage.getItem("confirmedAlliances");
@@ -632,9 +694,18 @@ export const useMatchStrategy = () => {
             }
         };
 
-        loadData();
+        void loadStrategyData();
         loadConfirmedAlliances();
-    }, []);
+    }, [loadStrategyData]);
+
+    useEffect(() => {
+        if (!selectedEvent) {
+            localStorage.removeItem(MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY);
+            return;
+        }
+
+        localStorage.setItem(MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY, selectedEvent);
+    }, [selectedEvent]);
 
     useEffect(() => {
         setSelectedAutoRoutineBySlot((prevSelections) =>
@@ -666,32 +737,32 @@ export const useMatchStrategy = () => {
 
     useEffect(() => {
         const handlePotentialDataChange = () => {
-            void refreshAvailableTeams();
+            void loadStrategyData();
         };
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                void refreshAvailableTeams();
+            if (document.visibilityState === "visible") {
+                void loadStrategyData();
             }
         };
 
-        window.addEventListener('storage', handlePotentialDataChange);
-        window.addEventListener('focus', handlePotentialDataChange);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener("storage", handlePotentialDataChange);
+        window.addEventListener("focus", handlePotentialDataChange);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
 
         const intervalId = window.setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                void refreshAvailableTeams();
+            if (document.visibilityState === "visible") {
+                void loadStrategyData();
             }
         }, 5000);
 
         return () => {
-            window.removeEventListener('storage', handlePotentialDataChange);
-            window.removeEventListener('focus', handlePotentialDataChange);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener("storage", handlePotentialDataChange);
+            window.removeEventListener("focus", handlePotentialDataChange);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
             window.clearInterval(intervalId);
         };
-    }, [refreshAvailableTeams]);
+    }, [loadStrategyData]);
 
     const handleTeamChange = (index: number, teamNumber: number | null) => {
         const newSelectedTeams = [...selectedTeams];
@@ -984,6 +1055,8 @@ export const useMatchStrategy = () => {
         // State
         selectedTeams,
         availableTeams,
+        availableEvents,
+        selectedEvent,
         matchNumber,
         isLookingUpMatch,
         confirmedAlliances,
@@ -1003,6 +1076,7 @@ export const useMatchStrategy = () => {
         handleTeamChange,
         applyAllianceToRed,
         applyAllianceToBlue,
+        setSelectedEvent,
         setMatchNumber
     };
 };

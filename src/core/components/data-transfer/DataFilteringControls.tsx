@@ -100,10 +100,6 @@ export const DataFilteringControls: React.FC<DataFilteringControlsProps> = ({
     }, [data, filters]);
 
     const currentData = filteredData || previewFilteredData || data;
-    const stats = useMemo(
-        () => (data && currentData ? calculateFilterStats(data, currentData, useCompression) : null),
-        [data, currentData, useCompression]
-    );
     const currentMatchCount = showMatchRange && currentData ? extractMatchCount(currentData) : 0;
     const currentMatchOptions = showMatchRange && currentData ? extractMatchOptions(currentData) : [];
     const currentRangeLabel = currentMatchOptions.length === 0
@@ -111,6 +107,7 @@ export const DataFilteringControls: React.FC<DataFilteringControlsProps> = ({
         : currentMatchOptions.length === 1
             ? currentMatchOptions[0]?.label ?? '1 match'
             : `${currentMatchOptions[0]?.label ?? 'First'} - ${currentMatchOptions[currentMatchOptions.length - 1]?.label ?? 'Last'}`;
+    const stats = data && currentData ? calculateFilterStats(data, currentData, useCompression) : null;
     const filterValidation = validateFilters(filters);
 
     const handleMatchRangeChange = (type: 'preset' | 'custom', value?: string) => {
