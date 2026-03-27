@@ -15,7 +15,12 @@ import {
     createDefaultAlliances,
     createDefaultPickList
 } from "@/core/lib/pickListUtils";
-import type { PickList, PickListItem } from "@/core/types/pickListTypes";
+import type {
+    PickList,
+    PickListItem,
+    PickListMembershipSnapshot,
+    TeamMembershipSnapshots,
+} from "@/core/types/pickListTypes";
 import {
     filterOptions,
     getSortValue,
@@ -45,6 +50,7 @@ export interface UsePickListResult {
     availableEventKeys: string[];
     activeTab: string;
     showAllianceSelection: boolean;
+    hideAllianceAssignedTeams: boolean;
 
     // State setters
     setNewListName: (name: string) => void;
@@ -56,6 +62,7 @@ export interface UsePickListResult {
     setActiveTab: (tab: string) => void;
     setAlliances: (alliances: Alliance[]) => void;
     setBackups: (backups: BackupTeam[]) => void;
+    setHideAllianceAssignedTeams: (hide: boolean) => void;
 
     // Actions
     addTeamToList: (team: TeamStats, listId: number) => void;
@@ -66,8 +73,80 @@ export interface UsePickListResult {
     importPickLists: (event: React.ChangeEvent<HTMLInputElement>) => void;
     addTeamToAlliance: (teamNumber: number, allianceId: number) => void;
     assignToAllianceAndRemove: (teamNumber: number, allianceIndex: number) => void;
+    hasTeamPickListSnapshot: (teamNumber: number) => boolean;
+    restoreTeamToPickLists: (teamNumber: number) => void;
+    discardTeamPickListSnapshot: (teamNumber: number) => void;
     handleToggleAllianceSelection: () => void;
 }
+
+const TEAM_MEMBERSHIP_SNAPSHOTS_STORAGE_KEY = "pickListTeamMembershipSnapshots";
+
+const clonePickListItem = (item: PickListItem): PickListItem => ({
+    ...item,
+    checked: false,
+});
+
+const removeTeamFromLists = (lists: PickList[], teamNumber: number): PickList[] =>
+    lists.map((list) => ({
+        ...list,
+        teams: list.teams.filter((team) => team.teamNumber !== teamNumber),
+    }));
+
+const captureTeamMembershipSnapshot = (
+    lists: PickList[],
+    teamNumber: number,
+    existingSnapshot?: PickListMembershipSnapshot[]
+): PickListMembershipSnapshot[] => {
+    if (existingSnapshot && existingSnapshot.length > 0) {
+        return existingSnapshot;
+    }
+
+    return lists.flatMap((list) => {
+        const index = list.teams.findIndex((team) => team.teamNumber === teamNumber);
+        if (index === -1) {
+            return [];
+        }
+
+        const teamItem = list.teams[index];
+        if (!teamItem) {
+            return [];
+        }
+
+        return [{
+            listId: list.id,
+            index,
+            item: clonePickListItem(teamItem),
+        }];
+    });
+};
+
+const restoreTeamInLists = (
+    lists: PickList[],
+    teamNumber: number,
+    snapshot: PickListMembershipSnapshot[]
+): PickList[] => {
+    if (snapshot.length === 0) {
+        return lists;
+    }
+
+    const snapshotByListId = new Map(snapshot.map((entry) => [entry.listId, entry]));
+
+    return lists.map((list) => {
+        const savedPlacement = snapshotByListId.get(list.id);
+        if (!savedPlacement || list.teams.some((team) => team.teamNumber === teamNumber)) {
+            return list;
+        }
+
+        const nextTeams = [...list.teams];
+        const insertAt = Math.min(Math.max(savedPlacement.index, 0), nextTeams.length);
+        nextTeams.splice(insertAt, 0, clonePickListItem(savedPlacement.item));
+
+        return {
+            ...list,
+            teams: nextTeams,
+        };
+    });
+};
 
 export const usePickList = (eventKey?: string): UsePickListResult => {
     // Get team stats from centralized hook
@@ -85,7 +164,9 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
     const [eventFilter, setEventFilter] = useState("all");
     const [activeTab, setActiveTab] = useState("teams");
     const [showAllianceSelection, setShowAllianceSelection] = useState(true);
+    const [hideAllianceAssignedTeams, setHideAllianceAssignedTeams] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [teamMembershipSnapshots, setTeamMembershipSnapshots] = useState<TeamMembershipSnapshots>({});
 
     // Load pick lists from localStorage
     useEffect(() => {
@@ -122,12 +203,44 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         }
     }, []);
 
+    // Load team membership snapshots from localStorage
+    useEffect(() => {
+        const savedSnapshots = localStorage.getItem(TEAM_MEMBERSHIP_SNAPSHOTS_STORAGE_KEY);
+        if (!savedSnapshots) {
+            return;
+        }
+
+        try {
+            setTeamMembershipSnapshots(JSON.parse(savedSnapshots) as TeamMembershipSnapshots);
+        } catch {
+            setTeamMembershipSnapshots({});
+        }
+    }, []);
+
+    // Load available team filtering preference from localStorage
+    useEffect(() => {
+        const savedPreference = localStorage.getItem("pickListHideAllianceAssignedTeams");
+        if (savedPreference !== null) {
+            setHideAllianceAssignedTeams(savedPreference === "true");
+        }
+    }, []);
+
     // Save alliances to localStorage
     useEffect(() => {
         if (alliances.length > 0) {
             localStorage.setItem("alliances", JSON.stringify(alliances));
         }
     }, [alliances]);
+
+    // Save team membership snapshots to localStorage
+    useEffect(() => {
+        localStorage.setItem(TEAM_MEMBERSHIP_SNAPSHOTS_STORAGE_KEY, JSON.stringify(teamMembershipSnapshots));
+    }, [teamMembershipSnapshots]);
+
+    // Save available team filtering preference to localStorage
+    useEffect(() => {
+        localStorage.setItem("pickListHideAllianceAssignedTeams", String(hideAllianceAssignedTeams));
+    }, [hideAllianceAssignedTeams]);
 
     // Load event filter preference from localStorage
     useEffect(() => {
@@ -252,10 +365,16 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
                     return option ? option.predicate(team) : true;
                 });
             })
-            .filter((team) => !allianceAssignedTeams.has(team.teamNumber));
+            .filter((team) => {
+                if (!hideAllianceAssignedTeams) {
+                    return true;
+                }
+
+                return !allianceAssignedTeams.has(team.teamNumber);
+            });
 
         return sortTeams(filtered, sortBy);
-    }, [eventFilteredTeams, searchFilter, activeFilterIds, sortBy, sortTeams, allianceAssignedTeams]);
+    }, [eventFilteredTeams, searchFilter, activeFilterIds, sortBy, sortTeams, allianceAssignedTeams, hideAllianceAssignedTeams]);
 
     // Add team to a pick list
     const addTeamToList = useCallback((team: TeamStats, listId: number) => {
@@ -399,10 +518,18 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
             a.id === allianceId ? { ...a, [position]: teamNumber } : a
         ));
 
-        setPickLists(prev => prev.map(list => ({
-            ...list,
-            teams: list.teams.filter(team => team.teamNumber !== teamNumber),
-        })));
+        const membershipSnapshot = captureTeamMembershipSnapshot(
+            pickLists,
+            teamNumber,
+            teamMembershipSnapshots[String(teamNumber)]
+        );
+
+        setTeamMembershipSnapshots((prev) => ({
+            ...prev,
+            [String(teamNumber)]: membershipSnapshot,
+        }));
+
+        setPickLists((prev) => removeTeamFromLists(prev, teamNumber));
 
         const positionNames: Record<Position, string> = {
             captain: 'Captain',
@@ -411,7 +538,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
             pick3: 'Pick 3',
         };
         toast.success(`Team ${teamNumber} assigned as ${positionNames[position]} of Alliance ${alliance.allianceNumber}`);
-    }, [alliances]);
+    }, [alliances, pickLists, teamMembershipSnapshots]);
 
     // Assign to alliance and remove from pick lists
     const assignToAllianceAndRemove = useCallback((teamNumber: number, allianceIndex: number) => {
@@ -436,11 +563,18 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
             index === allianceIndex ? { ...a, [position]: teamNumber } : a
         ));
 
-        // Remove from all pick lists
-        setPickLists(prev => prev.map(list => ({
-            ...list,
-            teams: list.teams.filter(team => team.teamNumber !== teamNumber),
-        })));
+        const membershipSnapshot = captureTeamMembershipSnapshot(
+            pickLists,
+            teamNumber,
+            teamMembershipSnapshots[String(teamNumber)]
+        );
+
+        setTeamMembershipSnapshots((prev) => ({
+            ...prev,
+            [String(teamNumber)]: membershipSnapshot,
+        }));
+
+        setPickLists((prev) => removeTeamFromLists(prev, teamNumber));
 
         const positionNames: Record<Position, string> = {
             captain: 'Captain',
@@ -449,7 +583,36 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
             pick3: 'Pick 3',
         };
         toast.success(`Team ${teamNumber} added to Alliance ${alliance.allianceNumber} as ${positionNames[position]}`);
-    }, [alliances]);
+    }, [alliances, pickLists, teamMembershipSnapshots]);
+
+    const restoreTeamToPickLists = useCallback((teamNumber: number) => {
+        const snapshot = teamMembershipSnapshots[String(teamNumber)] ?? [];
+
+        if (snapshot.length > 0) {
+            setPickLists((prev) => restoreTeamInLists(prev, teamNumber, snapshot));
+        }
+
+        setTeamMembershipSnapshots((prev) => {
+            const { [String(teamNumber)]: _removed, ...remaining } = prev;
+            return remaining;
+        });
+    }, [teamMembershipSnapshots]);
+
+    const hasTeamPickListSnapshot = useCallback((teamNumber: number) => {
+        const snapshot = teamMembershipSnapshots[String(teamNumber)] ?? [];
+        return snapshot.length > 0;
+    }, [teamMembershipSnapshots]);
+
+    const discardTeamPickListSnapshot = useCallback((teamNumber: number) => {
+        setTeamMembershipSnapshots((prev) => {
+            if (!(String(teamNumber) in prev)) {
+                return prev;
+            }
+
+            const { [String(teamNumber)]: _removed, ...remaining } = prev;
+            return remaining;
+        });
+    }, []);
 
     // Toggle alliance selection panel
     const handleToggleAllianceSelection = useCallback(() => {
@@ -480,6 +643,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         availableEventKeys,
         activeTab,
         showAllianceSelection,
+        hideAllianceAssignedTeams,
 
         // State setters
         setNewListName,
@@ -491,6 +655,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         setActiveTab,
         setAlliances,
         setBackups,
+        setHideAllianceAssignedTeams,
 
         // Actions
         addTeamToList,
@@ -501,6 +666,9 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         importPickLists,
         addTeamToAlliance,
         assignToAllianceAndRemove,
+        hasTeamPickListSnapshot,
+        restoreTeamToPickLists,
+        discardTeamPickListSnapshot,
         handleToggleAllianceSelection,
     };
 };

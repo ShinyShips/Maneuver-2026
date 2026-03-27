@@ -30,6 +30,17 @@ export interface PickList {
 }
 
 /**
+ * Saved pick-list placement for restoring a team after alliance removal.
+ */
+export interface PickListMembershipSnapshot {
+    listId: number;
+    index: number;
+    item: PickListItem;
+}
+
+export type TeamMembershipSnapshots = Record<string, PickListMembershipSnapshot[]>;
+
+/**
  * A backup team in the backup pool
  */
 export interface BackupTeam {

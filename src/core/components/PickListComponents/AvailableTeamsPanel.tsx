@@ -42,11 +42,13 @@ interface AvailableTeamsPanelProps {
     searchFilter: string;
     sortBy: PickListSortOption;
     activeFilterIds: string[];
+    hideAllianceAssignedTeams: boolean;
     eventFilter: string;
     availableEventKeys: string[];
     onSearchChange: (value: string) => void;
     onSortChange: (value: PickListSortOption) => void;
     onFilterChange: (value: string[]) => void;
+    onToggleHideAllianceAssignedTeams: (hide: boolean) => void;
     onEventFilterChange: (eventKey: string) => void;
     onAddTeamToList: (team: TeamStats, listId: number) => void;
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
@@ -60,11 +62,13 @@ export const AvailableTeamsPanel = ({
     searchFilter,
     sortBy,
     activeFilterIds,
+    hideAllianceAssignedTeams,
     eventFilter,
     availableEventKeys,
     onSearchChange,
     onSortChange,
     onFilterChange,
+    onToggleHideAllianceAssignedTeams,
     onEventFilterChange,
     onAddTeamToList,
     onAddTeamToAlliance
@@ -158,8 +162,8 @@ export const AvailableTeamsPanel = ({
                         </SelectContent>
                     </Select>
                     <SortSelector sortBy={sortBy} onSortChange={onSortChange} />
-                    {filterOptions.length > 0 && (
-                        <div className="flex items-center justify-between rounded-md border p-3">
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
                             <p className="text-sm font-medium">Team Filters</p>
                             <div className="flex items-center gap-2">
                                 <Dialog>
@@ -178,64 +182,82 @@ export const AvailableTeamsPanel = ({
                                         <DialogHeader>
                                             <DialogTitle>Team Filters</DialogTitle>
                                         </DialogHeader>
-                                        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-                                            {Object.entries(groupedFilterOptions).map(([groupName, options]) => (
-                                                <div key={groupName} className="space-y-3">
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                        {groupName}
-                                                    </p>
-                                                    {options.map((option) => {
-                                                        const checkboxId = `pick-list-filter-dialog-${option.id}`;
-                                                        const selectionMode = filterGroupSelectionModes[groupName] || "multi";
-                                                        const isSelected = activeFilterIds.includes(option.id);
-                                                        return (
-                                                            <div key={option.id} className="space-y-1">
-                                                                <div className="flex items-start gap-2">
-                                                                    {selectionMode === "single" ? (
-                                                                        <input
-                                                                            id={checkboxId}
-                                                                            type="radio"
-                                                                            name={`pick-list-group-${groupName}`}
-                                                                            checked={isSelected}
-                                                                            onChange={() => selectFilter(option.id)}
-                                                                            className="mt-0.5 h-4 w-4 border-input text-primary accent-primary"
-                                                                        />
-                                                                    ) : (
-                                                                        <Checkbox
-                                                                            id={checkboxId}
-                                                                            checked={isSelected}
-                                                                            onCheckedChange={(checked) => toggleFilter(option.id, checked)}
-                                                                        />
-                                                                    )}
-                                                                    <Label htmlFor={checkboxId} className="text-sm leading-snug">
-                                                                        {option.label}
-                                                                    </Label>
-                                                                </div>
-                                                                {option.description && (
-                                                                    <p className="ml-6 text-xs text-muted-foreground">{option.description}</p>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
+                                        {filterOptions.length > 0 ? (
+                                            <>
+                                                <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+                                                    {Object.entries(groupedFilterOptions).map(([groupName, options]) => (
+                                                        <div key={groupName} className="space-y-3">
+                                                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                                {groupName}
+                                                            </p>
+                                                            {options.map((option) => {
+                                                                const checkboxId = `pick-list-filter-dialog-${option.id}`;
+                                                                const selectionMode = filterGroupSelectionModes[groupName] || "multi";
+                                                                const isSelected = activeFilterIds.includes(option.id);
+                                                                return (
+                                                                    <div key={option.id} className="space-y-1">
+                                                                        <div className="flex items-start gap-2">
+                                                                            {selectionMode === "single" ? (
+                                                                                <input
+                                                                                    id={checkboxId}
+                                                                                    type="radio"
+                                                                                    name={`pick-list-group-${groupName}`}
+                                                                                    checked={isSelected}
+                                                                                    onChange={() => selectFilter(option.id)}
+                                                                                    className="mt-0.5 h-4 w-4 border-input text-primary accent-primary"
+                                                                                />
+                                                                            ) : (
+                                                                                <Checkbox
+                                                                                    id={checkboxId}
+                                                                                    checked={isSelected}
+                                                                                    onCheckedChange={(checked) => toggleFilter(option.id, checked)}
+                                                                                />
+                                                                            )}
+                                                                            <Label htmlFor={checkboxId} className="text-sm leading-snug">
+                                                                                {option.label}
+                                                                            </Label>
+                                                                        </div>
+                                                                        {option.description && (
+                                                                            <p className="ml-6 text-xs text-muted-foreground">{option.description}</p>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
-                                        <div className="flex justify-end">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={handleClearFilters}
-                                                disabled={activeFilterCount === 0}
-                                            >
-                                                Clear filters
-                                            </Button>
-                                        </div>
+                                                <div className="flex justify-end">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={handleClearFilters}
+                                                        disabled={activeFilterCount === 0}
+                                                    >
+                                                        Clear filters
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                No game-specific team filters are configured yet. Add filter options in the game template to populate this dialog.
+                                            </p>
+                                        )}
                                     </DialogContent>
                                 </Dialog>
                             </div>
                         </div>
-                    )}
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="hide-alliance-assigned-teams"
+                                checked={hideAllianceAssignedTeams}
+                                onCheckedChange={(checked) => onToggleHideAllianceAssignedTeams(checked === true)}
+                            />
+                            <Label htmlFor="hide-alliance-assigned-teams" className="cursor-pointer text-sm font-normal">
+                                Hide alliance-assigned teams
+                            </Label>
+                        </div>
+                    </div>
                 </div>
             </CardHeader>
 

@@ -26,6 +26,7 @@ const PickListPage = () => {
         availableEventKeys,
         activeTab,
         showAllianceSelection,
+        hideAllianceAssignedTeams,
         filteredAndSortedTeams,
 
         // State setters
@@ -38,6 +39,7 @@ const PickListPage = () => {
         setActiveTab,
         setAlliances,
         setBackups,
+        setHideAllianceAssignedTeams,
 
         // Actions
         addTeamToList,
@@ -48,6 +50,9 @@ const PickListPage = () => {
         importPickLists,
         addTeamToAlliance,
         assignToAllianceAndRemove,
+        hasTeamPickListSnapshot,
+        restoreTeamToPickLists,
+        discardTeamPickListSnapshot,
         handleToggleAllianceSelection,
     } = usePickList();
 
@@ -82,6 +87,7 @@ const PickListPage = () => {
                     searchFilter={searchFilter}
                     sortBy={sortBy}
                     activeFilterIds={activeFilterIds}
+                    hideAllianceAssignedTeams={hideAllianceAssignedTeams}
                     eventFilter={eventFilter}
                     availableEventKeys={availableEventKeys}
                     onTabChange={setActiveTab}
@@ -89,10 +95,14 @@ const PickListPage = () => {
                     onSortChange={setSortBy}
                     onFilterChange={setActiveFilterIds}
                     onEventFilterChange={setEventFilter}
+                    onToggleHideAllianceAssignedTeams={setHideAllianceAssignedTeams}
                     onAddTeamToList={addTeamToList}
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}
                     onUpdateBackups={setBackups}
+                    onHasTeamPickListSnapshot={hasTeamPickListSnapshot}
+                    onRestoreTeamToPickLists={restoreTeamToPickLists}
+                    onDiscardTeamPickListSnapshot={discardTeamPickListSnapshot}
                     onNameChange={setNewListName}
                     onDescriptionChange={setNewListDescription}
                     onCreateList={createNewList}
@@ -119,16 +129,21 @@ const PickListPage = () => {
                     searchFilter={searchFilter}
                     sortBy={sortBy}
                     activeFilterIds={activeFilterIds}
+                    hideAllianceAssignedTeams={hideAllianceAssignedTeams}
                     eventFilter={eventFilter}
                     availableEventKeys={availableEventKeys}
                     onSearchChange={setSearchFilter}
                     onSortChange={setSortBy}
                     onFilterChange={setActiveFilterIds}
                     onEventFilterChange={setEventFilter}
+                    onToggleHideAllianceAssignedTeams={setHideAllianceAssignedTeams}
                     onAddTeamToList={addTeamToList}
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}
                     onUpdateBackups={setBackups}
+                    onHasTeamPickListSnapshot={hasTeamPickListSnapshot}
+                    onRestoreTeamToPickLists={restoreTeamToPickLists}
+                    onDiscardTeamPickListSnapshot={discardTeamPickListSnapshot}
                     onNameChange={setNewListName}
                     onDescriptionChange={setNewListDescription}
                     onCreateList={createNewList}
