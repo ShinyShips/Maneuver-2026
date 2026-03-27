@@ -100,7 +100,6 @@ export const DataFilteringControls: React.FC<DataFilteringControlsProps> = ({
     }, [data, filters]);
 
     const currentData = filteredData || previewFilteredData || data;
-    const currentMatchRange = currentData ? extractMatchRange(currentData) : { min: 1, max: 1 };
     const currentMatchCount = showMatchRange && currentData ? extractMatchCount(currentData) : 0;
     const currentMatchOptions = showMatchRange && currentData ? extractMatchOptions(currentData) : [];
     const currentRangeLabel = currentMatchOptions.length === 0
@@ -131,24 +130,6 @@ export const DataFilteringControls: React.FC<DataFilteringControlsProps> = ({
             newFilters.matchRange.customEnd = availableMatchOptions.length;
             newFilters.matchRange.customStartKey = availableMatchOptions[0]?.key;
             newFilters.matchRange.customEndKey = availableMatchOptions[availableMatchOptions.length - 1]?.key;
-        }
-
-        onFiltersChange(newFilters);
-    };
-
-    const handleCustomRangeChange = (field: 'start' | 'end', value: string) => {
-        const newFilters: DataFilters = {
-            ...filters,
-            matchRange: {
-                ...filters.matchRange
-            }
-        };
-        const numValue = parseInt(value) || undefined;
-
-        if (field === 'start') {
-            newFilters.matchRange.customStart = numValue;
-        } else {
-            newFilters.matchRange.customEnd = numValue;
         }
 
         onFiltersChange(newFilters);

@@ -15,9 +15,52 @@ import { useAllTeamStats } from "@/core/hooks/useAllTeamStats";
 import type { Alliance } from "../lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
 
+const MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY = "matchStrategyEventFilter";
+
+function getCurrentEventKey(): string {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return (localStorage.getItem("eventKey") || "").trim();
+}
+
+function getInitialSelectedEvent(): string {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    const savedEvent = (localStorage.getItem(MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY) || "").trim();
+    if (savedEvent) {
+        return savedEvent;
+    }
+
+    return getCurrentEventKey();
+}
+
+function getCanonicalEventKey(eventKey: string, availableEvents: string[]): string {
+    const normalizedEventKey = eventKey.trim().toLowerCase();
+    if (!normalizedEventKey) {
+        return "";
+    }
+
+    return availableEvents.find((candidate) => candidate.trim().toLowerCase() === normalizedEventKey) ?? "";
+}
+
+function filterEntriesByEvent<T extends { eventKey?: string | null }>(entries: T[], eventKey: string): T[] {
+    const normalizedEventKey = eventKey.trim().toLowerCase();
+    if (!normalizedEventKey) {
+        return entries;
+    }
+
+    return entries.filter((entry) => entry.eventKey?.trim().toLowerCase() === normalizedEventKey);
+}
+
 export const useMatchStrategy = () => {
     const [selectedTeams, setSelectedTeams] = useState<(number | null)[]>(Array(6).fill(null));
     const [availableTeams, setAvailableTeams] = useState<number[]>([]);
+    const [availableEvents, setAvailableEvents] = useState<string[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<string>(getInitialSelectedEvent);
     const [matchNumber, setMatchNumber] = useState<string>("");
     const [isLookingUpMatch, setIsLookingUpMatch] = useState(false);
     const [confirmedAlliances, setConfirmedAlliances] = useState<Alliance[]>([]);
@@ -25,7 +68,7 @@ export const useMatchStrategy = () => {
     const [selectedRedAlliance, setSelectedRedAlliance] = useState<string>("");
 
     // Get all team stats using centralized hook
-    const { teamStats: allTeamStats } = useAllTeamStats();
+    const { teamStats: allTeamStats } = useAllTeamStats(selectedEvent || undefined);
 
     // Function to get stats for a specific team
     const getTeamStats = useCallback((teamNumber: number | null): TeamStats | null => {
@@ -41,9 +84,13 @@ export const useMatchStrategy = () => {
         setIsLookingUpMatch(true);
         try {
             const matchNumberValue = parseInt(matchNum.trim());
+            const currentEventKey = getCurrentEventKey();
+            const shouldUseStoredMatchData = !!selectedEvent
+                && !!currentEventKey
+                && selectedEvent.trim().toLowerCase() === currentEventKey.trim().toLowerCase();
 
             // First check localStorage match data (from TBA API)
-            const matchDataStr = localStorage.getItem("matchData");
+            const matchDataStr = shouldUseStoredMatchData ? localStorage.getItem("matchData") : null;
             if (matchDataStr) {
                 try {
                     const matchData = JSON.parse(matchDataStr);
@@ -73,7 +120,7 @@ export const useMatchStrategy = () => {
             }
 
             // Fallback: Try scouting database
-            const matchEntries = await loadScoutingEntriesByMatch(matchNumberValue);
+            const matchEntries = filterEntriesByEvent(await loadScoutingEntriesByMatch(matchNumberValue), selectedEvent);
 
             const redTeams: number[] = [];
             const blueTeams: number[] = [];
@@ -115,27 +162,46 @@ export const useMatchStrategy = () => {
         } finally {
             setIsLookingUpMatch(false);
         }
-    }, []);
+    }, [selectedEvent]);
+
+    const loadStrategyData = useCallback(async () => {
+        try {
+            const data = await loadScoutingData();
+            const currentEventKey = getCurrentEventKey();
+            const nextAvailableEvents = Array.from(new Set(
+                data
+                    .map((entry) => entry.eventKey)
+                    .filter((eventKey): eventKey is string => typeof eventKey === "string" && eventKey.trim().length > 0)
+                    .concat(currentEventKey ? [currentEventKey] : [])
+            )).sort((a, b) => a.localeCompare(b));
+
+            setAvailableEvents(nextAvailableEvents);
+
+            const effectiveSelectedEvent = getCanonicalEventKey(selectedEvent, nextAvailableEvents)
+                || getCanonicalEventKey(currentEventKey, nextAvailableEvents)
+                || nextAvailableEvents[0]
+                || "";
+
+            if (effectiveSelectedEvent !== selectedEvent) {
+                setSelectedEvent(effectiveSelectedEvent);
+            }
+
+            const filteredData = filterEntriesByEvent(data, effectiveSelectedEvent);
+            const teams = [...new Set(
+                filteredData
+                    .map((entry) => entry.teamNumber)
+                    .filter((teamNumber): teamNumber is number => typeof teamNumber === "number")
+            )];
+
+            teams.sort((a, b) => a - b);
+            setAvailableTeams(teams);
+        } catch (error) {
+            console.error("Error loading scouting data:", error);
+        }
+    }, [selectedEvent]);
 
     // Load initial data
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                const data = await loadScoutingData();
-
-                // Extract unique team numbers - use teamNumber field (correct field name)
-                const teams = [...new Set(
-                    data
-                        .map((entry) => entry.teamNumber)
-                        .filter(Boolean)
-                )] as number[];
-                teams.sort((a, b) => a - b);
-                setAvailableTeams(teams);
-            } catch (error) {
-                console.error("Error loading scouting data:", error);
-            }
-        };
-
         const loadConfirmedAlliances = () => {
             try {
                 const savedAlliances = localStorage.getItem("confirmedAlliances");
@@ -147,9 +213,18 @@ export const useMatchStrategy = () => {
             }
         };
 
-        loadData();
+        void loadStrategyData();
         loadConfirmedAlliances();
-    }, []);
+    }, [loadStrategyData]);
+
+    useEffect(() => {
+        if (!selectedEvent) {
+            localStorage.removeItem(MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY);
+            return;
+        }
+
+        localStorage.setItem(MATCH_STRATEGY_EVENT_FILTER_STORAGE_KEY, selectedEvent);
+    }, [selectedEvent]);
 
     // Debounced match lookup
     useEffect(() => {
@@ -161,6 +236,28 @@ export const useMatchStrategy = () => {
 
         return () => clearTimeout(timeoutId);
     }, [matchNumber, lookupMatchTeams]);
+
+    useEffect(() => {
+        const handlePotentialDataChange = () => {
+            void loadStrategyData();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void loadStrategyData();
+            }
+        };
+
+        window.addEventListener("storage", handlePotentialDataChange);
+        window.addEventListener("focus", handlePotentialDataChange);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener("storage", handlePotentialDataChange);
+            window.removeEventListener("focus", handlePotentialDataChange);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [loadStrategyData]);
 
     const handleTeamChange = (index: number, teamNumber: number | null) => {
         const newSelectedTeams = [...selectedTeams];
@@ -200,6 +297,8 @@ export const useMatchStrategy = () => {
         // State
         selectedTeams,
         availableTeams,
+        availableEvents,
+        selectedEvent,
         matchNumber,
         isLookingUpMatch,
         confirmedAlliances,
@@ -211,6 +310,7 @@ export const useMatchStrategy = () => {
         handleTeamChange,
         applyAllianceToRed,
         applyAllianceToBlue,
+        setSelectedEvent,
         setMatchNumber
     };
 };
