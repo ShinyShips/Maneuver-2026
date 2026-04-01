@@ -97,7 +97,7 @@ export const PickListCard = ({
                                     onRemoveItem={onRemoveItem}
                                     handleDrag={() => { }}
                                     renderExtra={() => (
-                                        <div className="flex flex-1 justify-end px-2 py-2 gap-1">
+                                        <div className="flex w-full items-center gap-1 sm:w-auto sm:flex-none">
                                             <GenericSelector
                                                 label="Add to Alliance"
                                                 value=""
@@ -107,10 +107,10 @@ export const PickListCard = ({
                                                         onAssignToAlliance(teamNumber, parseInt(value));
                                                     }
                                                 }}
-                                                placeholder="Add to Alliance"
+                                                placeholder="Add to..."
                                                 displayFormat={(value: string) => `Alliance ${parseInt(value) + 1}`}
-                                                buttonDisplayFormat={(value: string) => value ? `Alliance ${parseInt(value) + 1}` : "Add to Alliance"}
-                                                className="h-8 w-fit"
+                                                buttonDisplayFormat={(value: string) => value ? `Alliance ${parseInt(value) + 1}` : "Add to..."}
+                                                className="h-8 min-w-0 flex-1 sm:w-fit sm:flex-none"
                                             />
                                             <TeamStatsDialog
                                                 teamNumber={teamNumber}

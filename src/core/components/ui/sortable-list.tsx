@@ -108,11 +108,8 @@ function SortableListItem({
                     }
                     whileDrag={{ zIndex: 9999 }}
                 >
-                    <div ref={ref} className={cn(isExpanded ? "" : "", "z-20 ")}>
-                        <motion.div
-                            layout="position"
-                            className="flex items-center justify-center "
-                        >
+                    <div ref={ref} className={cn(isExpanded ? "" : "", "z-20 w-full")}>
+                        <motion.div layout="position" className="w-full">
                             <AnimatePresence>
                                 {!isExpanded ? (
                                     <motion.div
@@ -120,63 +117,64 @@ function SortableListItem({
                                         animate={{ opacity: 1, filter: "blur(0px)" }}
                                         exit={{ opacity: 0, filter: "blur(4px)" }}
                                         transition={{ duration: 0.001 }}
-                                        className="flex  items-center space-x-2 "
+                                        className="flex w-full items-stretch gap-3 p-2"
                                     >
-                                        {/* List Remove Actions */}
-                                        <Checkbox
-                                            checked={item.checked}
-                                            id={`checkbox-${item.id}`}
-                                            aria-label="Mark to delete"
-                                            onCheckedChange={() => onCompleteItem(item.id)}
-                                            className=" ml-3 h-5 w-5 rounded-md border-white/20 data-[state=checked]:bg-black data-[state=checked]:text-red-200"
-                                        />
-                                        <button
-                                            type="button"
-                                            aria-label={`Drag ${item.text}`}
-                                            disabled={item.checked}
-                                            onPointerDown={item.checked ? undefined : handleDragStart}
-                                            className={cn(
-                                                "ml-1 inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-white/60 transition-colors",
-                                                item.checked
-                                                    ? "cursor-not-allowed opacity-40"
-                                                    : "cursor-grab active:cursor-grabbing"
-                                            )}
-                                            style={{ touchAction: "none" }}
-                                        >
-                                            <GripVertical className="h-4 w-4 shrink-0" />
-                                            <span className="font-mono text-xs">{order + 1}</span>
-                                        </button>
-
-                                        {/* List Title */}
-                                        <motion.div
-                                            key={`${item.checked}`}
-                                            className=" px-1 min-w-[150px]"
-                                            initial={{
-                                                opacity: 0,
-                                                filter: "blur(4px)",
-                                            }}
-                                            animate={{ opacity: 1, filter: "blur(0px)" }}
-                                            transition={{
-                                                bounce: 0.2,
-                                                delay: item.checked ? 0.2 : 0,
-                                                type: "spring",
-                                            }}
-                                        >
-                                            <h4
+                                        <div className="ml-2 flex shrink-0 items-center gap-2 self-center">
+                                            <Checkbox
+                                                checked={item.checked}
+                                                id={`checkbox-${item.id}`}
+                                                aria-label="Mark to delete"
+                                                onCheckedChange={() => onCompleteItem(item.id)}
+                                                className="h-5 w-5 rounded-md border-white/20 data-[state=checked]:bg-black data-[state=checked]:text-red-200"
+                                            />
+                                            <button
+                                                type="button"
+                                                aria-label={`Drag ${item.text}`}
+                                                disabled={item.checked}
+                                                onPointerDown={item.checked ? undefined : handleDragStart}
                                                 className={cn(
-                                                    "tracking-tighter text-base md:text-lg ",
-                                                    item.checked ? "text-red-400" : ""
+                                                    "inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-white/60 transition-colors",
+                                                    item.checked
+                                                        ? "cursor-not-allowed opacity-40"
+                                                        : "cursor-grab active:cursor-grabbing"
                                                 )}
+                                                style={{ touchAction: "none" }}
                                             >
-                                                {item.text}
-                                            </h4>
-                                        </motion.div>
+                                                <GripVertical className="h-4 w-4 shrink-0" />
+                                                <span className="font-mono text-xs">{order + 1}</span>
+                                            </button>
+                                        </div>
+
+                                        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 pr-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                            <motion.div
+                                                key={`${item.checked}`}
+                                                className="min-w-0 pb-1 sm:pb-0"
+                                                initial={{
+                                                    opacity: 0,
+                                                    filter: "blur(4px)",
+                                                }}
+                                                animate={{ opacity: 1, filter: "blur(0px)" }}
+                                                transition={{
+                                                    bounce: 0.2,
+                                                    delay: item.checked ? 0.2 : 0,
+                                                    type: "spring",
+                                                }}
+                                            >
+                                                <h4
+                                                    className={cn(
+                                                        "truncate tracking-tighter text-base md:text-lg",
+                                                        item.checked ? "text-red-400" : ""
+                                                    )}
+                                                >
+                                                    {item.text}
+                                                </h4>
+                                            </motion.div>
+
+                                            {renderExtra && renderExtra(item)}
+                                        </div>
                                     </motion.div>
                                 ) : null}
                             </AnimatePresence>
-
-                            {/* List Item Children */}
-                            {renderExtra && renderExtra(item)}
                         </motion.div>
                     </div>
                 </Reorder.Item>
@@ -207,7 +205,7 @@ function SortableListItem({
                                     bounce: 0,
                                 },
                             }}
-                            className="-ml-[1px] h-[1.5rem] w-3 rounded-l-none  rounded-r-none border-y border-r border-border/20 dark:border-background/5 dark:border-r-background/10 bg-background/40"
+                            className="-ml-px h-6 w-3 rounded-l-none rounded-r-none border-y border-r border-border/20 bg-background/40 dark:border-background/5 dark:border-r-background/10"
                         />
                     ) : null}
                 </AnimatePresence>
