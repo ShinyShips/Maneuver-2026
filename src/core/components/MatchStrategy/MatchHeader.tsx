@@ -1,14 +1,18 @@
 import { Button } from "@/core/components/ui/button";
 import { GenericSelector } from "@/core/components/ui/generic-selector";
 import { Input } from "@/core/components/ui/input";
+import { matchStrategyDisplayModes, type MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 
 interface MatchHeaderProps {
     selectedEvent: string;
     availableEvents: string[];
     matchNumber: string;
     isLookingUpMatch: boolean;
+    displayMode: MatchStrategyDisplayMode;
+    availableDisplayModes: MatchStrategyDisplayMode[];
     onEventChange: (value: string) => void;
     onMatchNumberChange: (value: string) => void;
+    onDisplayModeChange: (value: MatchStrategyDisplayMode) => void;
     onClearAll: () => void;
     onSaveAll: () => void;
 }
@@ -18,12 +22,18 @@ export const MatchHeader = ({
     availableEvents,
     matchNumber,
     isLookingUpMatch,
+    displayMode,
+    availableDisplayModes,
     onEventChange,
     onMatchNumberChange,
+    onDisplayModeChange,
     onClearAll,
     onSaveAll
 }: MatchHeaderProps) => {
     const hasMatchData = localStorage.getItem("matchData");
+    const displayModeLabels = Object.fromEntries(
+        matchStrategyDisplayModes.map((mode) => [mode.id, mode.label])
+    ) as Record<MatchStrategyDisplayMode, string>;
 
     return (
         <div className="flex md:justify-between w-full flex-wrap md:flex-nowrap gap-2 pt-4">
@@ -74,6 +84,22 @@ export const MatchHeader = ({
                         </span>
                     )}
                 </div>
+
+                {availableDisplayModes.length > 0 && (
+                    <div className="flex items-center gap-2 md:w-auto">
+                        <label className="font-semibold whitespace-nowrap">Mode:</label>
+                        <div className="w-[min(14rem,calc(100vw-8rem))] min-w-0 sm:min-w-32 sm:max-w-48">
+                            <GenericSelector
+                                label="Display Mode"
+                                value={displayMode}
+                                availableOptions={availableDisplayModes}
+                                onValueChange={(value) => onDisplayModeChange(value as MatchStrategyDisplayMode)}
+                                displayFormat={(value) => displayModeLabels[value as MatchStrategyDisplayMode] ?? value}
+                                className="bg-background border-muted-foreground/20"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="flex items-center md:justify-end w-full md:w-auto gap-2">

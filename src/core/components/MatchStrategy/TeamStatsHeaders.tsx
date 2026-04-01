@@ -6,10 +6,12 @@
  */
 
 import type { TeamStats } from "@/core/types/team-stats";
+import { formatStatValue, getMatchStrategySummary, getStatValue, type MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 
 interface TeamStatsHeadersProps {
     alliance: 'red' | 'blue';
     activeStatsTab: string;
+    displayMode: MatchStrategyDisplayMode;
     selectedTeams: (number | null)[];
     getTeamStats: (teamNumber: number | null) => TeamStats | null;
 }
@@ -17,6 +19,7 @@ interface TeamStatsHeadersProps {
 export const TeamStatsHeaders = ({
     alliance,
     activeStatsTab,
+    displayMode,
     selectedTeams,
     getTeamStats
 }: TeamStatsHeadersProps) => {
@@ -27,38 +30,22 @@ export const TeamStatsHeaders = ({
     const team1Stats = getTeamStats(selectedTeams[startIndex] ?? null);
     const team2Stats = getTeamStats(selectedTeams[startIndex + 1] ?? null);
     const team3Stats = getTeamStats(selectedTeams[startIndex + 2] ?? null);
+    const summaryConfig = getMatchStrategySummary(activeStatsTab, displayMode);
 
-    // Calculate alliance totals based on active tab
-    let totalValue = 0;
-    let label = "";
-
-    if (activeStatsTab === 'overall') {
-        totalValue = (team1Stats?.overall.avgTotalPoints || 0) +
-            (team2Stats?.overall.avgTotalPoints || 0) +
-            (team3Stats?.overall.avgTotalPoints || 0);
-        label = "Total Points";
-    } else if (activeStatsTab === 'auto') {
-        totalValue = (team1Stats?.auto.avgPoints || 0) +
-            (team2Stats?.auto.avgPoints || 0) +
-            (team3Stats?.auto.avgPoints || 0);
-        label = "Auto Points";
-    } else if (activeStatsTab === 'teleop') {
-        totalValue = (team1Stats?.teleop.avgPoints || 0) +
-            (team2Stats?.teleop.avgPoints || 0) +
-            (team3Stats?.teleop.avgPoints || 0);
-        label = "Teleop Points";
-    } else if (activeStatsTab === 'endgame') {
-        totalValue = (team1Stats?.endgame.avgPoints || 0) +
-            (team2Stats?.endgame.avgPoints || 0) +
-            (team3Stats?.endgame.avgPoints || 0);
-        label = "Endgame Points";
+    if (!summaryConfig) {
+        return null;
     }
 
-    const roundedValue = Math.round(totalValue * 10) / 10;
+    const totalValue = [team1Stats, team2Stats, team3Stats].reduce((sum, stats) => {
+        const value = stats ? getStatValue(stats, summaryConfig.key, summaryConfig.aggregation) : undefined;
+        return sum + (typeof value === 'number' ? value : 0);
+    }, 0);
+
+    const formattedValue = formatStatValue(totalValue, summaryConfig.format, summaryConfig.decimals);
 
     return (
         <div className="text-sm text-muted-foreground">
-            <span className="font-medium">{label}:</span> {roundedValue}
+            <span className="font-medium">{summaryConfig.label}:</span> {formattedValue}
         </div>
     );
 };

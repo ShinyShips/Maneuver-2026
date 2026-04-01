@@ -19,8 +19,13 @@ import { getCachedCOPREventKeys, getCachedEventCOPRs } from "@/core/lib/tba/copr
 import { getCachedEventStatboticsEPA, getCachedStatboticsEventKeys } from "@/core/lib/statbotics/epaUtils";
 import { getCachedTBAEventKeys, getCachedTBAEventMatches } from "@/core/lib/tbaCache";
 import type { TeamStats } from "@/core/types/team-stats";
-import type { ScoutingEntry } from "@/game-template/scoring";
-import type { TBAMatchData } from "@/core/lib/tbaMatchData";
+
+type FuelOprTeamEntry = {
+    autoFuelOPR: number;
+    teleopFuelOPR: number;
+    totalFuelOPR: number;
+    lambda: number;
+};
 
 export interface UseAllTeamStatsResult {
     teamStats: TeamStats[];
@@ -39,11 +44,42 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
     const { matches, isLoading, error } = useAllMatches(eventKey);
     const [cachedOnlyTeamStats, setCachedOnlyTeamStats] = useState<TeamStats[]>([]);
     const [isCacheLoading, setIsCacheLoading] = useState(false);
+    const [fuelOprByEventTeam, setFuelOprByEventTeam] = useState<Map<string, FuelOprTeamEntry>>(new Map());
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadFuelOprMap = async () => {
+            const relevantEventKeys = eventKey
+                ? [eventKey]
+                : [...new Set([
+                    ...matches.map(match => match.eventKey).filter((key): key is string => !!key),
+                    ...getCachedTBAEventKeys(),
+                ])];
+
+            if (relevantEventKeys.length === 0) {
+                if (!cancelled) {
+                    setFuelOprByEventTeam(new Map());
+                }
+                return;
+            }
+
+            const oprMap = await buildFuelOprMapFromCachedTba(relevantEventKeys);
+
+            if (!cancelled) {
+                setFuelOprByEventTeam(oprMap);
+            }
+        };
+
+        void loadFuelOprMap();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [eventKey, matches]);
 
     const scoutedTeamStats = useMemo(() => {
         if (!matches || matches.length === 0) return [];
-
-        const fuelOprByEventTeam = buildFuelOprMap(matches);
 
         const coprEventKeys = eventKey
             ? [eventKey]
@@ -116,6 +152,9 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                 statboticsAutoFuel: statbotics?.autoFuel,
                 statboticsTeleopFuel: statbotics?.teleopFuel,
                 statboticsEndgameFuel: statbotics?.endgameFuel,
+                statboticsTeleopTotalFuel: statbotics
+                    ? (statbotics.teleopFuel ?? 0) + (statbotics.endgameFuel ?? 0)
+                    : undefined,
                 statboticsTotalTower: statbotics?.totalTower,
                 statboticsAutoTower: statbotics?.autoTower,
                 statboticsEndgameTower: statbotics?.endgameTower,
@@ -124,7 +163,7 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
 
         // Sort by team number
         return stats.sort((a, b) => a.teamNumber - b.teamNumber);
-    }, [matches, eventKey]);
+    }, [matches, eventKey, fuelOprByEventTeam]);
 
     useEffect(() => {
         let cancelled = false;
@@ -158,7 +197,7 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                     ]);
 
                     const hybrid = tbaMatches.length >= 2
-                        ? calculateFuelOPRHybrid(tbaMatches, { includePlayoffs: false })
+                        ? calculateFuelOPRHybrid(tbaMatches, { includePlayoffs: true })
                         : null;
 
                     const oprByTeam = new Map(
@@ -203,6 +242,9 @@ export const useAllTeamStats = (eventKey?: string): UseAllTeamStatsResult => {
                         teamStats.statboticsAutoFuel = statbotics?.autoFuel;
                         teamStats.statboticsTeleopFuel = statbotics?.teleopFuel;
                         teamStats.statboticsEndgameFuel = statbotics?.endgameFuel;
+                        teamStats.statboticsTeleopTotalFuel = statbotics
+                            ? (statbotics.teleopFuel ?? 0) + (statbotics.endgameFuel ?? 0)
+                            : undefined;
                         teamStats.statboticsTotalTower = statbotics?.totalTower;
                         teamStats.statboticsAutoTower = statbotics?.autoTower;
                         teamStats.statboticsEndgameTower = statbotics?.endgameTower;
@@ -299,143 +341,24 @@ function createEmptyTeamStats(teamNumber: number, eventKey: string): TeamStats {
     };
 }
 
-function buildFuelOprMap(matches: ScoutingEntry[]): Map<string, {
-    autoFuelOPR: number;
-    teleopFuelOPR: number;
-    totalFuelOPR: number;
-    lambda: number;
-}> {
-    const entriesByEventMatch = new Map<string, Map<string, ScoutingEntry>>();
+async function buildFuelOprMapFromCachedTba(eventKeys: string[]): Promise<Map<string, FuelOprTeamEntry>> {
+    const result = new Map<string, FuelOprTeamEntry>();
 
-    for (const entry of matches) {
-        const event = entry.eventKey || "Unknown";
-        const matchKey = `${event}::${entry.matchNumber}`;
-        const teamKey = `${entry.allianceColor}::${entry.teamNumber}`;
+    const uniqueEventKeys = [...new Set(eventKeys.filter(Boolean))];
+    const eventMatches = await Promise.all(
+        uniqueEventKeys.map(async (event) => ({
+            event,
+            matches: await getCachedTBAEventMatches(event, true),
+        }))
+    );
 
-        if (!entriesByEventMatch.has(matchKey)) {
-            entriesByEventMatch.set(matchKey, new Map<string, ScoutingEntry>());
-        }
-
-        const perMatch = entriesByEventMatch.get(matchKey)!;
-        const existing = perMatch.get(teamKey);
-        if (!existing || (entry.timestamp ?? 0) >= (existing.timestamp ?? 0)) {
-            perMatch.set(teamKey, entry);
-        }
-    }
-
-    const matchesByEvent = new Map<string, TBAMatchData[]>();
-
-    for (const [eventMatchKey, teamEntries] of entriesByEventMatch.entries()) {
-        const event = eventMatchKey.split("::")[0] ?? "Unknown";
-        const redEntries = [...teamEntries.values()].filter(entry => entry.allianceColor === 'red');
-        const blueEntries = [...teamEntries.values()].filter(entry => entry.allianceColor === 'blue');
-
-        if (redEntries.length !== 3 || blueEntries.length !== 3) {
+    for (const { event, matches } of eventMatches) {
+        if (matches.length < 2) {
             continue;
         }
 
-        const toScaledFuel = (entry: ScoutingEntry) => {
-            const scaledMetrics = entry.gameData?.scaledMetrics as {
-                scaledAutoFuel?: number;
-                scaledTeleopFuel?: number;
-            } | undefined;
-
-            const rawAuto = typeof entry.gameData?.auto?.fuelScoredCount === 'number'
-                ? entry.gameData.auto.fuelScoredCount
-                : 0;
-            const rawTeleop = typeof entry.gameData?.teleop?.fuelScoredCount === 'number'
-                ? entry.gameData.teleop.fuelScoredCount
-                : 0;
-
-            return {
-                auto: typeof scaledMetrics?.scaledAutoFuel === 'number' ? scaledMetrics.scaledAutoFuel : rawAuto,
-                teleop: typeof scaledMetrics?.scaledTeleopFuel === 'number' ? scaledMetrics.scaledTeleopFuel : rawTeleop,
-            };
-        };
-
-        const redTotals = redEntries.reduce((acc, entry) => {
-            const scaled = toScaledFuel(entry);
-            acc.auto += scaled.auto;
-            acc.teleop += scaled.teleop;
-            return acc;
-        }, { auto: 0, teleop: 0 });
-
-        const blueTotals = blueEntries.reduce((acc, entry) => {
-            const scaled = toScaledFuel(entry);
-            acc.auto += scaled.auto;
-            acc.teleop += scaled.teleop;
-            return acc;
-        }, { auto: 0, teleop: 0 });
-
-        const matchNumber = parseInt((eventMatchKey.split("::")[1] ?? '0'), 10) || 0;
-
-        const tbaLikeMatch: TBAMatchData = {
-            key: `${event}_qm${matchNumber}`,
-            event_key: event,
-            comp_level: 'qm',
-            match_number: matchNumber,
-            set_number: 1,
-            alliances: {
-                red: {
-                    score: redTotals.auto + redTotals.teleop,
-                    team_keys: redEntries.map(entry => `frc${entry.teamNumber}`),
-                    dq_team_keys: [],
-                    surrogate_team_keys: [],
-                },
-                blue: {
-                    score: blueTotals.auto + blueTotals.teleop,
-                    team_keys: blueEntries.map(entry => `frc${entry.teamNumber}`),
-                    dq_team_keys: [],
-                    surrogate_team_keys: [],
-                },
-            },
-            score_breakdown: {
-                red: {
-                    hubScore: {
-                        autoCount: redTotals.auto,
-                        teleopCount: redTotals.teleop,
-                        totalCount: redTotals.auto + redTotals.teleop,
-                    },
-                },
-                blue: {
-                    hubScore: {
-                        autoCount: blueTotals.auto,
-                        teleopCount: blueTotals.teleop,
-                        totalCount: blueTotals.auto + blueTotals.teleop,
-                    },
-                },
-            },
-            winning_alliance: (redTotals.auto + redTotals.teleop) > (blueTotals.auto + blueTotals.teleop)
-                ? 'red'
-                : (blueTotals.auto + blueTotals.teleop) > (redTotals.auto + redTotals.teleop)
-                    ? 'blue'
-                    : '',
-            time: 0,
-            actual_time: 0,
-            predicted_time: 0,
-            post_result_time: 0,
-        };
-
-        if (!matchesByEvent.has(event)) {
-            matchesByEvent.set(event, []);
-        }
-        matchesByEvent.get(event)!.push(tbaLikeMatch);
-    }
-
-    const result = new Map<string, {
-        autoFuelOPR: number;
-        teleopFuelOPR: number;
-        totalFuelOPR: number;
-        lambda: number;
-    }>();
-
-    for (const [event, eventMatches] of matchesByEvent.entries()) {
-        if (eventMatches.length < 2) {
-            continue;
-        }
-
-        const hybrid = calculateFuelOPRHybrid(eventMatches, {
-            includePlayoffs: false,
+        const hybrid = calculateFuelOPRHybrid(matches, {
+            includePlayoffs: true,
         });
 
         for (const team of hybrid.opr.teams) {

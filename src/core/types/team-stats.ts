@@ -78,6 +78,7 @@ export interface TeamStats {
     statboticsAutoFuel?: number;
     statboticsTeleopFuel?: number;
     statboticsEndgameFuel?: number;
+    statboticsTeleopTotalFuel?: number;
     statboticsTotalTower?: number;
     statboticsAutoTower?: number;
     statboticsEndgameTower?: number;

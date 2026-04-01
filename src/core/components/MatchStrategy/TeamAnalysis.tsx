@@ -11,6 +11,7 @@ import { Button } from "@/core/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/core/components/animate-ui/radix/tabs";
 import { AllianceCard } from "./AllianceCard";
 import { AllianceSelectionControls } from "./AllianceSelectionControls";
+import type { MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 import type { Alliance } from "@/core/lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { AutoRoutineSelection, AutoRoutineSource, AutoRoutineWaypoint, StartPositionLabel, StrategyAutoRoutine } from "@/core/hooks/useMatchStrategy";
@@ -24,6 +25,7 @@ interface TeamAnalysisProps {
     selectedTeams: (number | null)[];
     availableTeams: number[];
     activeStatsTab: string;
+    displayMode: MatchStrategyDisplayMode;
     confirmedAlliances: Alliance[];
     selectedBlueAlliance: string;
     selectedRedAlliance: string;
@@ -48,6 +50,7 @@ export const TeamAnalysis = ({
     selectedTeams,
     availableTeams,
     activeStatsTab,
+    displayMode,
     confirmedAlliances,
     selectedBlueAlliance,
     selectedRedAlliance,
@@ -176,6 +179,7 @@ export const TeamAnalysis = ({
                         selectedTeams={selectedTeams}
                         availableTeams={availableTeams}
                         activeStatsTab={activeStatsTab}
+                        displayMode={displayMode}
                         getTeamStats={getTeamStats}
                         teamSlotSpotVisibility={teamSlotSpotVisibility}
                         onTeamSlotSpotToggle={onTeamSlotSpotToggle}
@@ -198,6 +202,7 @@ export const TeamAnalysis = ({
                         selectedTeams={selectedTeams}
                         availableTeams={availableTeams}
                         activeStatsTab={activeStatsTab}
+                        displayMode={displayMode}
                         getTeamStats={getTeamStats}
                         teamSlotSpotVisibility={teamSlotSpotVisibility}
                         onTeamSlotSpotToggle={onTeamSlotSpotToggle}

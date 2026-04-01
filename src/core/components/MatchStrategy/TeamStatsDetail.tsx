@@ -6,29 +6,35 @@
  */
 
 import { Badge } from "@/core/components/ui/badge";
-import { matchStrategyConfig, getStatValue, formatStatValue } from "@/game-template/match-strategy-config";
+import { getMatchStrategyPhaseConfig, getStatValue, formatStatValue, getVisibleMatchStrategyStats, type MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 import type { TeamStats } from "@/core/types/team-stats";
 
 interface TeamStatsDetailProps {
     stats: TeamStats | null;
     activeStatsTab: string;
+    displayMode: MatchStrategyDisplayMode;
 }
 
-export const TeamStatsDetail = ({ stats, activeStatsTab }: TeamStatsDetailProps) => {
+export const TeamStatsDetail = ({ stats, activeStatsTab, displayMode }: TeamStatsDetailProps) => {
     if (!stats) return null;
 
     // Find the phase configuration
-    const phaseConfig = matchStrategyConfig.phases.find(p => p.id === activeStatsTab);
+    const phaseConfig = getMatchStrategyPhaseConfig(activeStatsTab);
     if (!phaseConfig) return null;
 
     const gridCols = phaseConfig.gridCols || 3;
+    const visibleStats = getVisibleMatchStrategyStats(activeStatsTab, displayMode);
+    const visibleColumnCount = Math.max(1, Math.min(gridCols, visibleStats.length || 1));
 
     return (
         <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
             <div className="min-h-24 flex flex-col justify-start py-1">
-                <div className={`grid grid-cols-${gridCols} gap-x-2 gap-y-3 text-sm mb-1`}>
-                    {phaseConfig.stats.map((statConfig, idx) => {
-                        const value = getStatValue(stats, statConfig.key);
+                <div
+                    className="grid gap-x-2 gap-y-3 text-sm mb-1"
+                    style={{ gridTemplateColumns: `repeat(${visibleColumnCount}, minmax(0, 1fr))` }}
+                >
+                    {visibleStats.map((statConfig, idx) => {
+                        const value = getStatValue(stats, statConfig.key, statConfig.aggregation);
                         const formattedValue = formatStatValue(value, statConfig.format, statConfig.decimals);
 
                         return (
@@ -45,7 +51,7 @@ export const TeamStatsDetail = ({ stats, activeStatsTab }: TeamStatsDetailProps)
                 </div>
 
                 {/* Special handling for starting positions in auto phase */}
-                {activeStatsTab === 'auto' && stats.auto.startPositions && stats.auto.startPositions.length > 0 && (
+                {(displayMode === 'scouted' || displayMode === 'scaled') && activeStatsTab === 'auto' && stats.auto.startPositions && stats.auto.startPositions.length > 0 && (
                     <div className="flex flex-col items-center mt-3 pt-3 border-t border-gray-50 dark:border-gray-800/50">
                         <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Starting Positions:</p>
                         <div className="flex flex-wrap gap-1.5 justify-center">

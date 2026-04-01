@@ -12,6 +12,7 @@ import { TeamSelector } from "./TeamSelector";
 import { TeamStatsDetail } from "./TeamStatsDetail";
 import { TeamStatsHeaders } from "./TeamStatsHeaders";
 import { AutoRoutineDialog } from "./AutoRoutineDialog";
+import type { MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { AutoRoutineSelection, AutoRoutineSource, AutoRoutineWaypoint, StartPositionLabel, StrategyAutoRoutine } from "@/core/hooks/useMatchStrategy";
 
@@ -25,6 +26,7 @@ interface AllianceCardProps {
     selectedTeams: (number | null)[];
     availableTeams: number[];
     activeStatsTab: string;
+    displayMode: MatchStrategyDisplayMode;
     getTeamStats: (teamNumber: number | null) => TeamStats | null;
     teamSlotSpotVisibility: TeamSlotSpotVisibility[];
     onTeamSlotSpotToggle: (index: number, type: 'shooting' | 'passing') => void;
@@ -45,6 +47,7 @@ export const AllianceCard = ({
     selectedTeams,
     availableTeams,
     activeStatsTab,
+    displayMode,
     getTeamStats,
     teamSlotSpotVisibility,
     onTeamSlotSpotToggle,
@@ -94,6 +97,7 @@ export const AllianceCard = ({
                         <TeamStatsHeaders
                             alliance={alliance}
                             activeStatsTab={activeStatsTab}
+                            displayMode={displayMode}
                             selectedTeams={selectedTeams}
                             getTeamStats={getTeamStats}
                         />
@@ -184,6 +188,7 @@ export const AllianceCard = ({
                                         <TeamStatsDetail
                                             stats={stats}
                                             activeStatsTab={activeStatsTab}
+                                            displayMode={displayMode}
                                         />
                                     ) : (
                                         <div className="text-center py-2 text-muted-foreground text-sm">

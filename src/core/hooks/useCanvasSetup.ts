@@ -60,6 +60,65 @@ export const useCanvasSetup = ({
 }: UseCanvasSetupProps) => {
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const setupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const selectedTeamsRef = useRef(selectedTeams);
+  const teamSlotSpotVisibilityRef = useRef(teamSlotSpotVisibility);
+  const getTeamSpotsRef = useRef(getTeamSpots);
+  const selectedAutoRoutinesBySlotRef = useRef(selectedAutoRoutinesBySlot);
+  const isolatedAutoSlotRef = useRef(isolatedAutoSlot);
+  const autoReplayProgressRef = useRef(autoReplayProgress);
+
+  useEffect(() => {
+    selectedTeamsRef.current = selectedTeams;
+  }, [selectedTeams]);
+
+  useEffect(() => {
+    teamSlotSpotVisibilityRef.current = teamSlotSpotVisibility;
+  }, [teamSlotSpotVisibility]);
+
+  useEffect(() => {
+    getTeamSpotsRef.current = getTeamSpots;
+  }, [getTeamSpots]);
+
+  useEffect(() => {
+    selectedAutoRoutinesBySlotRef.current = selectedAutoRoutinesBySlot;
+  }, [selectedAutoRoutinesBySlot]);
+
+  useEffect(() => {
+    isolatedAutoSlotRef.current = isolatedAutoSlot;
+  }, [isolatedAutoSlot]);
+
+  useEffect(() => {
+    autoReplayProgressRef.current = autoReplayProgress;
+  }, [autoReplayProgress]);
+
+  const redrawOverlay = useCallback(() => {
+    const overlayCanvas = overlayCanvasRef.current;
+    if (!overlayCanvas) return;
+
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    drawTeamNumbersAndSpots(
+      ctx,
+      overlayCanvas.width,
+      overlayCanvas.height,
+      selectedTeamsRef.current,
+      currentStageId as StrategyStageId,
+      teamSlotSpotVisibilityRef.current,
+      getTeamSpotsRef.current
+    );
+    drawSelectedAutoRoutines(
+      ctx,
+      overlayCanvas.width,
+      overlayCanvas.height,
+      selectedTeamsRef.current,
+      currentStageId as StrategyStageId,
+      selectedAutoRoutinesBySlotRef.current,
+      isolatedAutoSlotRef.current,
+      autoReplayProgressRef.current,
+    );
+  }, [overlayCanvasRef, currentStageId]);
 
   const setupCanvas = useCallback(() => {
     if (setupTimeoutRef.current) {
@@ -151,26 +210,7 @@ export const useCanvasSetup = ({
         bgCtx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
 
         // LAYER 2: Draw team number overlays
-        overlayCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-        drawTeamNumbersAndSpots(
-          overlayCtx,
-          canvasWidth,
-          canvasHeight,
-          selectedTeams,
-          currentStageId as StrategyStageId,
-          teamSlotSpotVisibility,
-          getTeamSpots
-        );
-        drawSelectedAutoRoutines(
-          overlayCtx,
-          canvasWidth,
-          canvasHeight,
-          selectedTeams,
-          currentStageId as StrategyStageId,
-          selectedAutoRoutinesBySlot,
-          isolatedAutoSlot,
-          autoReplayProgress,
-        );
+        redrawOverlay();
 
         // LAYER 3: Load saved drawings or start fresh
         drawingCtx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -192,36 +232,12 @@ export const useCanvasSetup = ({
       };
       img.src = fieldImagePath;
     }, delay);
-  }, [fieldImagePath, currentStageId, isFullscreen, hideControls, isMobile, backgroundCanvasRef, overlayCanvasRef, drawingCanvasRef, containerRef, fullscreenRef, onCanvasReady, onDimensionsChange, selectedTeams]);
+  }, [fieldImagePath, currentStageId, isFullscreen, hideControls, isMobile, backgroundCanvasRef, overlayCanvasRef, drawingCanvasRef, containerRef, fullscreenRef, onCanvasReady, onDimensionsChange, redrawOverlay]);
 
   // Re-draw overlay when teams change
   useEffect(() => {
-    const overlayCanvas = overlayCanvasRef.current;
-    if (!overlayCanvas) return;
-    const ctx = overlayCanvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    drawTeamNumbersAndSpots(
-      ctx,
-      overlayCanvas.width,
-      overlayCanvas.height,
-      selectedTeams,
-      currentStageId as StrategyStageId,
-      teamSlotSpotVisibility,
-      getTeamSpots
-    );
-    drawSelectedAutoRoutines(
-      ctx,
-      overlayCanvas.width,
-      overlayCanvas.height,
-      selectedTeams,
-      currentStageId as StrategyStageId,
-      selectedAutoRoutinesBySlot,
-      isolatedAutoSlot,
-      autoReplayProgress,
-    );
-  }, [selectedTeams, currentStageId, teamSlotSpotVisibility, getTeamSpots, selectedAutoRoutinesBySlot, isolatedAutoSlot, autoReplayProgress, overlayCanvasRef]);
+    redrawOverlay();
+  }, [selectedTeams, currentStageId, teamSlotSpotVisibility, getTeamSpots, selectedAutoRoutinesBySlot, isolatedAutoSlot, autoReplayProgress, redrawOverlay]);
 
   useEffect(() => {
     setupCanvas();

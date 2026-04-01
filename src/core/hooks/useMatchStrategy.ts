@@ -8,10 +8,14 @@
  * - Team stats retrieval using centralized useAllTeamStats
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { loadScoutingData } from "@/core/lib/scoutingDataUtils";
 import { loadAllPitScoutingEntries, loadPitScoutingByTeam, loadScoutingEntriesByMatch, savePitScoutingEntry } from "@/core/db/database";
 import { useAllTeamStats } from "@/core/hooks/useAllTeamStats";
+import { getCachedEventCOPRs } from "@/core/lib/tba/coprUtils";
+import { getCachedEventStatboticsEPA } from "@/core/lib/statbotics/epaUtils";
+import { getCachedTBAEventMatches } from "@/core/lib/tbaCache";
+import { getAvailableMatchStrategyDisplayModes, type MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 import type { Alliance } from "../lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
 import type { PitScoutingEntryBase } from "@/core/types/pit-scouting";
@@ -438,6 +442,11 @@ export const useMatchStrategy = () => {
     const [teamAutoRoutinesByTeam, setTeamAutoRoutinesByTeam] = useState<Record<number, TeamAutoRoutines>>({});
     const [latestPitEntryByTeam, setLatestPitEntryByTeam] = useState<Record<number, PitScoutingEntryBase>>({});
     const [selectedAutoRoutineBySlot, setSelectedAutoRoutineBySlot] = useState<(AutoRoutineSelection | null)[]>(Array(6).fill(null));
+    const [hasScaledData, setHasScaledData] = useState(false);
+    const [hasCoprData, setHasCoprData] = useState(false);
+    const [hasEpaData, setHasEpaData] = useState(false);
+    const [hasOprData, setHasOprData] = useState(false);
+    const [isDisplayModeAvailabilityLoading, setIsDisplayModeAvailabilityLoading] = useState(true);
     const applySelectedTeams = useCallback((nextSelectedTeams: (number | null)[]) => {
         setSelectedTeams((prevSelectedTeams) => {
             setSelectedAutoRoutineBySlot((prevSelections) =>
@@ -461,7 +470,7 @@ export const useMatchStrategy = () => {
     }, [teamAutoRoutinesByTeam]);
 
     // Get all team stats using centralized hook
-    const { teamStats: allTeamStats } = useAllTeamStats(selectedEvent || undefined);
+    const { teamStats: allTeamStats, isLoading: isTeamStatsLoading } = useAllTeamStats(selectedEvent || undefined);
 
     // Function to get stats for a specific team
     const getTeamStats = useCallback((teamNumber: number | null): TeamStats | null => {
@@ -469,6 +478,14 @@ export const useMatchStrategy = () => {
         const stats = allTeamStats.find(s => s.teamNumber === teamNumber);
         return stats || null;
     }, [allTeamStats]);
+
+    const availableDisplayModes = useMemo<MatchStrategyDisplayMode[]>(() => getAvailableMatchStrategyDisplayModes({
+        teamStats: allTeamStats,
+        hasScaledData,
+        hasCoprData,
+        hasEpaData,
+        hasOprData,
+    }), [allTeamStats, hasScaledData, hasCoprData, hasEpaData, hasOprData]);
 
     // Debounced match number lookup
     const lookupMatchTeams = useCallback(async (matchNum: string) => {
@@ -557,6 +574,8 @@ export const useMatchStrategy = () => {
         }
     }, [applySelectedTeams, selectedEvent]);
     const loadStrategyData = useCallback(async () => {
+        setIsDisplayModeAvailabilityLoading(true);
+
         try {
             const [data, pitEntries] = await Promise.all([
                 loadScoutingData(),
@@ -589,6 +608,21 @@ export const useMatchStrategy = () => {
 
             const filteredScoutingEntries = filterEntriesByEvent(data, effectiveSelectedEvent);
             const filteredPitEntries = filterEntriesByEvent(pitEntries, effectiveSelectedEvent);
+            const hasScaledMetricsInEvent = filteredScoutingEntries.some((entry) => {
+                const scaledMetrics = isRecord(entry.gameData?.scaledMetrics) ? entry.gameData.scaledMetrics : null;
+                return typeof scaledMetrics?.scaledAutoFuel === 'number'
+                    || typeof scaledMetrics?.scaledTeleopFuel === 'number';
+            });
+            const hasCachedCoprData = effectiveSelectedEvent
+                ? getCachedEventCOPRs(effectiveSelectedEvent).size > 0
+                : false;
+            const hasCachedEpaData = effectiveSelectedEvent
+                ? getCachedEventStatboticsEPA(effectiveSelectedEvent).size > 0
+                : false;
+            const cachedTbaMatches = effectiveSelectedEvent
+                ? await getCachedTBAEventMatches(effectiveSelectedEvent, true)
+                : [];
+            const hasCachedOprData = cachedTbaMatches.length >= 2;
             const shouldUseScheduleTeams = !!effectiveSelectedEvent
                 && !!currentEventKey
                 && effectiveSelectedEvent.trim().toLowerCase() === currentEventKey.trim().toLowerCase();
@@ -596,6 +630,10 @@ export const useMatchStrategy = () => {
             const nextTeams = buildAvailableTeams(filteredScoutingEntries, filteredPitEntries, scheduleTeamNumbers);
 
             setAvailableTeams((prevTeams) => (areNumberArraysEqual(prevTeams, nextTeams) ? prevTeams : nextTeams));
+            setHasScaledData(hasScaledMetricsInEvent);
+            setHasCoprData(hasCachedCoprData);
+            setHasEpaData(hasCachedEpaData);
+            setHasOprData(hasCachedOprData);
 
             const spotsByTeam: Record<number, TeamSpotsByStage> = {};
             const routinesByTeam: Record<number, TeamAutoRoutines> = {};
@@ -678,8 +716,12 @@ export const useMatchStrategy = () => {
             setTeamAutoRoutinesByTeam(routinesByTeam);
         } catch (error) {
             console.error("Error loading scouting data:", error);
+        } finally {
+            setIsDisplayModeAvailabilityLoading(false);
         }
     }, [selectedEvent]);
+
+    const isDisplayModeLoading = isDisplayModeAvailabilityLoading || isTeamStatsLoading;
 
     // Load initial data
     useEffect(() => {
@@ -1062,6 +1104,8 @@ export const useMatchStrategy = () => {
         confirmedAlliances,
         selectedBlueAlliance,
         selectedRedAlliance,
+        availableDisplayModes,
+        isDisplayModeLoading,
 
         // Functions
         getTeamStats,

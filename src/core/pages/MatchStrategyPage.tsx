@@ -14,12 +14,13 @@
  * - Config-driven stats display (via props)
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MatchHeader } from "@/core/components/MatchStrategy/MatchHeader";
 import { FieldStrategy } from "@/core/components/MatchStrategy/FieldStrategy";
 import { TeamAnalysis } from "@/core/components/MatchStrategy/TeamAnalysis";
 import { clearAllStrategies, saveAllStrategyCanvases } from "@/core/lib/strategyCanvasUtils";
 import { useMatchStrategy } from "@/core/hooks/useMatchStrategy";
+import { matchStrategyDisplayModes, type MatchStrategyDisplayMode } from "@/game-template/match-strategy-config";
 import defaultFieldImage from "@/game-template/assets/2026-field.png";
 
 // ============================================================================
@@ -39,6 +40,18 @@ interface TeamSlotSpotVisibility {
     showPassing: boolean;
 }
 
+const MATCH_STRATEGY_DISPLAY_MODE_STORAGE_KEY = 'matchStrategyDisplayMode';
+
+function getInitialDisplayMode(): MatchStrategyDisplayMode {
+    const storedMode = localStorage.getItem(MATCH_STRATEGY_DISPLAY_MODE_STORAGE_KEY);
+
+    if (storedMode && matchStrategyDisplayModes.some((mode) => mode.id === storedMode)) {
+        return storedMode as MatchStrategyDisplayMode;
+    }
+
+    return 'scouted';
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -48,6 +61,8 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
     
     const [activeTab, setActiveTab] = useState("autonomous");
     const [activeStatsTab, setActiveStatsTab] = useState("overall");
+    const [preferredDisplayMode, setPreferredDisplayMode] = useState<MatchStrategyDisplayMode>(getInitialDisplayMode);
+    const [displayMode, setDisplayMode] = useState<MatchStrategyDisplayMode>(preferredDisplayMode);
     const [teamSlotSpotVisibility, setTeamSlotSpotVisibility] = useState<TeamSlotSpotVisibility[]>(
         Array.from({ length: 6 }, () => ({ showShooting: true, showPassing: true }))
     );
@@ -62,6 +77,8 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
         confirmedAlliances,
         selectedBlueAlliance,
         selectedRedAlliance,
+        availableDisplayModes,
+        isDisplayModeLoading,
         getTeamStats,
         getTeamSpots,
         getTeamAutoRoutines,
@@ -77,6 +94,39 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
         setSelectedEvent,
         setMatchNumber
     } = useMatchStrategy();
+
+    useEffect(() => {
+        if (isDisplayModeLoading) {
+            return;
+        }
+
+        if (availableDisplayModes.length === 0) {
+            return;
+        }
+
+        if (availableDisplayModes.includes(preferredDisplayMode)) {
+            if (displayMode !== preferredDisplayMode) {
+                setDisplayMode(preferredDisplayMode);
+            }
+            return;
+        }
+
+        if (!availableDisplayModes.includes(displayMode)) {
+            const nextMode = availableDisplayModes[0];
+            if (nextMode) {
+                setDisplayMode(nextMode);
+            }
+        }
+    }, [availableDisplayModes, displayMode, preferredDisplayMode, isDisplayModeLoading]);
+
+    useEffect(() => {
+        localStorage.setItem(MATCH_STRATEGY_DISPLAY_MODE_STORAGE_KEY, preferredDisplayMode);
+    }, [preferredDisplayMode]);
+
+    const handleDisplayModeChange = (value: MatchStrategyDisplayMode) => {
+        setPreferredDisplayMode(value);
+        setDisplayMode(value);
+    };
 
     const selectedAutoRoutinesBySlot = useMemo(
         () => Array.from({ length: 6 }, (_, slotIndex) => getSelectedAutoRoutineForSlot(slotIndex)),
@@ -144,8 +194,11 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
                     availableEvents={availableEvents}
                     matchNumber={matchNumber}
                     isLookingUpMatch={isLookingUpMatch}
+                    displayMode={displayMode}
+                    availableDisplayModes={availableDisplayModes}
                     onEventChange={setSelectedEvent}
                     onMatchNumberChange={setMatchNumber}
+                    onDisplayModeChange={handleDisplayModeChange}
                     onClearAll={handleClearAll}
                     onSaveAll={handleSaveAll}
                 />
@@ -165,6 +218,7 @@ const MatchStrategyPage = (props: MatchStrategyPageProps) => {
                         selectedTeams={selectedTeams}
                         availableTeams={availableTeams}
                         activeStatsTab={activeStatsTab}
+                        displayMode={displayMode}
                         confirmedAlliances={confirmedAlliances}
                         selectedBlueAlliance={selectedBlueAlliance}
                         selectedRedAlliance={selectedRedAlliance}
