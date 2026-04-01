@@ -1,5 +1,5 @@
-import { type Dispatch, type ReactNode, type SetStateAction, useState } from "react"
-import { Trash } from "lucide-react"
+import { type Dispatch, type PointerEvent as ReactPointerEvent, type ReactNode, type SetStateAction, useState } from "react"
+import { GripVertical, Trash } from "lucide-react"
 import {
     AnimatePresence,
     LayoutGroup,
@@ -43,12 +43,12 @@ function SortableListItem({
 }: SortableListItemProps) {
     const [ref, bounds] = useMeasure()
     const [isDragging, setIsDragging] = useState(false)
-    const [isDraggable] = useState(true)
     const dragControls = useDragControls()
 
-    const handleDragStart = (event: any) => {
+    const handleDragStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
         setIsDragging(true)
-        dragControls.start(event, { snapToCursor: true })
+        event.preventDefault()
+        dragControls.start(event)
         handleDrag()
     }
 
@@ -89,7 +89,7 @@ function SortableListItem({
                     }}
                     layout
                     layoutId={`item-${item.id}`}
-                    dragListener={!item.checked}
+                    dragListener={false}
                     dragControls={dragControls}
                     onDragEnd={handleDragEnd}
                     style={
@@ -130,10 +130,22 @@ function SortableListItem({
                                             onCheckedChange={() => onCompleteItem(item.id)}
                                             className=" ml-3 h-5 w-5 rounded-md border-white/20 data-[state=checked]:bg-black data-[state=checked]:text-red-200"
                                         />
-                                        {/* List Order */}
-                                        <p className="font-mono text-xs pl-1 text-white/50">
-                                            {order + 1}
-                                        </p>
+                                        <button
+                                            type="button"
+                                            aria-label={`Drag ${item.text}`}
+                                            disabled={item.checked}
+                                            onPointerDown={item.checked ? undefined : handleDragStart}
+                                            className={cn(
+                                                "ml-1 inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-white/60 transition-colors",
+                                                item.checked
+                                                    ? "cursor-not-allowed opacity-40"
+                                                    : "cursor-grab active:cursor-grabbing"
+                                            )}
+                                            style={{ touchAction: "none" }}
+                                        >
+                                            <GripVertical className="h-4 w-4 shrink-0" />
+                                            <span className="font-mono text-xs">{order + 1}</span>
+                                        </button>
 
                                         {/* List Title */}
                                         <motion.div
@@ -167,10 +179,6 @@ function SortableListItem({
                             {renderExtra && renderExtra(item)}
                         </motion.div>
                     </div>
-                    <div
-                        onPointerDown={isDraggable ? handleDragStart : undefined}
-                        style={{ touchAction: "none" }}
-                    />
                 </Reorder.Item>
                 {/* List Delete Action Animation */}
                 <AnimatePresence mode="popLayout">

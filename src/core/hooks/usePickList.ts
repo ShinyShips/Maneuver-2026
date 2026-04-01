@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { downloadTextFile } from "@/core/lib/downloadUtils";
 import { useAllTeamStats } from "./useAllTeamStats";
 import {
     filterTeams,
@@ -451,13 +452,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
 
     // Export pick lists
     const exportPickLists = useCallback(() => {
-        const dataStr = JSON.stringify(pickLists, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', 'pick-lists.json');
-        linkElement.click();
+        downloadTextFile('pick-lists.json', JSON.stringify(pickLists, null, 2), 'application/json;charset=utf-8');
 
         toast.success("Pick lists exported");
     }, [pickLists]);

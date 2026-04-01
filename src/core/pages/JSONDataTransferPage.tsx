@@ -10,6 +10,8 @@ import { csvExcludedFields, pitCsvExcludedFields } from "@/game-template/transfo
 import { Separator } from "@/core/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/core/components/ui/select";
 import { createMatchSchedulePayload } from "@/core/lib/matchScheduleTransfer";
+import { downloadTextFile } from "@/core/lib/downloadUtils";
+import { Loader2 } from "lucide-react";
 
 const getSortableMatchNumber = (matchNumber: unknown, matchKey: unknown): number => {
   if (typeof matchNumber === 'number' && Number.isFinite(matchNumber)) return matchNumber;
@@ -23,11 +25,18 @@ const getSortableMatchNumber = (matchNumber: unknown, matchKey: unknown): number
   return Number.isFinite(parsedFromKey) ? parsedFromKey : Number.MAX_SAFE_INTEGER;
 };
 
+const waitForUiPaint = async (): Promise<void> => {
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+};
+
 
 
 const JSONDataTransferPage = () => {
   const [mode, setMode] = useState<'select' | 'upload'>('select');
   const [dataType, setDataType] = useState<'scouting' | 'scoutProfiles' | 'pitScouting' | 'pitScoutingImagesOnly' | 'matchSchedule'>('scouting');
+  const [activeDownload, setActiveDownload] = useState<'json' | 'csv' | null>(null);
 
   if (mode === 'upload') {
     return (
@@ -38,7 +47,11 @@ const JSONDataTransferPage = () => {
   }
 
   const handleDownloadCSV = async () => {
+    setActiveDownload('csv');
+
     try {
+      await waitForUiPaint();
+
       let csv: string;
       let filename: string;
 
@@ -253,19 +266,107 @@ const JSONDataTransferPage = () => {
           return;
       }
 
-      const element = document.createElement("a");
-      element.setAttribute(
-        "href",
-        "data:text/csv;charset=utf-8," + encodeURIComponent(csv)
-      );
-      element.setAttribute("download", filename);
-      element.style.display = "none";
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+      downloadTextFile(filename, csv, "text/csv;charset=utf-8");
     } catch (error) {
       console.error("Failed to export data as CSV:", error);
       alert("Failed to export data as CSV.");
+    } finally {
+      setActiveDownload(null);
+    }
+  };
+
+  const handleDownloadJSON = async () => {
+    setActiveDownload('json');
+
+    try {
+      await waitForUiPaint();
+
+      let dataToExport: unknown;
+      let filename: string;
+
+      switch (dataType) {
+        case 'scouting': {
+          const scoutingEntries = await loadScoutingData();
+
+          if (scoutingEntries.length === 0) {
+            alert("No scouting data found.");
+            return;
+          }
+
+          dataToExport = { entries: scoutingEntries };
+          filename = `ManeuverScoutingData-${new Date().toLocaleTimeString()}.json`;
+          break;
+        }
+        case 'pitScouting': {
+          const pitData = await loadPitScoutingData();
+
+          if (pitData.entries.length === 0) {
+            alert("No pit scouting data found.");
+            return;
+          }
+
+          dataToExport = pitData;
+          filename = `ManeuverPitScoutingData-${new Date().toLocaleTimeString()}.json`;
+          break;
+        }
+        case 'pitScoutingImagesOnly': {
+          try {
+            await downloadPitScoutingImagesOnly();
+            return;
+          } catch (error) {
+            console.error('Error downloading pit scouting images:', error);
+            alert("Failed to download pit scouting images.");
+            return;
+          }
+        }
+        case 'matchSchedule': {
+          const matchDataStr = localStorage.getItem('matchData');
+          const matches = matchDataStr ? JSON.parse(matchDataStr) : [];
+          const eventKey = localStorage.getItem('eventKey') || '';
+          const payload = createMatchSchedulePayload(matches, eventKey);
+
+          if (!payload) {
+            alert("No match schedule data found.");
+            return;
+          }
+
+          dataToExport = payload;
+          filename = `ManeuverMatchSchedule-${new Date().toLocaleTimeString()}.json`;
+          break;
+        }
+        case 'scoutProfiles': {
+          const scoutsData = await gameDB.scouts.toArray();
+          const predictionsData = await gameDB.predictions.toArray();
+
+          if (scoutsData.length === 0 && predictionsData.length === 0) {
+            alert("No scout profiles data found.");
+            return;
+          }
+
+          dataToExport = {
+            scouts: scoutsData,
+            predictions: predictionsData,
+            exportedAt: new Date().toISOString(),
+            version: "1.0"
+          };
+          filename = `ManeuverScoutProfiles-${new Date().toLocaleTimeString()}.json`;
+          break;
+        }
+        default:
+          alert("Unknown data type selected.");
+          return;
+      }
+
+      downloadTextFile(
+        filename,
+        JSON.stringify(dataToExport, null, 2),
+        "application/json;charset=utf-8"
+      );
+    } catch (error) {
+      console.error("Failed to export data as JSON:", error);
+      alert("Failed to export data as JSON.");
+    } finally {
+      setActiveDownload(null);
     }
   };
 
@@ -296,102 +397,16 @@ const JSONDataTransferPage = () => {
           </div>
 
           <Button
-            onClick={async () => {
-              try {
-                let dataToExport: unknown;
-                let filename: string;
-
-                switch (dataType) {
-                  case 'scouting': {
-                    const scoutingEntries = await loadScoutingData();
-
-                    if (scoutingEntries.length === 0) {
-                      alert("No scouting data found.");
-                      return;
-                    }
-
-                    dataToExport = { entries: scoutingEntries };
-                    filename = `ManeuverScoutingData-${new Date().toLocaleTimeString()}.json`;
-                    break;
-                  }
-                  case 'pitScouting': {
-                    const pitData = await loadPitScoutingData();
-
-                    if (pitData.entries.length === 0) {
-                      alert("No pit scouting data found.");
-                      return;
-                    }
-
-                    dataToExport = pitData;
-                    filename = `ManeuverPitScoutingData-${new Date().toLocaleTimeString()}.json`;
-                    break;
-                  }
-                  case 'pitScoutingImagesOnly': {
-                    try {
-                      await downloadPitScoutingImagesOnly();
-                      return; // downloadPitScoutingImagesOnly handles its own download
-                    } catch (error) {
-                      console.error('Error downloading pit scouting images:', error);
-                      alert("Failed to download pit scouting images.");
-                      return;
-                    }
-                  }
-                  case 'matchSchedule': {
-                    const matchDataStr = localStorage.getItem('matchData');
-                    const matches = matchDataStr ? JSON.parse(matchDataStr) : [];
-                    const eventKey = localStorage.getItem('eventKey') || '';
-                    const payload = createMatchSchedulePayload(matches, eventKey);
-
-                    if (!payload) {
-                      alert("No match schedule data found.");
-                      return;
-                    }
-
-                    dataToExport = payload;
-                    filename = `ManeuverMatchSchedule-${new Date().toLocaleTimeString()}.json`;
-                    break;
-                  }
-                  case 'scoutProfiles': {
-                    const scoutsData = await gameDB.scouts.toArray();
-                    const predictionsData = await gameDB.predictions.toArray();
-
-                    if (scoutsData.length === 0 && predictionsData.length === 0) {
-                      alert("No scout profiles data found.");
-                      return;
-                    }
-
-                    dataToExport = {
-                      scouts: scoutsData,
-                      predictions: predictionsData,
-                      exportedAt: new Date().toISOString(),
-                      version: "1.0"
-                    };
-                    filename = `ManeuverScoutProfiles-${new Date().toLocaleTimeString()}.json`;
-                    break;
-                  }
-                  default:
-                    alert("Unknown data type selected.");
-                    return;
-                }
-
-                const element = document.createElement("a");
-                element.setAttribute(
-                  "href",
-                  "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2))
-                );
-                element.setAttribute("download", filename);
-                element.style.display = "none";
-                document.body.appendChild(element);
-                element.click();
-                document.body.removeChild(element);
-              } catch (error) {
-                console.error("Failed to export data as JSON:", error);
-                alert("Failed to export data as JSON.");
-              }
-            }}
+            onClick={handleDownloadJSON}
+            disabled={activeDownload !== null}
             className="w-full h-16 text-xl"
           >
-            Download {dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : dataType === 'pitScoutingImagesOnly' ? 'Pit Scouting Images' : dataType === 'matchSchedule' ? 'Match Schedule' : 'Scout Profiles'} as JSON
+            {activeDownload === 'json' ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Preparing JSON Download...</span>
+              </span>
+            ) : `Download ${dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : dataType === 'pitScoutingImagesOnly' ? 'Pit Scouting Images' : dataType === 'matchSchedule' ? 'Match Schedule' : 'Scout Profiles'} as JSON`}
           </Button>
 
           <div className="flex items-center gap-4">
@@ -404,14 +419,27 @@ const JSONDataTransferPage = () => {
             <Button
               onClick={handleDownloadCSV}
               variant="secondary"
-              disabled={dataType === 'pitScoutingImagesOnly'}
+              disabled={dataType === 'pitScoutingImagesOnly' || activeDownload !== null}
               className="w-full h-16 text-xl"
             >
-              {dataType === 'pitScoutingImagesOnly'
+              {activeDownload === 'csv'
+                ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Preparing CSV Download...</span>
+                  </span>
+                )
+                : dataType === 'pitScoutingImagesOnly'
                 ? 'Images Cannot Be Downloaded as CSV'
                 : `Download ${dataType === 'scouting' ? 'Scouting Data' : dataType === 'pitScouting' ? 'Pit Scouting Data' : dataType === 'matchSchedule' ? 'Match Schedule' : 'Scout Profiles'} as CSV`
               }
             </Button>
+            {activeDownload && (
+              <div className="mt-1 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <p>Building the export file. Large downloads can take a while on mobile devices.</p>
+              </div>
+            )}
             {dataType === 'pitScouting' && (
               <p className="text-xs text-muted-foreground mt-1 text-center">
                 Game-specific fields automatically expanded into separate columns
