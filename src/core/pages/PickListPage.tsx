@@ -53,6 +53,7 @@ const PickListPage = () => {
         importPickLists,
         addTeamToAlliance,
         assignToAllianceAndRemove,
+        assignTeamToAllianceSlot,
         hasTeamPickListSnapshot,
         restoreTeamToPickLists,
         discardTeamPickListSnapshot,
@@ -106,6 +107,7 @@ const PickListPage = () => {
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}
                     onUpdateBackups={setBackups}
+                    onAssignTeamToAllianceSlot={assignTeamToAllianceSlot}
                     onHasTeamPickListSnapshot={hasTeamPickListSnapshot}
                     onRestoreTeamToPickLists={restoreTeamToPickLists}
                     onDiscardTeamPickListSnapshot={discardTeamPickListSnapshot}
@@ -150,6 +152,7 @@ const PickListPage = () => {
                     onAddTeamToAlliance={showAllianceSelection ? addTeamToAlliance : undefined}
                     onUpdateAlliances={setAlliances}
                     onUpdateBackups={setBackups}
+                    onAssignTeamToAllianceSlot={assignTeamToAllianceSlot}
                     onHasTeamPickListSnapshot={hasTeamPickListSnapshot}
                     onRestoreTeamToPickLists={restoreTeamToPickLists}
                     onDiscardTeamPickListSnapshot={discardTeamPickListSnapshot}

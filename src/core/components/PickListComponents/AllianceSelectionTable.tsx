@@ -38,6 +38,7 @@ interface AllianceSelectionTableProps {
     teamLookupTeams: TeamStats[];
     onUpdateAlliances: (alliances: Alliance[]) => void;
     onUpdateBackups: (backups: BackupTeam[]) => void;
+    onAssignTeamToAllianceSlot: (teamNumber: number, allianceId: number, position: AlliancePosition) => void;
     onHasTeamPickListSnapshot: (teamNumber: number) => boolean;
     onRestoreTeamToPickLists: (teamNumber: number) => void;
     onDiscardTeamPickListSnapshot: (teamNumber: number) => void;
@@ -50,6 +51,7 @@ export const AllianceSelectionTable = ({
     teamLookupTeams,
     onUpdateAlliances,
     onUpdateBackups,
+    onAssignTeamToAllianceSlot,
     onHasTeamPickListSnapshot,
     onRestoreTeamToPickLists,
     onDiscardTeamPickListSnapshot,
@@ -138,11 +140,26 @@ export const AllianceSelectionTable = ({
             return;
         }
 
-        const updatedAlliances = alliances.map(alliance => {
-            if (alliance.id === allianceId) {
-                return { ...alliance, [position]: teamNumber };
+        if (teamNumber !== null) {
+            if (currentTeamNumber) {
+                openRemovalDialog(
+                    [currentTeamNumber],
+                    () => onAssignTeamToAllianceSlot(teamNumber, allianceId, position),
+                    `Replace Team ${currentTeamNumber}?`,
+                    `Team ${currentTeamNumber} is being removed from Alliance ${alliance.allianceNumber} ${position} and replaced with Team ${teamNumber}. Should Team ${currentTeamNumber} go back to its previous pick lists, or stay removed from them?`
+                );
+                return;
             }
-            return alliance;
+
+            onAssignTeamToAllianceSlot(teamNumber, allianceId, position);
+            return;
+        }
+
+        const updatedAlliances = alliances.map((candidate) => {
+            if (candidate.id === allianceId) {
+                return { ...candidate, [position]: teamNumber };
+            }
+            return candidate;
         });
 
         if (currentTeamNumber) {
