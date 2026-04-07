@@ -26,11 +26,17 @@ export const handlePitScoutingImagesUpload = async (jsonData: unknown): Promise<
     });
     
     if (result.updated === 0 && result.notFound > 0) {
-      toast.error(`No matching pit scouting entries found for ${result.notFound} teams. Please import pit scouting text data first, then add images.`);
+      toast.error(`No pit scouting history found for ${result.notFound} teams. Import pit scouting data first, or add those teams manually before importing images.`);
     } else if (result.notFound > 0) {
-      toast.warning(`Updated ${result.updated} teams with images. ${result.notFound} teams not found - ensure pit scouting entries exist first.`);
+      const seededMessage = result.seededFromPrevious > 0
+        ? ` ${result.seededFromPrevious} ${result.seededFromPrevious === 1 ? 'entry was' : 'entries were'} seeded from the latest prior event.`
+        : '';
+      toast.warning(`Updated ${result.updated} teams with images.${seededMessage} ${result.notFound} teams still had no pit scouting history.`);
     } else {
-      toast.success(`Successfully updated ${result.updated} teams with images!`);
+      const seededMessage = result.seededFromPrevious > 0
+        ? ` ${result.seededFromPrevious} ${result.seededFromPrevious === 1 ? 'entry was' : 'entries were'} seeded from the latest prior event.`
+        : '';
+      toast.success(`Successfully updated ${result.updated} teams with images!${seededMessage}`);
     }
   } catch (error) {
     console.error('Error importing pit scouting images:', error);

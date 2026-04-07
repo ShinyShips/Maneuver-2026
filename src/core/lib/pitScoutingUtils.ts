@@ -19,6 +19,62 @@ export interface PitScoutingData {
   lastUpdated: number;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const mergeGameData = (
+  base: Record<string, unknown>,
+  incoming: Record<string, unknown>
+): Record<string, unknown> => {
+  const merged: Record<string, unknown> = { ...base };
+
+  Object.entries(incoming).forEach(([key, incomingValue]) => {
+    if (incomingValue === undefined) {
+      return;
+    }
+
+    const existingValue = merged[key];
+    if (isRecord(existingValue) && isRecord(incomingValue)) {
+      merged[key] = mergeGameData(existingValue, incomingValue);
+      return;
+    }
+
+    merged[key] = incomingValue;
+  });
+
+  return merged;
+};
+
+const buildImportedPitEntry = (
+  incoming: PitScoutingEntry,
+  options: {
+    exactExisting?: PitScoutingEntry;
+    priorEntry?: PitScoutingEntry;
+  }
+): PitScoutingEntry => {
+  const baseEntry = options.exactExisting ?? options.priorEntry;
+  const mergedWithoutId: Omit<PitScoutingEntry, 'id' | 'timestamp'> = {
+    teamNumber: incoming.teamNumber,
+    eventKey: incoming.eventKey,
+    scoutName: incoming.scoutName,
+    robotPhoto: incoming.robotPhoto ?? baseEntry?.robotPhoto,
+    weight: incoming.weight ?? baseEntry?.weight,
+    drivetrain: incoming.drivetrain ?? baseEntry?.drivetrain,
+    programmingLanguage: incoming.programmingLanguage ?? baseEntry?.programmingLanguage,
+    notes: incoming.notes ?? baseEntry?.notes,
+    gameData: mergeGameData(
+      isRecord(baseEntry?.gameData) ? baseEntry.gameData : {},
+      isRecord(incoming.gameData) ? incoming.gameData : {}
+    ),
+  };
+
+  return {
+    ...mergedWithoutId,
+    id: options.exactExisting?.id || incoming.id || generatePitScoutingId(mergedWithoutId),
+    timestamp: Number.isFinite(incoming.timestamp) ? incoming.timestamp : Date.now(),
+  };
+};
+
 // Generate unique ID for pit scouting entries
 export const generatePitScoutingId = (entry: Omit<PitScoutingEntry, 'id' | 'timestamp'>): string => {
   const baseString = `${entry.teamNumber}-${entry.eventKey}-${entry.scoutName}`;
@@ -211,30 +267,61 @@ export const downloadPitScoutingImagesOnly = async (): Promise<void> => {
 export const importPitScoutingData = async (
   importData: PitScoutingData,
   mode: 'append' | 'overwrite' = 'append'
-): Promise<{ imported: number; duplicatesSkipped: number }> => {
+): Promise<{ imported: number; updated: number; seededFromPrevious: number; duplicatesSkipped: number }> => {
   try {
     if (mode === 'overwrite') {
       await clearAllPitScoutingData();
       // Save all imported entries
       await Promise.all(importData.entries.map(entry => dbSavePitScoutingEntry(entry)));
-      return { imported: importData.entries.length, duplicatesSkipped: 0 };
+      return { imported: importData.entries.length, updated: 0, seededFromPrevious: 0, duplicatesSkipped: 0 };
     } else {
       const existingEntries = await loadAllPitScoutingEntries();
-      // Create a set of existing team-event combinations instead of IDs
-      const existingTeamEvents = new Set(
-        existingEntries.map(e => `${e.teamNumber}-${e.eventKey}`)
+      const existingEntriesByTeamEvent = new Map(
+        existingEntries.map((entry) => [`${entry.teamNumber}-${entry.eventKey}`, entry])
       );
+      const latestEntryByTeam = new Map<number, PitScoutingEntry>();
 
-      const newEntries = importData.entries.filter(entry =>
-        !existingTeamEvents.has(`${entry.teamNumber}-${entry.eventKey}`)
-      );
+      existingEntries.forEach((entry) => {
+        const currentLatest = latestEntryByTeam.get(entry.teamNumber);
+        if (!currentLatest || entry.timestamp > currentLatest.timestamp) {
+          latestEntryByTeam.set(entry.teamNumber, entry);
+        }
+      });
 
-      // Save only new entries
-      await Promise.all(newEntries.map(entry => dbSavePitScoutingEntry(entry)));
+      let imported = 0;
+      let updated = 0;
+      let seededFromPrevious = 0;
+
+      for (const incomingEntry of importData.entries) {
+        const key = `${incomingEntry.teamNumber}-${incomingEntry.eventKey}`;
+        const exactExisting = existingEntriesByTeamEvent.get(key);
+        const priorEntry = exactExisting ? undefined : latestEntryByTeam.get(incomingEntry.teamNumber);
+        const mergedEntry = buildImportedPitEntry(incomingEntry, { exactExisting, priorEntry });
+
+        await dbSavePitScoutingEntry(mergedEntry);
+        existingEntriesByTeamEvent.set(key, mergedEntry);
+
+        const currentLatest = latestEntryByTeam.get(mergedEntry.teamNumber);
+        if (!currentLatest || mergedEntry.timestamp >= currentLatest.timestamp) {
+          latestEntryByTeam.set(mergedEntry.teamNumber, mergedEntry);
+        }
+
+        if (exactExisting) {
+          updated += 1;
+          continue;
+        }
+
+        imported += 1;
+        if (priorEntry) {
+          seededFromPrevious += 1;
+        }
+      }
 
       return {
-        imported: newEntries.length,
-        duplicatesSkipped: importData.entries.length - newEntries.length
+        imported,
+        updated,
+        seededFromPrevious,
+        duplicatesSkipped: 0,
       };
     }
   } catch (error) {
@@ -369,14 +456,23 @@ export const importPitScoutingImagesOnly = async (
       timestamp: number;
     }>;
   }
-): Promise<{ updated: number; notFound: number }> => {
+): Promise<{ updated: number; seededFromPrevious: number; notFound: number }> => {
   try {
     if (imagesData.type !== 'pit-scouting-images-only') {
       throw new Error('Invalid images-only data format');
     }
 
     const existingEntries = await loadAllPitScoutingEntries();
+    const latestEntryByTeam = new Map<number, PitScoutingEntry>();
+    existingEntries.forEach((entry) => {
+      const currentLatest = latestEntryByTeam.get(entry.teamNumber);
+      if (!currentLatest || entry.timestamp > currentLatest.timestamp) {
+        latestEntryByTeam.set(entry.teamNumber, entry);
+      }
+    });
+
     let updated = 0;
+    let seededFromPrevious = 0;
     let notFound = 0;
 
     console.log('Images import debug:');
@@ -403,11 +499,38 @@ export const importPitScoutingImagesOnly = async (
         await dbSavePitScoutingEntry(updatedEntry);
         updated++;
       } else {
-        notFound++;
+        const priorEntry = latestEntryByTeam.get(imageEntry.teamNumber);
+
+        if (priorEntry) {
+          const seededWithoutId: Omit<PitScoutingEntry, 'id' | 'timestamp'> = {
+            teamNumber: imageEntry.teamNumber,
+            eventKey: imageEntry.eventKey,
+            scoutName: priorEntry.scoutName,
+            robotPhoto: imageEntry.robotPhoto,
+            weight: priorEntry.weight,
+            drivetrain: priorEntry.drivetrain,
+            programmingLanguage: priorEntry.programmingLanguage,
+            notes: priorEntry.notes,
+            gameData: isRecord(priorEntry.gameData) ? { ...priorEntry.gameData } : {},
+          };
+
+          const seededEntry: PitScoutingEntry = {
+            ...seededWithoutId,
+            id: generatePitScoutingId(seededWithoutId),
+            timestamp: Number.isFinite(imageEntry.timestamp) ? imageEntry.timestamp : Date.now(),
+          };
+
+          await dbSavePitScoutingEntry(seededEntry);
+          latestEntryByTeam.set(imageEntry.teamNumber, seededEntry);
+          updated++;
+          seededFromPrevious++;
+        } else {
+          notFound++;
+        }
       }
     }
 
-    return { updated, notFound };
+    return { updated, seededFromPrevious, notFound };
   } catch (error) {
     console.error('Error importing pit scouting images:', error);
     throw error;

@@ -20,9 +20,14 @@ export const handlePitScoutingUpload = async (jsonData: unknown, mode: UploadMod
       mode === 'overwrite' ? 'overwrite' : 'append'
     );
     
-    const message = mode === 'overwrite' 
+    const message = mode === 'overwrite'
       ? `Overwritten with ${result.imported} pit scouting entries`
-      : `Imported ${result.imported} pit scouting entries${result.duplicatesSkipped > 0 ? `, ${result.duplicatesSkipped} duplicates skipped` : ''}`;
+      : [
+          result.imported > 0 ? `Imported ${result.imported} new pit scouting ${result.imported === 1 ? 'entry' : 'entries'}` : null,
+          result.updated > 0 ? `updated ${result.updated} existing ${result.updated === 1 ? 'entry' : 'entries'}` : null,
+          result.seededFromPrevious > 0 ? `seeded ${result.seededFromPrevious} from the latest prior event` : null,
+          result.duplicatesSkipped > 0 ? `${result.duplicatesSkipped} duplicates skipped` : null,
+        ].filter(Boolean).join(', ');
     
     toast.success(message);
   } catch (error) {
