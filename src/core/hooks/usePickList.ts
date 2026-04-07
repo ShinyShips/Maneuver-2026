@@ -31,6 +31,8 @@ import {
 import type { Alliance, BackupTeam } from "@/core/lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
 
+type AlliancePosition = 'captain' | 'pick1' | 'pick2' | 'pick3';
+
 export interface UsePickListResult {
     // Data
     availableTeams: TeamStats[];
@@ -75,6 +77,7 @@ export interface UsePickListResult {
     importPickLists: (event: React.ChangeEvent<HTMLInputElement>) => void;
     addTeamToAlliance: (teamNumber: number, allianceId: number) => void;
     assignToAllianceAndRemove: (teamNumber: number, allianceIndex: number) => void;
+    assignTeamToAllianceSlot: (teamNumber: number, allianceId: number, position: AlliancePosition) => void;
     hasTeamPickListSnapshot: (teamNumber: number) => boolean;
     restoreTeamToPickLists: (teamNumber: number) => void;
     discardTeamPickListSnapshot: (teamNumber: number) => void;
@@ -657,6 +660,43 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         toast.success(`Team ${teamNumber} added to Alliance ${alliance.allianceNumber} as ${positionNames[position]}`);
     }, [alliances, pickLists, teamMembershipSnapshots]);
 
+    const assignTeamToAllianceSlot = useCallback((teamNumber: number, allianceId: number, position: AlliancePosition) => {
+        const alliance = alliances.find((candidate) => candidate.id === allianceId);
+        if (!alliance) {
+            return;
+        }
+
+        if (alliance[position] === teamNumber) {
+            return;
+        }
+
+        setAlliances((prev) => prev.map((candidate) =>
+            candidate.id === allianceId ? { ...candidate, [position]: teamNumber } : candidate
+        ));
+
+        const membershipSnapshot = captureTeamMembershipSnapshot(
+            pickLists,
+            teamNumber,
+            teamMembershipSnapshots[String(teamNumber)]
+        );
+
+        setTeamMembershipSnapshots((prev) => ({
+            ...prev,
+            [String(teamNumber)]: membershipSnapshot,
+        }));
+
+        setPickLists((prev) => removeTeamFromLists(prev, teamNumber));
+
+        const positionNames: Record<AlliancePosition, string> = {
+            captain: 'Captain',
+            pick1: 'Pick 1',
+            pick2: 'Pick 2',
+            pick3: 'Pick 3',
+        };
+
+        toast.success(`Team ${teamNumber} assigned to Alliance ${alliance.allianceNumber} as ${positionNames[position]}`);
+    }, [alliances, pickLists, teamMembershipSnapshots]);
+
     const restoreTeamToPickLists = useCallback((teamNumber: number) => {
         const snapshot = teamMembershipSnapshots[String(teamNumber)] ?? [];
 
@@ -739,6 +779,7 @@ export const usePickList = (eventKey?: string): UsePickListResult => {
         importPickLists,
         addTeamToAlliance,
         assignToAllianceAndRemove,
+        assignTeamToAllianceSlot,
         hasTeamPickListSnapshot,
         restoreTeamToPickLists,
         discardTeamPickListSnapshot,

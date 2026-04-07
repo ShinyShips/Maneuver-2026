@@ -16,6 +16,8 @@ import type { PickList, PickListItem } from "@/core/types/pickListTypes";
 import type { PickListSortOption } from "@/game-template/pick-list-config";
 import type { Alliance, BackupTeam } from "@/core/lib/allianceTypes";
 
+type AlliancePosition = 'captain' | 'pick1' | 'pick2' | 'pick3';
+
 interface MobilePickListLayoutProps {
     activeTab: string;
     showAllianceSelection: boolean;
@@ -45,6 +47,7 @@ interface MobilePickListLayoutProps {
     onAddTeamToAlliance?: (teamNumber: number, allianceId: number) => void;
     onUpdateAlliances: (alliances: Alliance[]) => void;
     onUpdateBackups: (backups: BackupTeam[]) => void;
+    onAssignTeamToAllianceSlot: (teamNumber: number, allianceId: number, position: AlliancePosition) => void;
     onHasTeamPickListSnapshot: (teamNumber: number) => boolean;
     onRestoreTeamToPickLists: (teamNumber: number) => void;
     onDiscardTeamPickListSnapshot: (teamNumber: number) => void;
@@ -89,6 +92,7 @@ export const MobilePickListLayout = ({
     onAddTeamToAlliance,
     onUpdateAlliances,
     onUpdateBackups,
+    onAssignTeamToAllianceSlot,
     onHasTeamPickListSnapshot,
     onRestoreTeamToPickLists,
     onDiscardTeamPickListSnapshot,
@@ -151,6 +155,7 @@ export const MobilePickListLayout = ({
                             teamLookupTeams={teamLookupTeams}
                             onUpdateAlliances={onUpdateAlliances}
                             onUpdateBackups={onUpdateBackups}
+                            onAssignTeamToAllianceSlot={onAssignTeamToAllianceSlot}
                             onHasTeamPickListSnapshot={onHasTeamPickListSnapshot}
                             onRestoreTeamToPickLists={onRestoreTeamToPickLists}
                             onDiscardTeamPickListSnapshot={onDiscardTeamPickListSnapshot}
