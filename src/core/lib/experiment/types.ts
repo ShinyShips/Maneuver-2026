@@ -112,6 +112,70 @@ export interface ComparisonSummary {
   lineItems: MetricComparison[];
 }
 
+export interface ExperimentInterfaceAggregate {
+  responseCount: number;
+  averageAccuracyPercent: number | null;
+  averageDurationSeconds: number | null;
+  averageTlx: number | null;
+}
+
+export interface ExperimentTlxDimensionSummary {
+  key: keyof TLXRawScores;
+  label: string;
+  visual: number | null;
+  form: number | null;
+}
+
+export interface ExperimentFieldDifferenceSummary {
+  key: string;
+  overallAvgAbsoluteDiff: number;
+  visualAvgAbsoluteDiff: number | null;
+  formAvgAbsoluteDiff: number | null;
+}
+
+export interface ExperimentPreferenceSummary {
+  preferredCounts: {
+    visual: number;
+    form: number;
+    none: number;
+  };
+  visualSatisfaction: number | null;
+  formSatisfaction: number | null;
+  visualEase: number | null;
+  formEase: number | null;
+}
+
+export interface ExperimentExportResults {
+  sessionCount: number;
+  completedSessionCount: number;
+  responseCount: number;
+  preferenceCount: number;
+  comparisonCount: number;
+  interfaces: {
+    visual: ExperimentInterfaceAggregate;
+    form: ExperimentInterfaceAggregate;
+  };
+  durationDeltaSeconds: number | null;
+  tlx: {
+    overallVisual: number | null;
+    overallForm: number | null;
+    dimensions: ExperimentTlxDimensionSummary[];
+  };
+  preferences: ExperimentPreferenceSummary;
+  fieldDifferences: {
+    nonCell: ExperimentFieldDifferenceSummary[];
+    cell: ExperimentFieldDifferenceSummary[];
+  };
+}
+
+export interface ExperimentExportInsight {
+  id: string;
+  title: string;
+  summary: string;
+  metric: string;
+  value: number | string | null;
+}
+
 export interface ExperimentExportBundle {
   exportedAt: number;
   sessions?: ExperimentSession[];
@@ -119,4 +183,6 @@ export interface ExperimentExportBundle {
   answerKeys?: ExperimentAnswerKey[];
   preferences?: ExperimentPreferenceForm[];
   comparisons?: ComparisonSummary[];
+  results?: ExperimentExportResults;
+  insights?: ExperimentExportInsight[];
 }

@@ -1,0 +1,153 @@
+============================================================
+EXPERIMENT DATA ANALYSIS
+============================================================
+
+Total participants: 9
+  P-EEZ1S - Group A - Order: ['visual', 'form']
+  P-1AWT3 - Group A - Order: ['visual', 'form']
+  P-8SZH3 - Group B - Order: ['form', 'visual']
+  P-JG00F - Group A - Order: ['visual', 'form']
+  P-D6VY6 - Group A - Order: ['visual', 'form']
+  P-T6FZH - Group A - Order: ['visual', 'form']
+  P-MN5BS - Group A - Order: ['visual', 'form']
+  P-NIAHA - Group B - Order: ['form', 'visual']
+  P-8CZDJ - Group A - Order: ['visual', 'form']
+
+Group A (visual first): 7
+Group B (form first): 2
+
+Total responses: 18
+Visual interface responses: 9
+Form interface responses: 9
+
+============================================================
+TASK COMPLETION TIME (ms)
+============================================================
+
+Visual durations (all): [516273, 658145, 618897, 3729, 495200, 573030, 440637, 391844, 669955]
+Visual durations (filtered, >60s): [516273, 658145, 618897, 495200, 573030, 440637, 391844, 669955]
+Form durations: [674642, 653715, 714973, 664444, 644401, 585884, 556501, 1097114, 322912]
+
+Visual Mean: 545498 ms (545.5 s)
+Visual SD: 101639 ms
+Form Mean: 657176 ms (657.2 s)
+Form SD: 201361 ms
+
+============================================================
+NASA-TLX SCORES
+============================================================
+
+mentalDemand:
+  Visual: mean=5.88, sd=2.30, values=[7, 4, 5, 9, 7, 5, 8, 2]
+  Form:   mean=6.00, sd=2.55, values=[7, 6, 3, 10, 5, 8, 5, 2, 8]
+
+physicalDemand:
+  Visual: mean=4.38, sd=2.39, values=[2, 4, 6, 2, 4, 8, 7, 2]
+  Form:   mean=5.44, sd=2.07, values=[7, 3, 2, 7, 5, 8, 6, 4, 7]
+
+temporalDemand:
+  Visual: mean=4.75, sd=1.83, values=[6, 5, 4, 5, 6, 4, 7, 1]
+  Form:   mean=5.00, sd=1.94, values=[2, 6, 3, 6, 5, 8, 4, 4, 7]
+
+performance:
+  Visual: mean=5.00, sd=2.14, values=[4, 5, 6, 4, 8, 5, 7, 1]
+  Form:   mean=5.11, sd=1.76, values=[6, 7, 2, 5, 5, 8, 5, 4, 4]
+
+effort:
+  Visual: mean=5.75, sd=1.91, values=[6, 5, 6, 8, 6, 5, 8, 2]
+  Form:   mean=5.78, sd=1.56, values=[6, 6, 3, 7, 5, 8, 6, 4, 7]
+
+frustration:
+  Visual: mean=3.00, sd=2.39, values=[1, 1, 4, 8, 4, 2, 3, 1]
+  Form:   mean=5.00, sd=3.32, values=[2, 3, 3, 10, 5, 10, 1, 4, 7]
+
+Overall TLX (raw mean of dimensions):
+  Visual: mean=4.79, sd=1.60
+  Form:   mean=5.39, sd=1.81
+
+============================================================
+PREFERENCES
+============================================================
+
+Preferred interface: {'no-preference': 4, 'visual': 5}
+
+Visual Satisfaction: mean=5.89, values=[5, 3, 1, 7, 4, 9, 9, 7, 8]
+Form Satisfaction:   mean=5.11, values=[5, 2, 8, 3, 6, 3, 8, 4, 7]
+Visual Ease:         mean=5.00, values=[5, 3, 1, 6, 4, 7, 7, 4, 8]
+Form Ease:           mean=5.11, values=[5, 2, 8, 2, 4, 3, 8, 6, 8]
+
+============================================================
+ACCURACY COMPARISONS
+============================================================
+
+Total comparisons: 18
+
+Visual comparisons (valid): 8
+Form comparisons: 9
+
+Visual Accuracy: mean=85.14%, sd=13.09
+Form Accuracy:   mean=78.87%, sd=21.61
+
+Visual Norm Error: mean=0.1486, sd=0.1309
+Form Norm Error:   mean=0.2113, sd=0.2161
+
+Visual accuracy values: ['63.7%', '76.1%', '95.2%', '97.6%', '97.1%', '74.2%', '80.9%', '96.2%']
+Form accuracy values: ['77.6%', '93.6%', '31.0%', '96.2%', '61.4%', '98.6%', '94.3%', '78.1%', '79.0%']
+
+============================================================
+FUEL SCORED (Total = auto + teleop)
+============================================================
+
+Visual (valid): mean=154.6, values=[89, 117, 152, 163, 163, 190, 200, 163]
+
+Form: mean=155.3, values=[183, 156, 176, 161, 87, 159, 161, 124, 191]
+
+Answer keys:
+  clip-2: auto=16, teleop=143, total=159
+  clip-1: auto=16, teleop=144, total=160
+
+============================================================
+PAIRED PARTICIPANT ANALYSIS
+============================================================
+
+P-EEZ1S (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=495s | accuracy=97.6% | TLX_avg=6.0
+  Block 2: form   | clip=clip-2 | duration=664s | accuracy=96.2% | TLX_avg=7.5
+
+P-1AWT3 (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=658s | accuracy=76.1% | TLX_avg=4.0
+  Block 2: form   | clip=clip-2 | duration=557s | accuracy=94.3% | TLX_avg=4.5
+
+P-8SZH3 (Group B, order=['form', 'visual']):
+  Block 1: form   | clip=clip-1 | duration=586s | accuracy=98.6% | TLX_avg=8.3
+  Block 2: visual | clip=clip-2 | duration=670s | accuracy=96.2% | TLX_avg=1.5
+
+P-JG00F (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=441s | accuracy=74.2% | TLX_avg=4.8
+  Block 2: form   | clip=clip-2 | duration=675s | accuracy=77.6% | TLX_avg=5.0
+
+P-D6VY6 (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=573s | accuracy=97.1% | TLX_avg=5.8
+  Block 2: form   | clip=clip-2 | duration=654s | accuracy=93.6% | TLX_avg=5.2
+
+P-T6FZH (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=619s | accuracy=95.2% | TLX_avg=5.2
+  Block 2: form   | clip=clip-2 | duration=1097s | accuracy=78.1% | TLX_avg=3.7
+
+P-MN5BS (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=392s | accuracy=80.9% | TLX_avg=6.7
+  Block 2: form   | clip=clip-2 | duration=323s | accuracy=79.0% | TLX_avg=6.7
+
+P-NIAHA (Group B, order=['form', 'visual']):
+  Block 1: form   | clip=clip-1 | duration=715s | accuracy=31.0% | TLX_avg=2.7
+  Block 2: visual | clip=clip-2 | duration=4s | accuracy=17.4% | TLX_avg=2.7
+
+P-8CZDJ (Group A, order=['visual', 'form']):
+  Block 1: visual | clip=clip-1 | duration=516s | accuracy=63.7% | TLX_avg=4.3
+  Block 2: form   | clip=clip-2 | duration=644s | accuracy=61.4% | TLX_avg=5.0
+
+============================================================
+NOTES FROM PREFERENCES
+============================================================
+
+P-EEZ1S: "It felt like the form was made for sad Mr incredible working his office job while the visual was not only easier to traverse but also hurt my eyes less"
