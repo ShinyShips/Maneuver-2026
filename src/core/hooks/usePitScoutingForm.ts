@@ -3,6 +3,7 @@ import type { PitScoutingEntryBase, DrivetrainType, ProgrammingLanguage } from "
 import {
   savePitScoutingEntry,
   loadPitScoutingByTeamAndEvent,
+  loadPitScoutingByTeam,
 } from "@/core/db/database";
 import { toast } from "sonner";
 
@@ -62,6 +63,21 @@ export function usePitScoutingForm(): UsePitScoutingFormReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [existingEntryId, setExistingEntryId] = useState<string | undefined>(undefined);
 
+  const applyLoadedEntry = useCallback((entry: PitScoutingEntryBase, reuseExistingId: boolean) => {
+    setFormState((prev) => ({
+      ...prev,
+      scoutName: reuseExistingId ? entry.scoutName : prev.scoutName,
+      robotPhoto: entry.robotPhoto,
+      weight: entry.weight,
+      drivetrain: entry.drivetrain,
+      programmingLanguage: entry.programmingLanguage,
+      notes: entry.notes,
+      gameData: entry.gameData,
+    }));
+
+    setExistingEntryId(reuseExistingId ? entry.id : undefined);
+  }, []);
+
   // Manual load function (opt-in instead of automatic)
   const loadExistingEntry = useCallback(async () => {
     if (!formState.teamNumber || typeof formState.teamNumber !== "number" || !formState.eventKey) {
@@ -77,21 +93,19 @@ export function usePitScoutingForm(): UsePitScoutingFormReturn {
       );
 
       if (existing) {
-        // Pre-fill form with existing data
-        setFormState((prev) => ({
-          ...prev,
-          scoutName: existing.scoutName,
-          robotPhoto: existing.robotPhoto,
-          weight: existing.weight,
-          drivetrain: existing.drivetrain,
-          programmingLanguage: existing.programmingLanguage,
-          notes: existing.notes,
-          gameData: existing.gameData,
-        }));
-        setExistingEntryId(existing.id);
+        applyLoadedEntry(existing, true);
         toast.success("Loaded existing pit scouting data for this team");
       } else {
-        toast.info("No existing data found for this team at this event");
+        const priorEntries = await loadPitScoutingByTeam(formState.teamNumber);
+        const latestPreviousEntry = priorEntries.sort((a, b) => b.timestamp - a.timestamp)[0];
+
+        if (latestPreviousEntry) {
+          applyLoadedEntry(latestPreviousEntry, false);
+          toast.success("Loaded latest prior-event pit scouting data as a starting point for this event");
+        } else {
+          setExistingEntryId(undefined);
+          toast.info("No existing pit scouting data found for this team");
+        }
       }
     } catch (error) {
       console.error("Error loading existing pit scouting entry:", error);
@@ -99,14 +113,16 @@ export function usePitScoutingForm(): UsePitScoutingFormReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [formState.teamNumber, formState.eventKey]);
+  }, [applyLoadedEntry, formState.teamNumber, formState.eventKey]);
 
   // Universal field setters
   const setTeamNumber = useCallback((value: number | "") => {
+    setExistingEntryId(undefined);
     setFormState((prev) => ({ ...prev, teamNumber: value }));
   }, []);
 
   const setEventKey = useCallback((value: string) => {
+    setExistingEntryId(undefined);
     setFormState((prev) => ({ ...prev, eventKey: value }));
   }, []);
 
