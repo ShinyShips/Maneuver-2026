@@ -10,20 +10,25 @@ import { Card } from '@/core/components/ui/card';
 import { Badge } from '@/core/components/ui/badge';
 import { Button } from '@/core/components/ui/button';
 import { Checkbox } from '@/core/components/ui/checkbox';
+import { useFieldOrientation } from '@/core/hooks/useFieldOrientation';
 import { Maximize2 } from 'lucide-react';
 import { cn } from '@/core/lib/utils';
 import type { MatchResult } from '@/game-template/analysis';
 import { FieldCanvas, type FieldCanvasRef, FieldHeader } from '@/game-template/components/field-map';
 import fieldImage from '@/game-template/assets/2026-field.png';
 
+const normalizeAlliance = (alliance: string | undefined): 'red' | 'blue' =>
+    alliance?.toLowerCase().includes('red') ? 'red' : 'blue';
+
 interface TeleopPathsVisualizationProps {
     matchResults: MatchResult[];
     alliance?: 'red' | 'blue';
 }
 
-export function TeleopPathsVisualization({ matchResults, alliance = 'blue' }: TeleopPathsVisualizationProps) {
+export function TeleopPathsVisualization({ matchResults, alliance: _alliance = 'blue' }: TeleopPathsVisualizationProps) {
     const [selectedMatches, setSelectedMatches] = useState<Set<string>>(new Set());
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const { isFieldRotated } = useFieldOrientation();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const fieldCanvasRef = useRef<FieldCanvasRef>(null);
@@ -38,7 +43,14 @@ export function TeleopPathsVisualization({ matchResults, alliance = 'blue' }: Te
     const displayActions = useMemo(() => {
         return matchResults
             .filter(m => selectedMatches.has(m.matchNumber))
-            .flatMap(m => (m.teleopPath as any[]) || [])
+            .flatMap((match) => {
+                const matchAlliance = normalizeAlliance(match.alliance);
+                return ((match.teleopPath as any[]) || []).map((waypoint) => ({
+                    ...waypoint,
+                    displayAlliance: matchAlliance,
+                    displayGroupId: `teleop-${match.matchNumber}`,
+                }));
+            })
             .filter(wp => wp && wp.position); // Filter out undefined or invalid waypoints
     }, [matchResults, selectedMatches]);
 
@@ -95,7 +107,7 @@ export function TeleopPathsVisualization({ matchResults, alliance = 'blue' }: Te
                         isFullscreen={isFullscreen}
                         onFullscreenToggle={() => setIsFullscreen(false)}
                         alliance="blue"
-                        isFieldRotated={false}
+                        isFieldRotated={isFieldRotated}
                         actionLogSlot={
                             <div className="flex items-center gap-2">
                                 <Button
@@ -126,28 +138,30 @@ export function TeleopPathsVisualization({ matchResults, alliance = 'blue' }: Te
                             "w-full aspect-2/1"
                         )}
                     >
-                        <img
-                            src={fieldImage}
-                            alt="2026 Field"
-                            className="w-full h-full object-fill"
-                            style={{ opacity: 0.9 }}
-                        />
+                        <div className={cn("absolute inset-0", isFieldRotated && "rotate-180")}>
+                            <img
+                                src={fieldImage}
+                                alt="2026 Field"
+                                className="w-full h-full object-fill"
+                                style={{ opacity: 0.9 }}
+                            />
 
-                        <FieldCanvas
-                            ref={fieldCanvasRef}
-                            actions={displayActions}
-                            pendingWaypoint={null}
-                            drawingPoints={[]}
-                            alliance={alliance}
-                            isFieldRotated={false}
-                            width={canvasDimensions.width}
-                            height={canvasDimensions.height}
-                            isSelectingScore={false}
-                            isSelectingPass={false}
-                            isSelectingCollect={false}
-                            drawConnectedPaths={false}
-                            drawingZoneBounds={undefined}
-                        />
+                            <FieldCanvas
+                                ref={fieldCanvasRef}
+                                actions={displayActions}
+                                pendingWaypoint={null}
+                                drawingPoints={[]}
+                                alliance="blue"
+                                isFieldRotated={isFieldRotated}
+                                width={canvasDimensions.width}
+                                height={canvasDimensions.height}
+                                isSelectingScore={false}
+                                isSelectingPass={false}
+                                isSelectingCollect={false}
+                                drawConnectedPaths={false}
+                                drawingZoneBounds={undefined}
+                            />
+                        </div>
 
                         {displayActions.length === 0 && (
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -198,30 +212,30 @@ export function TeleopPathsVisualization({ matchResults, alliance = 'blue' }: Te
                             ref={containerRef}
                             className="relative rounded-lg overflow-hidden border border-slate-700 bg-slate-900 w-full aspect-2/1"
                         >
-                            {/* Field Background */}
-                            <img
-                                src={fieldImage}
-                                alt="2026 Field"
-                                className="w-full h-full object-fill"
-                                style={{ opacity: 0.9 }}
-                            />
+                            <div className={cn("absolute inset-0", isFieldRotated && "rotate-180")}>
+                                <img
+                                    src={fieldImage}
+                                    alt="2026 Field"
+                                    className="w-full h-full object-fill"
+                                    style={{ opacity: 0.9 }}
+                                />
 
-                            {/* Path Canvas */}
-                            <FieldCanvas
-                                ref={fieldCanvasRef}
-                                actions={displayActions}
-                                pendingWaypoint={null}
-                                drawingPoints={[]}
-                                alliance={alliance}
-                                isFieldRotated={false}
-                                width={canvasDimensions.width}
-                                height={canvasDimensions.height}
-                                isSelectingScore={false}
-                                isSelectingPass={false}
-                                isSelectingCollect={false}
-                                drawConnectedPaths={false}
-                                drawingZoneBounds={undefined}
-                            />
+                                <FieldCanvas
+                                    ref={fieldCanvasRef}
+                                    actions={displayActions}
+                                    pendingWaypoint={null}
+                                    drawingPoints={[]}
+                                    alliance="blue"
+                                    isFieldRotated={isFieldRotated}
+                                    width={canvasDimensions.width}
+                                    height={canvasDimensions.height}
+                                    isSelectingScore={false}
+                                    isSelectingPass={false}
+                                    isSelectingCollect={false}
+                                    drawConnectedPaths={false}
+                                    drawingZoneBounds={undefined}
+                                />
+                            </div>
 
                             {/* No paths message */}
                             {displayActions.length === 0 && (

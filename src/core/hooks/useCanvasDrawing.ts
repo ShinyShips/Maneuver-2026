@@ -16,6 +16,7 @@ interface UseCanvasDrawingProps {
   isErasing: boolean;
   onSave: () => void;
   onTap?: (point: Point) => void;
+  mapDisplayPointToCanvas?: (point: Point, canvas: HTMLCanvasElement) => Point;
   selectedTeams?: (number | null)[]; // Kept for API compatibility, but no longer used
 }
 
@@ -26,6 +27,7 @@ export const useCanvasDrawing = ({
   isErasing,
   onSave,
   onTap,
+  mapDisplayPointToCanvas,
 }: UseCanvasDrawingProps) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState<Point | null>(null);
@@ -48,11 +50,15 @@ export const useCanvasDrawing = ({
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    return {
+    const displayPoint = {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY
     };
-  }, [canvasRef]);
+
+    return mapDisplayPointToCanvas
+      ? mapDisplayPointToCanvas(displayPoint, canvas)
+      : displayPoint;
+  }, [canvasRef, mapDisplayPointToCanvas]);
 
   // Initialize history with current canvas state (call once after canvas is set up)
   const initializeHistory = useCallback(() => {

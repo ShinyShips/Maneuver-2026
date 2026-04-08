@@ -10,11 +10,15 @@ import { Card } from '@/core/components/ui/card';
 import { Badge } from '@/core/components/ui/badge';
 import { Button } from '@/core/components/ui/button';
 import { Checkbox } from '@/core/components/ui/checkbox';
+import { useFieldOrientation } from '@/core/hooks/useFieldOrientation';
 import { Maximize2, Play, Pause, RotateCcw } from 'lucide-react';
 import { cn } from '@/core/lib/utils';
 import type { MatchResult } from '@/game-template/analysis';
 import { FieldCanvas, type FieldCanvasRef, FieldHeader, type PathWaypoint } from '@/game-template/components/field-map';
 import fieldImage from '@/game-template/assets/2026-field.png';
+
+const normalizeAlliance = (alliance: string | undefined): 'red' | 'blue' =>
+    alliance?.toLowerCase().includes('red') ? 'red' : 'blue';
 
 export interface AutoPathListItem {
     id: string;
@@ -40,6 +44,7 @@ const MIN_REPLAY_DURATION_MS = 6000;
 const MAX_REPLAY_DURATION_MS = 20000;
 const MIN_LENGTH_FOR_SCALING = 0.15;
 const MAX_LENGTH_FOR_SCALING = 2.2;
+const AUTO_REPLAY_SPEED = 2;
 
 function getPolylineLength(points: { x: number; y: number }[]): number {
     if (points.length < 2) return 0;
@@ -92,18 +97,17 @@ function getScaledReplayDurationMs(totalPathLength: number): number {
 
 export function AutoPathsByPosition({
     matchResults,
-    alliance = 'blue',
+    alliance: _alliance = 'blue',
     customItemsByPosition,
     listTitle = 'Matches',
 }: AutoPathsByPositionProps) {
+    const { isFieldRotated } = useFieldOrientation();
     const [selectedPosition, setSelectedPosition] = useState<PositionIndex>(2); // Default to Hub
     const [selectedMatches, setSelectedMatches] = useState<Set<string>>(new Set());
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [replayTargetId, setReplayTargetId] = useState<string | null>(null);
     const [isReplayPlaying, setIsReplayPlaying] = useState(false);
     const [replayElapsedMs, setReplayElapsedMs] = useState(0);
-    const [replaySpeed, setReplaySpeed] = useState<0.5 | 1 | 2>(1);
-
     const isCustomMode = !!customItemsByPosition;
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -147,15 +151,16 @@ export function AutoPathsByPosition({
         }
 
         return (positionMatches as MatchResult[]).map((match) => {
-            const normalizedAlliance =
-                match.alliance === 'red' || match.alliance === 'blue'
-                    ? match.alliance
-                    : undefined;
+            const normalizedAlliance = normalizeAlliance(match.alliance);
 
             return {
                 id: match.matchNumber,
                 label: `Match ${match.matchNumber}`,
-                actions: (match.autoPath ?? []) as PathWaypoint[],
+                actions: ((match.autoPath ?? []) as PathWaypoint[]).map((waypoint) => ({
+                    ...waypoint,
+                    displayAlliance: normalizedAlliance,
+                    displayGroupId: `auto-${match.matchNumber}`,
+                })),
                 alliance: normalizedAlliance,
                 metricText: `${match.autoPoints} pts`,
                 detailText: `${match.autoFuel} fuel scored${
@@ -256,11 +261,11 @@ export function AutoPathsByPosition({
         if (!isReplayPlaying || !replayTarget || replayActions.length < 2) return;
 
         const interval = window.setInterval(() => {
-            setReplayElapsedMs((previous) => Math.min(previous + 16 * replaySpeed, replayDurationMs));
+            setReplayElapsedMs((previous) => Math.min(previous + 16 * AUTO_REPLAY_SPEED, replayDurationMs));
         }, 16);
 
         return () => window.clearInterval(interval);
-    }, [isReplayPlaying, replayTarget, replayActions.length, replaySpeed, replayDurationMs]);
+    }, [isReplayPlaying, replayTarget, replayActions.length, replayDurationMs]);
 
     useEffect(() => {
         if (isReplayPlaying && replayElapsedMs >= replayDurationMs) {
@@ -282,13 +287,8 @@ export function AutoPathsByPosition({
         }
     }, [positionItems, replayTargetId]);
 
-    const replayStatusText = replayTarget
-        ? `${Math.round((replayDurationMs / 1000) * 10) / 10}s replay`
-        : 'Choose one auto to replay';
-
     const replayControls = (
         <div className="flex items-center gap-2 flex-wrap justify-end">
-            <span className="text-xs text-muted-foreground">{replayStatusText}</span>
             <Button
                 variant="ghost"
                 size="sm"
@@ -309,17 +309,6 @@ export function AutoPathsByPosition({
                 <RotateCcw className="h-3.5 w-3.5" />
                 Restart
             </Button>
-            {[0.5, 1, 2].map((speed) => (
-                <Button
-                    key={speed}
-                    variant={replaySpeed === speed ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setReplaySpeed(speed as 0.5 | 1 | 2)}
-                    disabled={!replayTarget || replayActions.length < 2}
-                >
-                    {speed}x
-                </Button>
-            ))}
         </div>
     );
 
@@ -362,7 +351,7 @@ export function AutoPathsByPosition({
                         isFullscreen={isFullscreen}
                         onFullscreenToggle={() => setIsFullscreen(false)}
                         alliance="blue"
-                        isFieldRotated={false}
+                        isFieldRotated={isFieldRotated}
                         actionLogSlot={
                             <div className="flex items-center gap-2 flex-wrap justify-end">
                                 {replayControls}
@@ -396,29 +385,31 @@ export function AutoPathsByPosition({
                             "w-full aspect-2/1"
                         )}
                     >
-                        <img
-                            src={fieldImage}
-                            alt="2026 Field"
-                            className="w-full h-full object-fill"
-                            style={{ opacity: 0.9 }}
-                        />
+                        <div className={cn("absolute inset-0", isFieldRotated && "rotate-180")}>
+                            <img
+                                src={fieldImage}
+                                alt="2026 Field"
+                                className="w-full h-full object-fill"
+                                style={{ opacity: 0.9 }}
+                            />
 
-                        <FieldCanvas
-                            ref={fieldCanvasRef}
-                            actions={canvasActions}
-                            pendingWaypoint={null}
-                            drawingPoints={[]}
-                            alliance={alliance}
-                            isFieldRotated={false}
-                            width={canvasDimensions.width}
-                            height={canvasDimensions.height}
-                            isSelectingScore={false}
-                            isSelectingPass={false}
-                            isSelectingCollect={false}
-                            drawConnectedPaths={true}
-                            drawingZoneBounds={undefined}
-                            replayDrawProgress={canvasReplayProgress}
-                        />
+                            <FieldCanvas
+                                ref={fieldCanvasRef}
+                                actions={canvasActions}
+                                pendingWaypoint={null}
+                                drawingPoints={[]}
+                                alliance="blue"
+                                isFieldRotated={isFieldRotated}
+                                width={canvasDimensions.width}
+                                height={canvasDimensions.height}
+                                isSelectingScore={false}
+                                isSelectingPass={false}
+                                isSelectingCollect={false}
+                                drawConnectedPaths={true}
+                                drawingZoneBounds={undefined}
+                                replayDrawProgress={canvasReplayProgress}
+                            />
+                        </div>
 
                         {canvasActions.length === 0 && (
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -480,31 +471,31 @@ export function AutoPathsByPosition({
                         ref={containerRef}
                         className="relative rounded-lg overflow-hidden border border-slate-700 bg-slate-900 w-full aspect-2/1"
                     >
-                        {/* Field Background */}
-                        <img
-                            src={fieldImage}
-                            alt="2026 Field"
-                            className="w-full h-full object-fill"
-                            style={{ opacity: 0.9 }}
-                        />
+                        <div className={cn("absolute inset-0", isFieldRotated && "rotate-180")}>
+                            <img
+                                src={fieldImage}
+                                alt="2026 Field"
+                                className="w-full h-full object-fill"
+                                style={{ opacity: 0.9 }}
+                            />
 
-                        {/* Path Canvas */}
-                        <FieldCanvas
-                            ref={fieldCanvasRef}
-                            actions={canvasActions}
-                            pendingWaypoint={null}
-                            drawingPoints={[]}
-                            alliance={alliance}
-                            isFieldRotated={false}
-                            width={canvasDimensions.width}
-                            height={canvasDimensions.height}
-                            isSelectingScore={false}
-                            isSelectingPass={false}
-                            isSelectingCollect={false}
-                            drawConnectedPaths={true}
-                            drawingZoneBounds={undefined}
-                            replayDrawProgress={canvasReplayProgress}
-                        />
+                            <FieldCanvas
+                                ref={fieldCanvasRef}
+                                actions={canvasActions}
+                                pendingWaypoint={null}
+                                drawingPoints={[]}
+                                alliance="blue"
+                                isFieldRotated={isFieldRotated}
+                                width={canvasDimensions.width}
+                                height={canvasDimensions.height}
+                                isSelectingScore={false}
+                                isSelectingPass={false}
+                                isSelectingCollect={false}
+                                drawConnectedPaths={true}
+                                drawingZoneBounds={undefined}
+                                replayDrawProgress={canvasReplayProgress}
+                            />
+                        </div>
 
                         {/* No paths message */}
                         {canvasActions.length === 0 && (

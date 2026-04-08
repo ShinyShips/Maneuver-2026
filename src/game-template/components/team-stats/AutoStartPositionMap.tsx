@@ -130,10 +130,8 @@ export function AutoStartPositionMap({
                 // STATS MODE: Show percentages and average points
                 const percentage = startPositions[`position${zone.position}`] || 0;
 
-                // Calculate average AUTO points for this position
-                const positionMatches = matchResults.filter(
-                    match => match.startPosition === zone.position
-                );
+                const positionMatches = matchResults.filter((match) => match.startPosition === zone.position);
+
                 const avgAutoPoints = positionMatches.length > 0
                     ? Math.round(
                         (positionMatches.reduce((sum, match) => sum + match.autoPoints, 0) /
@@ -249,6 +247,8 @@ export function AutoStartPositionMap({
             canvas.height = canvasHeight;
             canvas.style.width = `${canvasWidth}px`;
             canvas.style.height = `${canvasHeight}px`;
+
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
             // Draw the field image
             ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);

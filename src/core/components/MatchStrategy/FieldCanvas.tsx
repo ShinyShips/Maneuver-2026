@@ -13,6 +13,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useFullscreen } from "@/core/hooks/useFullscreen";
+import { useFieldOrientation } from "@/core/hooks/useFieldOrientation";
 import { useIsMobile } from "@/core/hooks/use-mobile";
 import { useCanvasDrawing } from "@/core/hooks/useCanvasDrawing";
 import { useCanvasSetup } from "@/core/hooks/useCanvasSetup";
@@ -120,6 +121,7 @@ const FieldCanvas = ({
     const [isolatedAutoSlot, setIsolatedAutoSlot] = useState<number | null>(null);
     const [isAutoReplayPlaying, setIsAutoReplayPlaying] = useState(false);
     const [autoReplayElapsedMs, setAutoReplayElapsedMs] = useState(0);
+    const { isFieldRotated, toggleFieldOrientation } = useFieldOrientation();
     const autoReplaySpeed = 2;
     const isMobile = useIsMobile();
 
@@ -292,6 +294,17 @@ const FieldCanvas = ({
         setIsAutoReplayPlaying(currentStageId === 'autonomous' && visibleAutoRoutines.length > 0);
     }, [currentStageId, visibleAutoRoutines.length]);
 
+    const mapDisplayPointToCanvas = useCallback((point: { x: number; y: number }, canvas: HTMLCanvasElement) => {
+        if (!isFieldRotated) {
+            return point;
+        }
+
+        return {
+            x: Math.max(0, Math.min(canvas.width, canvas.width - point.x)),
+            y: Math.max(0, Math.min(canvas.height, canvas.height - point.y)),
+        };
+    }, [isFieldRotated]);
+
     // Save canvas function - composites all layers
     const saveCanvas = useCallback((showAlert = true) => {
         const bgCanvas = backgroundCanvasRef.current;
@@ -304,6 +317,11 @@ const FieldCanvas = ({
         compositeCanvas.height = canvasDimensions.height;
         const ctx = compositeCanvas.getContext('2d');
         if (!ctx) return;
+
+        if (isFieldRotated) {
+            ctx.translate(canvasDimensions.width, canvasDimensions.height);
+            ctx.rotate(Math.PI);
+        }
 
         // Draw all layers in order
         ctx.drawImage(bgCanvas, 0, 0);
@@ -366,6 +384,7 @@ const FieldCanvas = ({
         getTeamSpots,
         selectedAutoRoutinesBySlot,
         isolatedAutoSlot,
+        isFieldRotated,
     ]);
 
     const replayStatusText = visibleAutoRoutines.length > 0
@@ -406,6 +425,7 @@ const FieldCanvas = ({
         isErasing,
         onSave: () => saveCanvas(false),
         onTap: handleCanvasTap,
+        mapDisplayPointToCanvas,
         selectedTeams
     });
 
@@ -534,6 +554,12 @@ const FieldCanvas = ({
         height: '100%'
     };
 
+    const rotatedLayerStyle: React.CSSProperties = {
+        ...layerStyle,
+        transform: isFieldRotated ? 'rotate(180deg)' : undefined,
+        transformOrigin: 'center center'
+    };
+
     // Render stacked canvases
     const renderCanvasStack = () => (
         <div className="w-full h-full min-h-0 flex items-center justify-center">
@@ -541,18 +567,18 @@ const FieldCanvas = ({
                 {/* Layer 1: Background (field image) - dimensions set by hook */}
                 <canvas
                     ref={backgroundCanvasRef}
-                    style={layerStyle}
+                    style={rotatedLayerStyle}
                 />
             {/* Layer 2: Overlays (team numbers) - dimensions set by hook */}
             <canvas
                 ref={overlayCanvasRef}
-                style={layerStyle}
+                style={rotatedLayerStyle}
             />
             {/* Layer 3: Drawings (user input) - dimensions set by hook */}
             <canvas
                 ref={drawingCanvasRef}
                 style={{
-                    ...layerStyle,
+                    ...rotatedLayerStyle,
                     ...canvasStyle,
                     cursor: 'crosshair',
                     touchAction: 'none'
@@ -594,12 +620,14 @@ const FieldCanvas = ({
                         isMobile={isMobile}
                         isFullscreen={isFullscreen}
                         canUndo={canUndo}
+                        isFieldRotated={isFieldRotated}
                         onToggleErasing={setIsErasing}
                         onBrushSizeChange={setBrushSize}
                         onBrushColorChange={setBrushColor}
                         onClearCanvas={handleClearCanvas}
                         onSaveCanvas={() => saveCanvas(true)}
                         onUndo={undo}
+                        onToggleFieldOrientation={toggleFieldOrientation}
                         onToggleFullscreen={toggleFullscreen}
                         onToggleHideControls={() => setHideControls(!hideControls)}
                     />
@@ -652,12 +680,14 @@ const FieldCanvas = ({
                 isMobile={isMobile}
                 isFullscreen={isFullscreen}
                 canUndo={canUndo}
+                isFieldRotated={isFieldRotated}
                 onToggleErasing={setIsErasing}
                 onBrushSizeChange={setBrushSize}
                 onBrushColorChange={setBrushColor}
                 onClearCanvas={handleClearCanvas}
                 onSaveCanvas={() => saveCanvas(true)}
                 onUndo={undo}
+                onToggleFieldOrientation={toggleFieldOrientation}
                 onToggleFullscreen={toggleFullscreen}
                 onToggleHideControls={() => setHideControls(!hideControls)}
             />

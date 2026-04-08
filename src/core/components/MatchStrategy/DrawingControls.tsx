@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/core/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/core/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/core/components/ui/popover";
-import { EyeOff, Maximize2 } from "lucide-react";
+import { Eraser, EyeOff, Maximize2, Pencil, RotateCw, Save, Trash2, Undo2 } from "lucide-react";
 import { PRESET_COLORS } from "@/core/lib/drawingColors";
 
 interface DrawingControlsProps {
@@ -12,6 +12,7 @@ interface DrawingControlsProps {
     currentStageId: string;
     isMobile: boolean;
     isFullscreen: boolean;
+    isFieldRotated: boolean;
     canUndo: boolean;
     onToggleErasing: (erasing: boolean) => void;
     onBrushSizeChange: (size: number) => void;
@@ -19,6 +20,7 @@ interface DrawingControlsProps {
     onClearCanvas: () => void;
     onSaveCanvas: () => void;
     onUndo: () => void;
+    onToggleFieldOrientation: () => void;
     onToggleFullscreen: () => void;
     onToggleHideControls: () => void;
 }
@@ -31,6 +33,19 @@ const getSizeLabel = (size: number): string => {
     return 'X-Large';
 };
 
+const ResponsiveButtonLabel = ({
+    icon,
+    label,
+}: {
+    icon: React.ReactNode;
+    label: string;
+}) => (
+    <>
+        <span className="lg:hidden" aria-hidden="true">{icon}</span>
+        <span className="hidden lg:inline">{label}</span>
+    </>
+);
+
 export const DrawingControls = ({
     isErasing,
     brushSize,
@@ -38,6 +53,7 @@ export const DrawingControls = ({
     currentStageId,
     isMobile,
     isFullscreen,
+    isFieldRotated,
     canUndo,
     onToggleErasing,
     onBrushSizeChange,
@@ -45,6 +61,7 @@ export const DrawingControls = ({
     onClearCanvas,
     onSaveCanvas,
     onUndo,
+    onToggleFieldOrientation,
     onToggleFullscreen,
     onToggleHideControls
 }: DrawingControlsProps) => {
@@ -67,15 +84,17 @@ export const DrawingControls = ({
                             variant={!isErasing ? "default" : "outline"}
                             size="sm"
                             onClick={() => onToggleErasing(false)}
+                            title="Draw"
                         >
-                            Draw
+                            <ResponsiveButtonLabel icon={<Pencil className="h-4 w-4" />} label="Draw" />
                         </Button>
                         <Button
                             variant={isErasing ? "default" : "outline"}
                             size="sm"
                             onClick={() => onToggleErasing(true)}
+                            title="Erase"
                         >
-                            Erase
+                            <ResponsiveButtonLabel icon={<Eraser className="h-4 w-4" />} label="Erase" />
                         </Button>
                         <Button
                             variant="outline"
@@ -84,10 +103,10 @@ export const DrawingControls = ({
                             disabled={!canUndo}
                             title="Undo last action"
                         >
-                            Undo
+                            <ResponsiveButtonLabel icon={<Undo2 className="h-4 w-4" />} label="Undo" />
                         </Button>
-                        <Button onClick={onClearCanvas} variant="outline" size="sm">
-                            Clear
+                        <Button onClick={onClearCanvas} variant="outline" size="sm" title="Clear canvas">
+                            <ResponsiveButtonLabel icon={<Trash2 className="h-4 w-4" />} label="Clear" />
                         </Button>
                     </div>
 
@@ -155,8 +174,17 @@ export const DrawingControls = ({
                             </PopoverContent>
                         </Popover>
 
-                        <Button onClick={onSaveCanvas} variant="outline" size="sm">
-                            Save
+                        <Button onClick={onSaveCanvas} variant="outline" size="sm" title="Save canvas">
+                            <ResponsiveButtonLabel icon={<Save className="h-4 w-4" />} label="Save" />
+                        </Button>
+
+                        <Button
+                            onClick={onToggleFieldOrientation}
+                            variant="outline"
+                            size="sm"
+                            title={isFieldRotated ? "Reset field orientation" : "Rotate field 180°"}
+                        >
+                            <RotateCw className={`h-4 w-4 ${isFieldRotated ? 'rotate-180' : ''}`} />
                         </Button>
 
                         {/* Hide Controls Button - Only on mobile screens */}
@@ -187,15 +215,17 @@ export const DrawingControls = ({
                         variant={!isErasing ? "default" : "outline"}
                         size="sm"
                         onClick={() => onToggleErasing(false)}
+                            title="Draw"
                     >
-                        Draw
+                            <ResponsiveButtonLabel icon={<Pencil className="h-4 w-4" />} label="Draw" />
                     </Button>
                     <Button
                         variant={isErasing ? "default" : "outline"}
                         size="sm"
                         onClick={() => onToggleErasing(true)}
+                            title="Erase"
                     >
-                        Erase
+                            <ResponsiveButtonLabel icon={<Eraser className="h-4 w-4" />} label="Erase" />
                     </Button>
                     <Button
                         variant="outline"
@@ -204,10 +234,10 @@ export const DrawingControls = ({
                         disabled={!canUndo}
                         title="Undo last action"
                     >
-                        Undo
+                            <ResponsiveButtonLabel icon={<Undo2 className="h-4 w-4" />} label="Undo" />
                     </Button>
-                    <Button onClick={onClearCanvas} variant="outline" size="sm">
-                        Clear
+                    <Button onClick={onClearCanvas} variant="outline" size="sm" title="Clear canvas">
+                        <ResponsiveButtonLabel icon={<Trash2 className="h-4 w-4" />} label="Clear" />
                     </Button>
                 </div>
 
@@ -275,12 +305,24 @@ export const DrawingControls = ({
                         </PopoverContent>
                     </Popover>
 
-                    <Button onClick={onSaveCanvas} variant="outline" size="sm">
-                        Save {currentStageId}
+                    <Button onClick={onSaveCanvas} variant="outline" size="sm" title={`Save ${currentStageId}`}>
+                        <span className="lg:hidden" aria-hidden="true"><Save className="h-4 w-4" /></span>
+                        <span className="hidden lg:inline">Save {currentStageId}</span>
                     </Button>
-                    <Button onClick={onToggleFullscreen} variant="outline" size="sm">
-                        <Maximize2 className="h-4 w-4 mr-2" />
-                        Fullscreen
+                    <Button
+                        onClick={onToggleFieldOrientation}
+                        variant="outline"
+                        size="sm"
+                        title={isFieldRotated ? "Reset field orientation" : "Rotate field 180°"}
+                    >
+                        <RotateCw className={`h-4 w-4 ${isFieldRotated ? 'rotate-180' : ''}`} />
+                        <span className="hidden lg:inline">
+                            {isFieldRotated ? 'Reset Rotation' : 'Rotate 180°'}
+                        </span>
+                    </Button>
+                    <Button onClick={onToggleFullscreen} variant="outline" size="sm" title="Fullscreen">
+                        <Maximize2 className="h-4 w-4 lg:mr-2" />
+                        <span className="hidden lg:inline">Fullscreen</span>
                     </Button>
                 </div>
             </div>

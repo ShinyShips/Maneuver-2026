@@ -9,94 +9,10 @@
  * - Field orientation and alliance
  */
 
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useFieldOrientation } from '@/core/hooks/useFieldOrientation';
 import type { PathWaypoint, PathActionType } from '../components/field-map';
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-export interface ScoringContextValue {
-    // Actions
-    actions: PathWaypoint[];
-    onAddAction: (action: PathWaypoint) => void;
-    onUndo?: () => void;
-    canUndo: boolean;
-
-    // Pending waypoint
-    pendingWaypoint: PathWaypoint | null;
-    setPendingWaypoint: (wp: PathWaypoint | null) => void;
-
-    // Fuel accumulation
-    accumulatedFuel: number;
-    setAccumulatedFuel: React.Dispatch<React.SetStateAction<number>>;
-    fuelHistory: number[];
-    setFuelHistory: React.Dispatch<React.SetStateAction<number[]>>;
-    resetFuel: () => void;
-    undoLastFuel: () => void;
-
-    // Stuck state
-    stuckStarts: Record<string, number>;
-    setStuckStarts: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-    isAnyStuck: boolean;
-
-    // Field state
-    isFieldRotated: boolean;
-    toggleFieldOrientation: () => void;
-    alliance: 'red' | 'blue';
-
-    // Match info
-    matchNumber?: string | number;
-    matchType?: 'qm' | 'sf' | 'f';
-    teamNumber?: string | number;
-
-    // Navigation
-    onBack?: () => void;
-    onProceed?: (finalActions?: PathWaypoint[]) => void;
-    enableNoShow?: boolean;
-
-    // Helpers
-    generateId: () => string;
-    addWaypoint: (type: PathActionType, action: string, position: { x: number; y: number }, extras?: Partial<PathWaypoint>) => void;
-
-    // Derived calculations
-    totalFuelScored: number;
-    totalFuelPassed: number;
-
-    // Fuel action handlers
-    handleFuelSelect: (amount: number) => void;
-    handleFuelConfirm: () => void;
-    handleFuelCancel: (resetDrawing?: () => void) => void;
-}
-
-export interface ScoringProviderProps {
-    children: ReactNode;
-    actions: PathWaypoint[];
-    onAddAction: (action: PathWaypoint) => void;
-    onUndo?: () => void;
-    canUndo?: boolean;
-    alliance: 'red' | 'blue';
-    matchNumber?: string | number;
-    matchType?: 'qm' | 'sf' | 'f';
-    teamNumber?: string | number;
-    onBack?: () => void;
-    onProceed?: (finalActions?: PathWaypoint[]) => void;
-    enableNoShow?: boolean;
-}
-
-// =============================================================================
-// CONTEXT
-// =============================================================================
-
-const ScoringContext = createContext<ScoringContextValue | null>(null);
-
-export function useScoring(): ScoringContextValue {
-    const context = useContext(ScoringContext);
-    if (!context) {
-        throw new Error('useScoring must be used within a ScoringProvider');
-    }
-    return context;
-}
+import { ScoringContext, type ScoringContextValue, type ScoringProviderProps } from './ScoringContext.shared';
 
 // =============================================================================
 // PROVIDER
@@ -141,19 +57,7 @@ export function ScoringProvider({
 
     const isAnyStuck = Object.keys(stuckStarts).length > 0;
 
-    // Field orientation (persisted in localStorage)
-    const [isFieldRotated, setIsFieldRotated] = useState(() => {
-        const saved = localStorage.getItem('fieldRotation');
-        return saved === 'true';
-    });
-
-    const toggleFieldOrientation = useCallback(() => {
-        setIsFieldRotated(prev => {
-            const newValue = !prev;
-            localStorage.setItem('fieldRotation', String(newValue));
-            return newValue;
-        });
-    }, []);
+    const { isFieldRotated, toggleFieldOrientation } = useFieldOrientation();
 
     // Helpers
     const generateId = useCallback(() => {
@@ -286,3 +190,5 @@ export function ScoringProvider({
         </ScoringContext.Provider>
     );
 }
+
+export type { ScoringContextValue, ScoringProviderProps } from './ScoringContext.shared';

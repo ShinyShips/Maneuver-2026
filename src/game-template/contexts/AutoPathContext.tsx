@@ -10,7 +10,8 @@
  */
 
 import { createContext, useContext, useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
-import { useScoring, ScoringProvider, type ScoringProviderProps } from './ScoringContext';
+import { ScoringProvider } from './ScoringContext';
+import { useScoring, type ScoringProviderProps } from './ScoringContext.shared';
 import type { ClimbLocation } from '../components/field-map';
 
 // =============================================================================

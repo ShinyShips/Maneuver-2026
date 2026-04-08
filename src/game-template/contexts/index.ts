@@ -3,8 +3,9 @@
  */
 
 // Shared context
-export { ScoringProvider, useScoring } from './ScoringContext';
-export type { ScoringContextValue, ScoringProviderProps } from './ScoringContext';
+export { ScoringProvider } from './ScoringContext';
+export { useScoring } from './ScoringContext.shared';
+export type { ScoringContextValue, ScoringProviderProps } from './ScoringContext.shared';
 
 // Auto-specific context
 export { AutoPathProvider, useAutoPath, useAutoScoring } from './AutoPathContext';

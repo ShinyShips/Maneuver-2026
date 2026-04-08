@@ -5,7 +5,7 @@
  * Renders path lines, waypoint markers, labels, and in-progress drawing.
  */
 
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import type { PathWaypoint, FieldCanvasProps } from './types';
 
 // =============================================================================
@@ -82,12 +82,24 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
         canvas: canvasRef.current,
     }));
 
+    const getActionAlliance = useCallback((waypoint: PathWaypoint): 'red' | 'blue' => {
+        const displayAlliance = (waypoint as PathWaypoint & { displayAlliance?: 'red' | 'blue' }).displayAlliance;
+        return displayAlliance ?? alliance;
+    }, [alliance]);
+
+    const getActionGroupId = useCallback((waypoint: PathWaypoint): string | null => {
+        const groupId = (waypoint as PathWaypoint & { displayGroupId?: string }).displayGroupId;
+        return groupId ?? null;
+    }, []);
+
     // Mirror X and Y for red alliance (data is stored in blue perspective)
-    const getVisualX = (canonicalX: number) => (alliance === 'red' ? 1 - canonicalX : canonicalX);
-    const getVisualY = (canonicalY: number) => (alliance === 'red' ? 1 - canonicalY : canonicalY);
+    const getVisualX = useCallback((canonicalX: number, waypointAlliance: 'red' | 'blue' = alliance) =>
+        (waypointAlliance === 'red' ? 1 - canonicalX : canonicalX), [alliance]);
+    const getVisualY = useCallback((canonicalY: number, waypointAlliance: 'red' | 'blue' = alliance) =>
+        (waypointAlliance === 'red' ? 1 - canonicalY : canonicalY), [alliance]);
 
     // Get color for waypoint type
-    const getWaypointColor = (type: PathWaypoint['type']): string => {
+    const getWaypointColor = useCallback((type: PathWaypoint['type']): string => {
         switch (type) {
             case 'score': return COLORS.score;
             case 'collect': return COLORS.collect;
@@ -97,18 +109,18 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             case 'foul': return COLORS.foul;
             default: return COLORS.default;
         }
-    };
+    }, []);
 
-    const getWaypointPathColor = (type: PathWaypoint['type']): string => {
+    const getWaypointPathColor = useCallback((type: PathWaypoint['type']): string => {
         switch (type) {
             case 'score': return hexToRgba(COLORS.score, PATH_LINE_ALPHA);
             case 'collect': return hexToRgba(COLORS.collect, PATH_LINE_ALPHA);
             case 'pass': return hexToRgba(COLORS.pass, PATH_LINE_ALPHA);
             default: return getWaypointColor(type);
         }
-    };
+    }, [getWaypointColor]);
 
-    const getPolylineLength = (points: { x: number; y: number }[]): number => {
+    const getPolylineLength = useCallback((points: { x: number; y: number }[]): number => {
         if (points.length < 2) return 0;
 
         let length = 0;
@@ -119,11 +131,12 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
         }
 
         return length;
-    };
+    }, []);
 
-    const drawPolyline = (
+    const drawPolyline = useCallback((
         ctx: CanvasRenderingContext2D,
         points: { x: number; y: number }[],
+        waypointAlliance: 'red' | 'blue',
         maxLength?: number
     ) => {
         if (points.length < 2) return;
@@ -139,7 +152,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
 
         const start = points[0]!;
         ctx.beginPath();
-        ctx.moveTo(getVisualX(start.x) * ctx.canvas.width, getVisualY(start.y) * ctx.canvas.height);
+        ctx.moveTo(getVisualX(start.x, waypointAlliance) * ctx.canvas.width, getVisualY(start.y, waypointAlliance) * ctx.canvas.height);
 
         let remaining = drawLength;
         for (let index = 1; index < points.length; index += 1) {
@@ -150,7 +163,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             if (segmentLength <= 0) continue;
 
             if (remaining >= segmentLength) {
-                ctx.lineTo(getVisualX(current.x) * ctx.canvas.width, getVisualY(current.y) * ctx.canvas.height);
+                ctx.lineTo(getVisualX(current.x, waypointAlliance) * ctx.canvas.width, getVisualY(current.y, waypointAlliance) * ctx.canvas.height);
                 remaining -= segmentLength;
                 continue;
             }
@@ -158,13 +171,13 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             const t = remaining / segmentLength;
             const partialX = previous.x + (current.x - previous.x) * t;
             const partialY = previous.y + (current.y - previous.y) * t;
-            ctx.lineTo(getVisualX(partialX) * ctx.canvas.width, getVisualY(partialY) * ctx.canvas.height);
+            ctx.lineTo(getVisualX(partialX, waypointAlliance) * ctx.canvas.width, getVisualY(partialY, waypointAlliance) * ctx.canvas.height);
             remaining = 0;
             break;
         }
 
         ctx.stroke();
-    };
+    }, [getPolylineLength, getVisualX, getVisualY]);
 
     // Main drawing effect
     useEffect(() => {
@@ -187,8 +200,6 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const scaleFactor = canvas.width / 1000;
-        const allianceColor = alliance === 'red' ? COLORS.red : COLORS.blue;
-
         const replayProgress = typeof replayDrawProgress === 'number'
             ? Math.max(0, Math.min(1, replayDrawProgress))
             : null;
@@ -208,6 +219,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                 color: string;
                 length: number;
                 withBorder: boolean;
+                alliance: 'red' | 'blue';
             }> = [];
 
             if (drawConnectedPaths) {
@@ -215,6 +227,9 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                     const prev = actions[i - 1];
                     const curr = actions[i];
                     if (!prev || !curr) continue;
+                    if (getActionGroupId(prev) !== getActionGroupId(curr)) continue;
+
+                    const currentAlliance = getActionAlliance(curr);
 
                     const startPoint = (prev.pathPoints && prev.pathPoints.length > 0)
                         ? prev.pathPoints[prev.pathPoints.length - 1]!
@@ -224,9 +239,10 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                         const pathStart = curr.pathPoints[0]!;
                         replaySegments.push({
                             points: [startPoint, pathStart],
-                            color: allianceColor,
+                            color: currentAlliance === 'red' ? COLORS.red : COLORS.blue,
                             length: getPolylineLength([startPoint, pathStart]),
                             withBorder: false,
+                            alliance: currentAlliance,
                         });
 
                         replaySegments.push({
@@ -234,25 +250,29 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                             color: getWaypointPathColor(curr.type),
                             length: getPolylineLength(curr.pathPoints),
                             withBorder: shouldUsePathBorder(curr.type),
+                            alliance: currentAlliance,
                         });
                     } else {
                         const straight = [startPoint, curr.position];
                         replaySegments.push({
                             points: straight,
-                            color: allianceColor,
+                            color: currentAlliance === 'red' ? COLORS.red : COLORS.blue,
                             length: getPolylineLength(straight),
                             withBorder: false,
+                            alliance: currentAlliance,
                         });
                     }
                 }
             } else {
                 actions.forEach((action) => {
                     if (!action.pathPoints || action.pathPoints.length === 0) return;
+                    const currentAlliance = getActionAlliance(action);
                     replaySegments.push({
                         points: action.pathPoints,
                         color: getWaypointPathColor(action.type),
                         length: getPolylineLength(action.pathPoints),
                         withBorder: shouldUsePathBorder(action.type),
+                        alliance: currentAlliance,
                     });
                 });
             }
@@ -273,7 +293,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                     const borderMaxLength = replayProgress === null
                         ? undefined
                         : Math.min(segment.length, remainingLength);
-                    drawPolyline(ctx, segment.points, borderMaxLength);
+                    drawPolyline(ctx, segment.points, segment.alliance, borderMaxLength);
                 }
 
                 ctx.strokeStyle = segment.color;
@@ -283,7 +303,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                     ? undefined
                     : Math.min(segment.length, remainingLength);
 
-                drawPolyline(ctx, segment.points, maxLengthForSegment);
+                drawPolyline(ctx, segment.points, segment.alliance, maxLengthForSegment);
 
                 if (replayProgress !== null) {
                     remainingLength -= segment.length;
@@ -364,8 +384,9 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
 
         // Draw waypoint markers (filter out actions without positions like defense/steal)
         actions.filter(wp => wp.position).forEach((waypoint, index) => {
-            const x = getVisualX(waypoint.position.x) * canvas.width;
-            const y = getVisualY(waypoint.position.y) * canvas.height;
+            const waypointAlliance = getActionAlliance(waypoint);
+            const x = getVisualX(waypoint.position.x, waypointAlliance) * canvas.width;
+            const y = getVisualY(waypoint.position.y, waypointAlliance) * canvas.height;
             const color = getWaypointColor(waypoint.type);
 
             ctx.beginPath();
@@ -437,8 +458,8 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
 
         // Draw pending waypoint (ghost)
         if (pendingWaypoint) {
-            const x = getVisualX(pendingWaypoint.position.x) * canvas.width;
-            const y = getVisualY(pendingWaypoint.position.y) * canvas.height;
+            const x = getVisualX(pendingWaypoint.position.x, alliance) * canvas.width;
+            const y = getVisualY(pendingWaypoint.position.y, alliance) * canvas.height;
             const color = pendingWaypoint.type === 'score' ? COLORS.score : COLORS.pass;
 
             ctx.save();
@@ -451,8 +472,8 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
                 ctx.lineWidth = 4;
                 ctx.setLineDash([5, 5]);
                 pendingWaypoint.pathPoints.forEach((pt, idx) => {
-                    if (idx === 0) ctx.moveTo(getVisualX(pt.x) * canvas.width, getVisualY(pt.y) * canvas.height);
-                    else ctx.lineTo(getVisualX(pt.x) * canvas.width, getVisualY(pt.y) * canvas.height);
+                    if (idx === 0) ctx.moveTo(getVisualX(pt.x, alliance) * canvas.width, getVisualY(pt.y, alliance) * canvas.height);
+                    else ctx.lineTo(getVisualX(pt.x, alliance) * canvas.width, getVisualY(pt.y, alliance) * canvas.height);
                 });
                 ctx.stroke();
             }
@@ -476,7 +497,7 @@ export const FieldCanvas = forwardRef<FieldCanvasRef, FieldCanvasProps>(function
             ctx.restore();
         }
 
-    }, [actions, width, height, alliance, drawingPoints, pendingWaypoint, isFieldRotated, isSelectingScore, isSelectingPass, isSelectingCollect, drawConnectedPaths, drawingZoneBounds, replayDrawProgress]);
+    }, [actions, width, height, alliance, drawingPoints, pendingWaypoint, isFieldRotated, isSelectingScore, isSelectingPass, isSelectingCollect, drawConnectedPaths, drawingZoneBounds, replayDrawProgress, drawPolyline, getActionAlliance, getActionGroupId, getPolylineLength, getVisualX, getVisualY, getWaypointColor, getWaypointPathColor]);
 
     return (
         <canvas

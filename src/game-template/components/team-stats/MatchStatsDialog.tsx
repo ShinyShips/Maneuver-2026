@@ -27,6 +27,7 @@ import {
 import { Checkbox } from "@/core/components/ui/checkbox";
 import { Label } from "@/core/components/ui/label";
 import { Eye } from "lucide-react";
+import { useFieldOrientation } from "@/core/hooks/useFieldOrientation";
 import { cn } from "@/core/lib/utils";
 import { FieldCanvas, type FieldCanvasRef } from "@/game-template/components/field-map";
 import fieldImage from "@/game-template/assets/2026-field.png";
@@ -86,6 +87,7 @@ export function MatchStatsDialog({
 }: MatchStatsDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("scoring");
+    const { isFieldRotated } = useFieldOrientation();
     const fieldCanvasRef = useRef<FieldCanvasRef>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [canvasDimensions, setCanvasDimensions] = useState({ width: 640, height: 320 });
@@ -359,28 +361,30 @@ export function MatchStatsDialog({
                                                     "w-full aspect-2/1"
                                                 )}
                                             >
-                                                <img
-                                                    src={fieldImage}
-                                                    alt="2026 Field"
-                                                    className="w-full h-full object-fill"
-                                                    style={{ opacity: 0.9 }}
-                                                />
+                                                <div className={cn("absolute inset-0", isFieldRotated && "rotate-180")}>
+                                                    <img
+                                                        src={fieldImage}
+                                                        alt="2026 Field"
+                                                        className="w-full h-full object-fill"
+                                                        style={{ opacity: 0.9 }}
+                                                    />
 
-                                                <FieldCanvas
-                                                    ref={fieldCanvasRef}
-                                                    actions={matchData.autoPath}
-                                                    pendingWaypoint={null}
-                                                    drawingPoints={[]}
-                                                    alliance={matchData.alliance?.toLowerCase().includes('blue') ? 'blue' : 'red'}
-                                                    isFieldRotated={false}
-                                                    width={canvasDimensions.width}
-                                                    height={canvasDimensions.height}
-                                                    isSelectingScore={false}
-                                                    isSelectingPass={false}
-                                                    isSelectingCollect={false}
-                                                    drawConnectedPaths={true}
-                                                    drawingZoneBounds={undefined}
-                                                />
+                                                    <FieldCanvas
+                                                        ref={fieldCanvasRef}
+                                                        actions={matchData.autoPath}
+                                                        pendingWaypoint={null}
+                                                        drawingPoints={[]}
+                                                        alliance={matchData.alliance?.toLowerCase().includes('red') ? 'red' : 'blue'}
+                                                        isFieldRotated={isFieldRotated}
+                                                        width={canvasDimensions.width}
+                                                        height={canvasDimensions.height}
+                                                        isSelectingScore={false}
+                                                        isSelectingPass={false}
+                                                        isSelectingCollect={false}
+                                                        drawConnectedPaths={true}
+                                                        drawingZoneBounds={undefined}
+                                                    />
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
