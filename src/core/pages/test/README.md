@@ -2,11 +2,17 @@
 
 This directory contains the experimental interfaces used in the CS 6795 Cognitive Science term project comparing a spatial map-based scouting interface with a traditional form-based scouting interface.
 
-## Overview
+## Quick Access (Live Site)
 
-The experiment uses a within-subjects design where participants scout FRC match video clips using both interface types. The application is built with React, TypeScript, and Vite as part of the [Maneuver-2026](https://github.com/ShinyShips/maneuver-2026) scouting platform.
+The experiment interfaces are available on the live deployed site without any installation:
 
-## Getting Started
+```
+https://www.frc-maneuver.com/test
+```
+
+> **Note:** This application is part of a larger FRC scouting platform (Maneuver-2026). The experiment module is accessible at the `/test` route.
+
+## Local Development Setup (Alternative)
 
 ### Prerequisites
 
