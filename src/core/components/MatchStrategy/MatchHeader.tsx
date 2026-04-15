@@ -5,12 +5,14 @@ import { matchStrategyDisplayModes, type MatchStrategyDisplayMode } from "@/game
 
 interface MatchHeaderProps {
     selectedEvent: string;
+    selectedAutoPathEvents: string[];
     availableEvents: string[];
     matchNumber: string;
     isLookingUpMatch: boolean;
     displayMode: MatchStrategyDisplayMode;
     availableDisplayModes: MatchStrategyDisplayMode[];
     onEventChange: (value: string) => void;
+    onAutoPathEventsChange: (values: string[]) => void;
     onMatchNumberChange: (value: string) => void;
     onDisplayModeChange: (value: MatchStrategyDisplayMode) => void;
     onClearAll: () => void;
@@ -19,12 +21,14 @@ interface MatchHeaderProps {
 
 export const MatchHeader = ({
     selectedEvent,
+    selectedAutoPathEvents,
     availableEvents,
     matchNumber,
     isLookingUpMatch,
     displayMode,
     availableDisplayModes,
     onEventChange,
+    onAutoPathEventsChange,
     onMatchNumberChange,
     onDisplayModeChange,
     onClearAll,
@@ -36,12 +40,12 @@ export const MatchHeader = ({
     ) as Record<MatchStrategyDisplayMode, string>;
 
     return (
-        <div className="flex md:justify-between w-full flex-wrap md:flex-nowrap gap-2 pt-4">
-            <div className="flex w-full flex-col items-start gap-2 pb-2 md:w-auto md:flex-row md:items-center md:pb-0">
+        <div className="flex w-full flex-col gap-3 pt-4">
+            <div className="flex w-full flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
                 {availableEvents.length > 0 && (
                     <div className="flex items-center gap-2 md:w-auto">
                         <label className="font-semibold whitespace-nowrap">Event:</label>
-                        <div className="w-[min(18rem,calc(100vw-8rem))] min-w-0 sm:min-w-35 sm:max-w-62.5">
+                        <div className="w-[min(18rem,calc(100vw-8rem))] min-w-0 flex-1 sm:min-w-35 sm:max-w-62.5">
                             <GenericSelector
                                 label="Select Event"
                                 value={selectedEvent}
@@ -84,39 +88,61 @@ export const MatchHeader = ({
                         </span>
                     )}
                 </div>
-
-                {availableDisplayModes.length > 0 && (
-                    <div className="flex items-center gap-2 md:w-auto">
-                        <label className="font-semibold whitespace-nowrap">Mode:</label>
-                        <div className="w-[min(14rem,calc(100vw-8rem))] min-w-0 sm:min-w-32 sm:max-w-48">
-                            <GenericSelector
-                                label="Display Mode"
-                                value={displayMode}
-                                availableOptions={availableDisplayModes}
-                                onValueChange={(value) => onDisplayModeChange(value as MatchStrategyDisplayMode)}
-                                displayFormat={(value) => displayModeLabels[value as MatchStrategyDisplayMode] ?? value}
-                                className="bg-background border-muted-foreground/20"
-                            />
-                        </div>
-                    </div>
-                )}
             </div>
 
-            <div className="flex items-center md:justify-end w-full md:w-auto gap-2">
-                <Button
-                    onClick={onClearAll}
-                    variant="outline"
-                    className="flex-1 md:flex-none px-3 py-2"
-                >
-                    Clear All
-                </Button>
-                <Button
-                    onClick={onSaveAll}
-                    variant="outline"
-                    className="flex-1 md:flex-none px-3 py-2"
-                >
-                    Save All
-                </Button>
+            <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="flex w-full flex-col gap-2 md:min-w-0 md:flex-1 md:flex-row md:flex-wrap md:items-center">
+                    {availableEvents.length > 0 && (
+                        <div className="flex items-center gap-2 md:w-auto">
+                            <label className="font-semibold whitespace-nowrap">Auto Paths:</label>
+                            <div className="w-[min(18rem,calc(100vw-8rem))] min-w-0 flex-1 sm:min-w-40 sm:max-w-72">
+                                <GenericSelector
+                                    label="Auto Path Source Events"
+                                    multiSelect={true}
+                                    values={selectedAutoPathEvents}
+                                    availableOptions={["all", ...availableEvents]}
+                                    onValuesChange={onAutoPathEventsChange}
+                                    placeholder="All events"
+                                    displayFormat={(value) => value === "all" ? "All Events" : value}
+                                    className="bg-background border-muted-foreground/20"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {availableDisplayModes.length > 0 && (
+                        <div className="flex items-center gap-2 md:w-auto">
+                            <label className="font-semibold whitespace-nowrap">Mode:</label>
+                            <div className="w-[min(14rem,calc(100vw-8rem))] min-w-0 flex-1 sm:min-w-32 sm:max-w-48">
+                                <GenericSelector
+                                    label="Display Mode"
+                                    value={displayMode}
+                                    availableOptions={availableDisplayModes}
+                                    onValueChange={(value) => onDisplayModeChange(value as MatchStrategyDisplayMode)}
+                                    displayFormat={(value) => displayModeLabels[value as MatchStrategyDisplayMode] ?? value}
+                                    className="bg-background border-muted-foreground/20"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2 md:w-auto md:shrink-0 md:justify-end">
+                    <Button
+                        onClick={onClearAll}
+                        variant="outline"
+                        className="flex-1 md:flex-none px-3 py-2"
+                    >
+                        Clear All
+                    </Button>
+                    <Button
+                        onClick={onSaveAll}
+                        variant="outline"
+                        className="flex-1 md:flex-none px-3 py-2"
+                    >
+                        Save All
+                    </Button>
+                </div>
             </div>
         </div>
     );

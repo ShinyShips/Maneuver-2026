@@ -180,6 +180,7 @@ export const AllianceCard = ({
                                     {team && getSelectedAutoRoutineForSlot(teamIndex) ? (
                                         <p className="text-xs text-muted-foreground">
                                             Selected Auto: {getSelectedAutoRoutineForSlot(teamIndex)?.label}
+                                            {getSelectedAutoRoutineForSlot(teamIndex)?.eventKey ? ` (${getSelectedAutoRoutineForSlot(teamIndex)?.eventKey})` : ''}
                                         </p>
                                     ) : null}
 

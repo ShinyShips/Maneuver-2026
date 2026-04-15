@@ -100,9 +100,14 @@ function RoutineSourceTab({
                                         >
                                             <div className="flex items-center justify-between gap-2">
                                                 <p className="text-sm font-medium">{routine.label}</p>
-                                                {routine.matchNumber ? (
-                                                    <Badge variant="outline">Match {routine.matchNumber}</Badge>
-                                                ) : null}
+                                                <div className="flex items-center gap-1">
+                                                    {routine.eventKey ? (
+                                                        <Badge variant="secondary">{routine.eventKey}</Badge>
+                                                    ) : null}
+                                                    {routine.matchNumber ? (
+                                                        <Badge variant="outline">Match {routine.matchNumber}</Badge>
+                                                    ) : null}
+                                                </div>
                                             </div>
                                             <p className="mt-1 text-xs text-muted-foreground">
                                                 {routine.actions.length} actions
@@ -181,6 +186,9 @@ function ReportedRoutineTab({
                                                 <div className="flex items-center justify-between gap-2">
                                                     <p className="text-sm font-medium">{routine.label}</p>
                                                     <div className="flex items-center gap-1">
+                                                        {routine.eventKey ? (
+                                                            <Badge variant="secondary">{routine.eventKey}</Badge>
+                                                        ) : null}
                                                         <Button
                                                             type="button"
                                                             variant="ghost"
