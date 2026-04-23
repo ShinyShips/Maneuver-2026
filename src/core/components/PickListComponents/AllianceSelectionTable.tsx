@@ -268,6 +268,41 @@ export const AllianceSelectionTable = ({
         toast.success(`${completedAlliances.length} alliance${completedAlliances.length === 1 ? '' : 's'} confirmed and saved`);
     };
 
+    const clearAlliances = () => {
+        const assignedTeamNumbers = alliances.flatMap((alliance) => [
+            alliance.captain,
+            alliance.pick1,
+            alliance.pick2,
+            alliance.pick3,
+        ].filter((teamNumber): teamNumber is number => teamNumber !== null));
+
+        const clearedAlliances = alliances.map((alliance) => ({
+            ...alliance,
+            captain: null,
+            pick1: null,
+            pick2: null,
+            pick3: null,
+        }));
+
+        const finalizeClearAlliances = () => {
+            onUpdateAlliances(clearedAlliances);
+            localStorage.removeItem("confirmedAlliances");
+            toast.success("Alliance selections cleared");
+        };
+
+        if (assignedTeamNumbers.length === 0) {
+            finalizeClearAlliances();
+            return;
+        }
+
+        openRemovalDialog(
+            assignedTeamNumbers,
+            finalizeClearAlliances,
+            "Clear all alliance selections?",
+            "All teams will be removed from the current alliance table. Should those teams go back to their previous pick lists, or stay removed from them?"
+        );
+    };
+
     const selectedTeams = getSelectedTeams();
 
     if (alliances.length === 0) {
@@ -285,6 +320,7 @@ export const AllianceSelectionTable = ({
                 onRemoveAlliance={removeAlliance}
                 onAddAlliance={addAlliance}
                 onConfirmAlliances={confirmAlliances}
+                onClearAlliances={clearAlliances}
             />
 
             <BackupTeamsSection

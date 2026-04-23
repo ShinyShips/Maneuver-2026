@@ -7,7 +7,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Button } from "@/core/components/ui/button";
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, RotateCcw } from "lucide-react";
 import { AllianceRow } from "./AllianceRow";
 import type { Alliance } from "@/core/lib/allianceTypes";
 import type { TeamStats } from "@/core/types/team-stats";
@@ -21,6 +21,7 @@ interface AllianceTableProps {
     onRemoveAlliance: (allianceId: number) => void;
     onAddAlliance: () => void;
     onConfirmAlliances: () => void;
+    onClearAlliances: () => void;
 }
 
 export const AllianceTable = ({
@@ -31,7 +32,8 @@ export const AllianceTable = ({
     onRemoveTeam,
     onRemoveAlliance,
     onAddAlliance,
-    onConfirmAlliances
+    onConfirmAlliances,
+    onClearAlliances
 }: AllianceTableProps) => {
     return (
         <Card>
@@ -42,6 +44,10 @@ export const AllianceTable = ({
                         <Button onClick={onConfirmAlliances} size="sm" variant="default">
                             <Check className="h-4 w-4 mr-2" />
                             Confirm Alliances
+                        </Button>
+                        <Button onClick={onClearAlliances} size="sm" variant="outline">
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Clear Alliances
                         </Button>
                         <Button onClick={onAddAlliance} size="sm" variant="outline">
                             <Plus className="h-4 w-4 mr-2" />
