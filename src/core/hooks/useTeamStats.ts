@@ -16,6 +16,11 @@ import { getCachedEventStatboticsEPA, getCachedStatboticsEventKeys } from "@/cor
 
 const FUEL_MOPR_INCLUDE_PLAYOFFS_STORAGE_KEY = 'fuelOprIncludePlayoffs';
 const FIXED_FUEL_MOPR_LAMBDA = 0.3;
+type MatchResultRecord = Record<string, unknown>;
+
+const hasMatchResults = (stats: TeamStats): stats is TeamStats & { matchResults: MatchResultRecord[] } => {
+    return Array.isArray((stats as { matchResults?: unknown }).matchResults);
+};
 
 /**
  * useTeamStats - Hook for the Team Statistics page
@@ -379,8 +384,8 @@ export const useTeamStats = () => {
             baseStats.statboticsAutoTower = statboticsAutoTower === undefined ? undefined : round1(statboticsAutoTower);
             baseStats.statboticsEndgameTower = statboticsEndgameTower === undefined ? undefined : round1(statboticsEndgameTower);
 
-            if (Array.isArray((baseStats as { matchResults?: Array<Record<string, unknown>> }).matchResults)) {
-                (baseStats as { matchResults: Array<Record<string, unknown>> }).matchResults = (baseStats as { matchResults: Array<Record<string, unknown>> }).matchResults.map(match => {
+            if (hasMatchResults(baseStats)) {
+                baseStats.matchResults = baseStats.matchResults.map(match => {
                     const rawMatchKey = typeof match.matchKey === 'string'
                         ? match.matchKey
                         : (typeof match.matchNumber === 'string' ? `qm${match.matchNumber}` : null);

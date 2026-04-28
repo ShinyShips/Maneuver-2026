@@ -4,6 +4,75 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { Camera, Upload, X, Image } from "lucide-react";
 import { toast } from "sonner";
 
+const MAX_UPLOAD_SOURCE_SIZE_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1280;
+const TARGET_IMAGE_SIZE_BYTES = 350 * 1024;
+const INITIAL_JPEG_QUALITY = 0.72;
+const MIN_JPEG_QUALITY = 0.45;
+
+const loadImageFromUrl = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load image for compression."));
+    image.src = src;
+  });
+};
+
+const readFileAsDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target?.result as string);
+    reader.onerror = () => reject(new Error("Failed to read image file."));
+    reader.readAsDataURL(file);
+  });
+};
+
+const getScaledDimensions = (width: number, height: number, maxDimension: number) => {
+  const longestSide = Math.max(width, height);
+  if (longestSide <= maxDimension) {
+    return { width, height };
+  }
+
+  const scale = maxDimension / longestSide;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+};
+
+const compressCanvasToDataUrl = (canvas: HTMLCanvasElement): string => {
+  let quality = INITIAL_JPEG_QUALITY;
+  let result = canvas.toDataURL("image/jpeg", quality);
+
+  while (result.length > TARGET_IMAGE_SIZE_BYTES && quality > MIN_JPEG_QUALITY) {
+    quality = Math.max(MIN_JPEG_QUALITY, quality - 0.07);
+    result = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  return result;
+};
+
+const optimizeImageToDataUrl = async (
+  imageSource: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
+  workingCanvas: HTMLCanvasElement
+): Promise<string> => {
+  const { width, height } = getScaledDimensions(sourceWidth, sourceHeight, MAX_IMAGE_DIMENSION);
+  workingCanvas.width = width;
+  workingCanvas.height = height;
+
+  const context = workingCanvas.getContext("2d");
+  if (!context) {
+    throw new Error("Failed to prepare image canvas.");
+  }
+
+  context.clearRect(0, 0, width, height);
+  context.drawImage(imageSource, 0, 0, width, height);
+  return compressCanvasToDataUrl(workingCanvas);
+};
+
 interface RobotPhotoSectionProps {
   robotPhoto?: string;
   onRobotPhotoChange: (photo: string | undefined) => void;
@@ -89,34 +158,44 @@ export function RobotPhotoSection({
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext("2d");
-      if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const photoDataUrl = canvas.toDataURL("image/jpeg", 0.8);
-        onRobotPhotoChange(photoDataUrl);
-        stopCamera();
-        toast.success("Photo captured!");
-      }
+      void optimizeImageToDataUrl(video, video.videoWidth, video.videoHeight, canvas)
+        .then((photoDataUrl) => {
+          onRobotPhotoChange(photoDataUrl);
+          stopCamera();
+          toast.success("Photo captured and optimized for transfer.");
+        })
+        .catch((error) => {
+          console.error("Error optimizing captured photo:", error);
+          toast.error("Failed to process the captured photo.");
+        });
     }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("File size must be less than 5MB");
+      if (file.size > MAX_UPLOAD_SOURCE_SIZE_BYTES) {
+        toast.error("File size must be less than 12MB");
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onRobotPhotoChange(result);
-        toast.success("Photo uploaded!");
-      };
-      reader.readAsDataURL(file);
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        toast.error("Photo processing is not ready yet.");
+        return;
+      }
+
+      void readFileAsDataUrl(file)
+        .then((dataUrl) => loadImageFromUrl(dataUrl))
+        .then((image) => optimizeImageToDataUrl(image, image.naturalWidth, image.naturalHeight, canvas))
+        .then((photoDataUrl) => {
+          onRobotPhotoChange(photoDataUrl);
+          toast.success("Photo uploaded and optimized for transfer.");
+        })
+        .catch((error) => {
+          console.error("Error processing uploaded photo:", error);
+          toast.error("Failed to process uploaded photo.");
+        });
     }
   };
 
@@ -229,7 +308,7 @@ export function RobotPhotoSection({
         )}
 
         <p className="text-sm text-muted-foreground">
-          Optional: Take or upload a photo of the robot (max 5MB)
+          Optional: Take or upload a photo of the robot. Images are automatically resized and compressed for transfer reliability.
         </p>
       </CardContent>
     </Card>

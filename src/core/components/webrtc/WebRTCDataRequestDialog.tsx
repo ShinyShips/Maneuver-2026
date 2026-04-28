@@ -171,7 +171,7 @@ export function WebRTCDataRequestDialog() {
       console.log('Data size:', dataSize, 'characters');
 
       setTransferStatus(`Sending ${getDataTypeLabel(requestDataType)}...`);
-      sendData(data, requestDataType);
+      await sendData(data, requestDataType);
 
       // Show success
       setTransferStatus(`✅ Sent ${getDataTypeLabel(requestDataType)}`);

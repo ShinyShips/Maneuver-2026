@@ -66,6 +66,127 @@ const safeStringify = (value: unknown): string => {
   });
 };
 
+const RTC_CHUNK_SIZE = 15_000;
+const RTC_BUFFER_HIGH_WATER_MARK = 256_000;
+const RTC_BUFFER_LOW_WATER_MARK = 64_000;
+const RTC_BUFFER_DRAIN_TIMEOUT_MS = 10_000;
+
+const buildChunkMessages = (
+  payload: string,
+  dataType: TransferDataType | undefined,
+  singleMessageBuilder: (completePayload: string) => string
+): string[] => {
+  if (payload.length <= RTC_CHUNK_SIZE) {
+    return [singleMessageBuilder(payload)];
+  }
+
+  const totalChunks = Math.ceil(payload.length / RTC_CHUNK_SIZE);
+  const transferId = generateUUID();
+  const messages: string[] = [];
+
+  for (let i = 0; i < totalChunks; i++) {
+    const chunk = payload.slice(i * RTC_CHUNK_SIZE, (i + 1) * RTC_CHUNK_SIZE);
+    messages.push(JSON.stringify({
+      type: 'chunk',
+      transferId,
+      chunkIndex: i,
+      totalChunks,
+      data: chunk,
+      dataType
+    }));
+  }
+
+  return messages;
+};
+
+const waitForBufferedAmountLow = (channel: RTCDataChannel, targetAmount = RTC_BUFFER_LOW_WATER_MARK): Promise<void> => {
+  if (channel.readyState !== 'open') {
+    return Promise.reject(new Error(`Data channel state is "${channel.readyState}". Expected "open".`));
+  }
+
+  if (channel.bufferedAmount <= targetAmount) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const previousThreshold = channel.bufferedAmountLowThreshold;
+    const lowThreshold = Math.max(previousThreshold, targetAmount);
+    let settled = false;
+
+    const cleanup = () => {
+      settled = true;
+      channel.removeEventListener('bufferedamountlow', handleLowBuffer);
+      window.clearInterval(pollTimer);
+      window.clearTimeout(timeoutTimer);
+      channel.bufferedAmountLowThreshold = previousThreshold;
+    };
+
+    const handleReady = () => {
+      if (settled || channel.bufferedAmount > targetAmount) {
+        return;
+      }
+
+      cleanup();
+      resolve();
+    };
+
+    const handleLowBuffer = () => {
+      if (channel.readyState !== 'open') {
+        cleanup();
+        reject(new Error(`Data channel state is "${channel.readyState}". Expected "open".`));
+        return;
+      }
+
+      handleReady();
+    };
+
+    channel.bufferedAmountLowThreshold = lowThreshold;
+    channel.addEventListener('bufferedamountlow', handleLowBuffer);
+
+    const pollTimer = window.setInterval(() => {
+      if (channel.readyState !== 'open') {
+        cleanup();
+        reject(new Error(`Data channel state is "${channel.readyState}". Expected "open".`));
+        return;
+      }
+
+      handleReady();
+    }, 100);
+
+    const timeoutTimer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Timed out waiting for the data channel send buffer to drain.'));
+    }, RTC_BUFFER_DRAIN_TIMEOUT_MS);
+  });
+};
+
+const sendMessagesWithBackpressure = async (
+  channel: RTCDataChannel,
+  messages: string[],
+  label: string
+): Promise<void> => {
+  for (let index = 0; index < messages.length; index++) {
+    const message = messages[index];
+    if (message === undefined) {
+      throw new Error(`Missing message chunk ${index + 1} for ${label}.`);
+    }
+
+    if (channel.readyState !== 'open') {
+      throw new Error(`Data channel state is "${channel.readyState}". Expected "open".`);
+    }
+
+    if (channel.bufferedAmount > RTC_BUFFER_HIGH_WATER_MARK) {
+      await waitForBufferedAmountLow(channel);
+    }
+
+    channel.send(message);
+
+    if (messages.length > 1) {
+      console.log(`📦 Sent ${label} chunk ${index + 1}/${messages.length}`);
+    }
+  }
+};
+
 // Data types that can be transferred
 export type TransferDataType = 'scouting' | 'pit-scouting' | 'pit-assignments' | 'match' | 'scout' | 'combined';
 
@@ -110,7 +231,7 @@ interface WebRTCContextValue {
   startAsScout: (scoutName: string, offerString: string) => Promise<string>;
   requestFilters: DataFilters | null;
   requestDataType: TransferDataType | null;
-  sendData: (data: unknown, dataType?: TransferDataType) => void;
+  sendData: (data: unknown, dataType?: TransferDataType) => Promise<void>;
   sendControlMessage: (message: { type: string; [key: string]: unknown }) => void;
   dataRequested: boolean;
   setDataRequested: (requested: boolean) => void;
@@ -663,31 +784,19 @@ export function WebRTCProvider({ children }: { children: ReactNode }) {
       dataType,
       data
     });
-    const CHUNK_SIZE = 16000;
 
     connectedScoutsRef.current.forEach(scout => {
       if (scout.dataChannel && scout.dataChannel.readyState === 'open') {
         console.log(`📤 Pushing ${dataType} data to ${scout.name}`);
-        
-        if (dataString.length <= CHUNK_SIZE) {
-          scout.dataChannel.send(dataString);
-        } else {
-          // Send as chunks
-          const chunks = Math.ceil(dataString.length / CHUNK_SIZE);
-          const transferId = generateUUID();
-          
-          for (let i = 0; i < chunks; i++) {
-            const chunk = dataString.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-            scout.dataChannel.send(JSON.stringify({
-              type: 'chunk',
-              transferId,
-              chunkIndex: i,
-              totalChunks: chunks,
-              data: chunk,
-              dataType
-            }));
-          }
-        }
+
+        const messages = buildChunkMessages(dataString, dataType, (completePayload) => completePayload);
+        void sendMessagesWithBackpressure(scout.dataChannel, messages, `${dataType} push to ${scout.name}`)
+          .then(() => {
+            console.log(`✅ Finished pushing ${dataType} data to ${scout.name}`);
+          })
+          .catch((error) => {
+            console.error(`❌ Failed pushing ${dataType} data to ${scout.name}:`, error);
+          });
       } else {
         console.warn(`⚠️ Data channel not open for ${scout.name}`);
       }
@@ -709,28 +818,16 @@ export function WebRTCProvider({ children }: { children: ReactNode }) {
       dataType,
       data
     });
-    const CHUNK_SIZE = 16000;
 
     if (scout.dataChannel && scout.dataChannel.readyState === 'open') {
-      if (dataString.length <= CHUNK_SIZE) {
-        scout.dataChannel.send(dataString);
-      } else {
-        // Send as chunks
-        const chunks = Math.ceil(dataString.length / CHUNK_SIZE);
-        const transferId = generateUUID();
-        
-        for (let i = 0; i < chunks; i++) {
-          const chunk = dataString.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-          scout.dataChannel.send(JSON.stringify({
-            type: 'chunk',
-            transferId,
-            chunkIndex: i,
-            totalChunks: chunks,
-            data: chunk,
-            dataType
-          }));
-        }
-      }
+      const messages = buildChunkMessages(dataString, dataType, (completePayload) => completePayload);
+      void sendMessagesWithBackpressure(scout.dataChannel, messages, `${dataType} push to ${scout.name}`)
+        .then(() => {
+          console.log(`✅ Finished pushing ${dataType} data to ${scout.name}`);
+        })
+        .catch((error) => {
+          console.error(`❌ Failed pushing ${dataType} data to ${scout.name}:`, error);
+        });
     } else {
       console.warn(`⚠️ Data channel not open for ${scout.name}`);
     }
@@ -917,60 +1014,44 @@ export function WebRTCProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // SCOUT: Send data to lead
-  const sendData = useCallback((data: unknown, dataType?: TransferDataType) => {
+  const sendData = useCallback(async (data: unknown, dataType?: TransferDataType): Promise<void> => {
     const dataChannel = scoutDataChannelRef.current;
     
     if (!dataChannel) {
       const error = 'ERROR: No data channel exists. Please scan the QR code from the lead scout first.';
       console.error('❌', error);
       alert(error);
-      return;
+      throw new Error(error);
     }
     
     if (dataChannel.readyState !== 'open') {
       const error = `ERROR: Data channel state is "${dataChannel.readyState}". Expected "open". Try reconnecting.`;
       console.error('❌', error);
       alert(error);
-      return;
+      throw new Error(error);
     }
 
     try {
       const dataString = safeStringify(data);
-      const CHUNK_SIZE = 15000; // 15KB chunks to leave room for JSON wrapper overhead
       
       console.log(`📤 Scout sending ${dataType || 'data'}, size: ${dataString.length} chars`);
-      
-      if (dataString.length <= CHUNK_SIZE) {
-        // Small enough to send directly
-        dataChannel.send(JSON.stringify({ type: 'complete', data: dataString, dataType }));
-        console.log('✅ Data sent successfully (single message)');
-      } else {
-        // Split into chunks
-        const totalChunks = Math.ceil(dataString.length / CHUNK_SIZE);
-        const transferId = generateUUID();
-        
-        console.log(`📦 Splitting into ${totalChunks} chunks`);
-        
-        for (let i = 0; i < totalChunks; i++) {
-          const chunk = dataString.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-          const message = JSON.stringify({
-            type: 'chunk',
-            transferId,
-            chunkIndex: i,
-            totalChunks,
-            data: chunk,
-            dataType
-          });
-          dataChannel.send(message);
-          console.log(`📦 Sent chunk ${i + 1}/${totalChunks}`);
-        }
-        
-        console.log('✅ All chunks sent successfully');
+
+      const messages = buildChunkMessages(
+        dataString,
+        dataType,
+        (completePayload) => JSON.stringify({ type: 'complete', data: completePayload, dataType })
+      );
+      if (messages.length > 1) {
+        console.log(`📦 Splitting into ${messages.length} chunks`);
       }
+
+      await sendMessagesWithBackpressure(dataChannel, messages, dataType || 'data');
+      console.log('✅ Data sent successfully');
     } catch (err) {
       const error = `ERROR sending data: ${err instanceof Error ? err.message : String(err)}`;
       console.error('❌', error);
       alert(error);
+      throw new Error(error);
     }
   }, []);
 
