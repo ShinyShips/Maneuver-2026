@@ -72,10 +72,28 @@ export function FieldButton({
     const iconConfig = ICON_MAP[element.label];
     const IconComponent = iconConfig?.icon;
 
+    const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (event.button !== 0 || !isButtonEnabled) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        onClick(elementKey);
+    };
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        if (event.detail !== 0 || !isButtonEnabled) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        onClick(elementKey);
+    };
+
     return (
         <button
             key={elementKey}
-            onClick={() => onClick(elementKey)}
+            type="button"
+            onPointerDown={handlePointerDown}
+            onClick={handleClick}
             className={cn(
                 "absolute transform -translate-x-1/2 -translate-y-1/2 rounded-xl",
                 "flex flex-col items-center justify-center",
@@ -94,6 +112,7 @@ export function FieldButton({
                 top: `${y}%`,
                 width: `${width}px`,
                 height: `${height}px`,
+                touchAction: 'manipulation',
             }}
             disabled={!isButtonEnabled}
         >
