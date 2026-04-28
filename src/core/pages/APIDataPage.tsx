@@ -197,7 +197,18 @@ const APIDataPage: React.FC = () => {
       return;
     }
 
-    await loadMatchResults(apiKey, eventKey, false, () => { });
+    executeWithConfirmation(async () => {
+      await loadMatchResults(apiKey, eventKey, false, () => { });
+
+      try {
+        await fetchValidationMatches(eventKey, apiKey, false);
+      } catch (cacheError) {
+        console.warn(`[API Data] Failed to populate detailed TBA match cache for ${eventKey}:`, cacheError);
+      }
+
+      setCurrentEvent(eventKey.trim());
+      setStoredDataExists(hasStoredEventData(eventKey.trim()));
+    });
   };
 
   const handleLoadValidationData = async () => {

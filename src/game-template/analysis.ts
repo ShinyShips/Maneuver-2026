@@ -127,6 +127,7 @@ export interface TeamStatsTemplate extends TeamStats {
  */
 export interface MatchResult {
     id?: string;
+    matchKey?: string;
     matchNumber: string;
     matchLabel?: string;
     alliance: string;
@@ -414,6 +415,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
 
             return {
                 id: entry.id,
+                matchKey: entry.matchKey,
                 matchNumber: String(entry.matchNumber),
                 matchLabel: getDisplayMatchLabel(entry.matchKey || entry.matchNumber),
                 teamNumber: entry.teamNumber,
@@ -836,7 +838,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 stats: [
                     { key: 'avgAutoFuel', label: 'Fuel Scored', type: 'number', subtitle: 'avg per match' },
                     { key: 'avgScaledAutoFuel', label: 'Scaled Fuel', type: 'number', color: 'green', subtitle: 'TBA-adjusted scout avg' },
-                    { key: 'fuelAutoOPR', label: 'Fuel OPR', type: 'number', color: 'purple', subtitle: 'alliance decomposition' },
+                    { key: 'fuelAutoOPR', label: 'Fuel mOPR', type: 'number', color: 'purple', subtitle: 'alliance decomposition' },
                     { key: 'statboticsAutoFuel', label: 'Statbotics EPA', type: 'number', color: 'blue', subtitle: 'Auto Fuel' },
                     { key: 'coprHubAutoPoints', label: 'TBA COPR', type: 'number', color: 'blue', subtitle: 'Hub Auto Points' },
                     { key: 'maxAutoFuel', label: 'Max Fuel Scored', type: 'number', subtitle: 'best match' },
@@ -854,7 +856,7 @@ export const strategyAnalysis: StrategyAnalysis<ScoutingEntryTemplate> = {
                 stats: [
                     { key: 'avgTeleopFuel', label: 'Fuel Scored', type: 'number', subtitle: 'avg per match' },
                     { key: 'avgScaledTeleopFuel', label: 'Scaled Fuel', type: 'number', color: 'green', subtitle: 'TBA-adjusted scout avg' },
-                    { key: 'fuelTeleopOPR', label: 'Fuel OPR', type: 'number', color: 'purple', subtitle: 'alliance decomposition' },
+                    { key: 'fuelTeleopOPR', label: 'Fuel mOPR', type: 'number', color: 'purple', subtitle: 'alliance decomposition' },
                     { key: 'statboticsTeleopFuel', label: 'Statbotics EPA', type: 'number', color: 'purple', subtitle: 'Teleop + Endgame Fuel' },
                     { key: 'coprHubTeleopPoints', label: 'TBA COPR', type: 'number', color: 'purple', subtitle: 'Hub Teleop Points' },
                     { key: 'maxTeleopFuel', label: 'Max Fuel Scored', type: 'number', subtitle: 'best match' },

@@ -140,6 +140,7 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
 
         return {
             id: match.id,
+            matchKey: match.matchKey,
             matchNumber: String(match.matchNumber),
             alliance: match.allianceColor,
             eventKey: match.eventKey || '',

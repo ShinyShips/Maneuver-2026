@@ -166,7 +166,7 @@ export const matchStrategyConfig: {
                     scaled: { key: 'avgScaledAutoFuel', label: 'Auto Fuel' },
                     copr: { key: 'coprTotalAutoPoints', label: 'Auto Points' },
                     epa: { key: 'statboticsAutoPoints', label: 'Auto Points' },
-                    opr: { key: 'fuelAutoOPR', label: 'Fuel OPR' },
+                    opr: { key: 'fuelAutoOPR', label: 'Fuel mOPR' },
                 },
             },
             stats: [
@@ -181,7 +181,7 @@ export const matchStrategyConfig: {
                         scaled: { key: 'avgScaledAutoFuel', label: 'Scaled Fuel' },
                         copr: { key: 'coprTotalAutoPoints', label: 'Auto Points' },
                         epa: { key: 'statboticsAutoFuel', label: 'Fuel' },
-                        opr: { key: 'fuelAutoOPR', label: 'Fuel OPR' },
+                        opr: { key: 'fuelAutoOPR', label: 'Fuel mOPR' },
                     }
                 },
                 {
@@ -225,7 +225,7 @@ export const matchStrategyConfig: {
                     scaled: { key: 'avgScaledTeleopFuel', label: 'Teleop Fuel' },
                     copr: { key: 'coprTotalTeleopPoints', label: 'Teleop Points' },
                     epa: { key: 'statboticsTeleopPoints', label: 'Teleop Points' },
-                    opr: { key: 'fuelTeleopOPR', label: 'Fuel OPR' },
+                    opr: { key: 'fuelTeleopOPR', label: 'Fuel mOPR' },
                 },
             },
             stats: [
@@ -240,7 +240,7 @@ export const matchStrategyConfig: {
                         scaled: { key: 'avgScaledTeleopFuel', label: 'Scaled Fuel' },
                         copr: { key: 'coprTotalTeleopPoints', label: 'Teleop Points' },
                         epa: { key: 'statboticsTeleopTotalFuel', label: 'Teleop + Endgame Fuel' },
-                        opr: { key: 'fuelTeleopOPR', label: 'Fuel OPR' },
+                        opr: { key: 'fuelTeleopOPR', label: 'Fuel mOPR' },
                     }
                 },
                 {

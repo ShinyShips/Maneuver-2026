@@ -9,6 +9,16 @@ import type { TeamStats } from "@/core/types/team-stats";
 import type { RateSectionDefinition, MatchBadgeDefinition } from "@/types/team-stats-display";
 import { getDisplayMatchLabel } from "@/game-template/matchLabel";
 
+const START_POSITION_LABELS = ['Left Trench', 'Left Bump', 'Hub', 'Right Bump', 'Right Trench'] as const;
+
+function getStartPositionLabel(startPosition: number | null): string | null {
+    if (startPosition === null || startPosition < 0) {
+        return null;
+    }
+
+    return START_POSITION_LABELS[startPosition] ?? `Pos ${startPosition}`;
+}
+
 interface PerformanceAnalysisProps {
     teamStats: TeamStats;
     compareStats: TeamStats | null;
@@ -47,6 +57,11 @@ export function PerformanceAnalysis({
         return typeof value === 'number' ? value : 0;
     };
 
+    const avgAutoPoints = getStatValue(teamStats, 'avgAutoPoints');
+    const avgTeleopPoints = getStatValue(teamStats, 'avgTeleopPoints');
+    const avgEndgamePoints = getStatValue(teamStats, 'avgEndgamePoints');
+    const hasPhasePointSummary = avgAutoPoints !== 0 || avgTeleopPoints !== 0 || avgEndgamePoints !== 0;
+
     const renderMatchResults = () => {
         if (!matchResults || !Array.isArray(matchResults)) {
             return <p className="text-muted-foreground text-center py-4">No match data available</p>;
@@ -62,10 +77,18 @@ export function PerformanceAnalysis({
                         : getDisplayMatchLabel(matchNumber);
                     const alliance = String(match['alliance'] || '');
                     const startPos = typeof match['startPosition'] === 'number' ? match['startPosition'] : null;
+                    const startPosLabel = getStartPositionLabel(startPos);
                     const totalPoints = String(match['totalPoints'] || 0);
                     const autoPoints = String(match['autoPoints'] || 0);
                     const teleopPoints = String(match['teleopPoints'] || 0);
                     const endgamePoints = String(match['endgamePoints'] || 0);
+                    const totalPointsNumber = typeof match['totalPoints'] === 'number' ? match['totalPoints'] : 0;
+                    const autoPointsNumber = typeof match['autoPoints'] === 'number' ? match['autoPoints'] : 0;
+                    const teleopPointsNumber = typeof match['teleopPoints'] === 'number' ? match['teleopPoints'] : 0;
+                    const endgamePointsNumber = typeof match['endgamePoints'] === 'number' ? match['endgamePoints'] : 0;
+                    const rollingMopr = typeof match['rollingOprTotalPoints'] === 'number' ? match['rollingOprTotalPoints'] : 0;
+                    const hasRecordedPoints = totalPointsNumber !== 0 || autoPointsNumber !== 0 || teleopPointsNumber !== 0 || endgamePointsNumber !== 0;
+                    const showMoprFallback = !hasRecordedPoints && rollingMopr > 0;
                     const comment = typeof match['comment'] === 'string' ? match['comment'] : "";
                     const ignoreForStats = !!match['ignoreForStats'];
 
@@ -85,8 +108,8 @@ export function PerformanceAnalysis({
                                     >
                                         {alliance}
                                     </Badge>
-                                    {startPos !== null && startPos >= 0 && (
-                                        <Badge variant="secondary">Pos {startPos}</Badge>
+                                    {startPosLabel && (
+                                        <Badge variant="secondary">{startPosLabel}</Badge>
                                     )}
                                     {ignoreForStats && (
                                         <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300">
@@ -109,12 +132,22 @@ export function PerformanceAnalysis({
                                 </div>
                             </div>
                             <div className="flex justify-between items-center">
-                                <div className="font-bold text-lg">{totalPoints} pts</div>
-                                <div className="text-sm text-muted-foreground flex gap-2">
-                                    <span className="bg-blue-500/10 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400">A: {autoPoints}</span>
-                                    <span className="bg-purple-500/10 px-1.5 py-0.5 rounded text-purple-600 dark:text-purple-400">T: {teleopPoints}</span>
-                                    <span className="bg-orange-500/10 px-1.5 py-0.5 rounded text-orange-600 dark:text-orange-400">E: {endgamePoints}</span>
+                                <div className="font-bold text-lg">
+                                    {showMoprFallback ? `${rollingMopr.toFixed(1)} mOPR` : `${totalPoints} pts`}
                                 </div>
+                                {showMoprFallback ? (
+                                    <div className="text-sm text-muted-foreground flex gap-2">
+                                        <span className="bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-600 dark:text-emerald-400">
+                                            No scout scoring data
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-muted-foreground flex gap-2">
+                                        <span className="bg-blue-500/10 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400">A: {autoPoints}</span>
+                                        <span className="bg-purple-500/10 px-1.5 py-0.5 rounded text-purple-600 dark:text-purple-400">T: {teleopPoints}</span>
+                                        <span className="bg-orange-500/10 px-1.5 py-0.5 rounded text-orange-600 dark:text-orange-400">E: {endgamePoints}</span>
+                                    </div>
+                                )}
                             </div>
                             {comment.trim() !== "" && (
                                 <div className="text-xs text-muted-foreground italic border-t pt-2">
@@ -188,47 +221,53 @@ export function PerformanceAnalysis({
                             {/* Fixed: Points by Phase */}
                             <div>
                                 <p className="text-sm font-medium mb-3">Points by Phase</p>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded">
-                                        <span className="text-sm font-medium">Auto</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-blue-600">{getStatValue(teamStats, 'avgAutoPoints').toFixed(1)} pts</span>
-                                            {compareStats && (
-                                                <span className={`text-xs font-medium ${(getStatValue(teamStats, 'avgAutoPoints') - getStatValue(compareStats, 'avgAutoPoints')) > 0 ? 'text-green-600' :
-                                                    (getStatValue(teamStats, 'avgAutoPoints') - getStatValue(compareStats, 'avgAutoPoints')) < 0 ? 'text-red-600' : 'text-gray-500'
-                                                    }`}>
-                                                    ({(getStatValue(teamStats, 'avgAutoPoints') - getStatValue(compareStats, 'avgAutoPoints')) > 0 ? '+' : ''}{(getStatValue(teamStats, 'avgAutoPoints') - getStatValue(compareStats, 'avgAutoPoints')).toFixed(1)})
-                                                </span>
-                                            )}
+                                {hasPhasePointSummary ? (
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                            <span className="text-sm font-medium">Auto</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-blue-600">{avgAutoPoints.toFixed(1)} pts</span>
+                                                {compareStats && (
+                                                    <span className={`text-xs font-medium ${(avgAutoPoints - getStatValue(compareStats, 'avgAutoPoints')) > 0 ? 'text-green-600' :
+                                                        (avgAutoPoints - getStatValue(compareStats, 'avgAutoPoints')) < 0 ? 'text-red-600' : 'text-gray-500'
+                                                        }`}>
+                                                        ({(avgAutoPoints - getStatValue(compareStats, 'avgAutoPoints')) > 0 ? '+' : ''}{(avgAutoPoints - getStatValue(compareStats, 'avgAutoPoints')).toFixed(1)})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded">
+                                            <span className="text-sm font-medium">Teleop</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-purple-600">{avgTeleopPoints.toFixed(1)} pts</span>
+                                                {compareStats && (
+                                                    <span className={`text-xs font-medium ${(avgTeleopPoints - getStatValue(compareStats, 'avgTeleopPoints')) > 0 ? 'text-green-600' :
+                                                        (avgTeleopPoints - getStatValue(compareStats, 'avgTeleopPoints')) < 0 ? 'text-red-600' : 'text-gray-500'
+                                                        }`}>
+                                                        ({(avgTeleopPoints - getStatValue(compareStats, 'avgTeleopPoints')) > 0 ? '+' : ''}{(avgTeleopPoints - getStatValue(compareStats, 'avgTeleopPoints')).toFixed(1)})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded">
+                                            <span className="text-sm font-medium">Endgame</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-orange-600">{avgEndgamePoints.toFixed(1)} pts</span>
+                                                {compareStats && (
+                                                    <span className={`text-xs font-medium ${(avgEndgamePoints - getStatValue(compareStats, 'avgEndgamePoints')) > 0 ? 'text-green-600' :
+                                                        (avgEndgamePoints - getStatValue(compareStats, 'avgEndgamePoints')) < 0 ? 'text-red-600' : 'text-gray-500'
+                                                        }`}>
+                                                        ({(avgEndgamePoints - getStatValue(compareStats, 'avgEndgamePoints')) > 0 ? '+' : ''}{(avgEndgamePoints - getStatValue(compareStats, 'avgEndgamePoints')).toFixed(1)})
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded">
-                                        <span className="text-sm font-medium">Teleop</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-purple-600">{getStatValue(teamStats, 'avgTeleopPoints').toFixed(1)} pts</span>
-                                            {compareStats && (
-                                                <span className={`text-xs font-medium ${(getStatValue(teamStats, 'avgTeleopPoints') - getStatValue(compareStats, 'avgTeleopPoints')) > 0 ? 'text-green-600' :
-                                                    (getStatValue(teamStats, 'avgTeleopPoints') - getStatValue(compareStats, 'avgTeleopPoints')) < 0 ? 'text-red-600' : 'text-gray-500'
-                                                    }`}>
-                                                    ({(getStatValue(teamStats, 'avgTeleopPoints') - getStatValue(compareStats, 'avgTeleopPoints')) > 0 ? '+' : ''}{(getStatValue(teamStats, 'avgTeleopPoints') - getStatValue(compareStats, 'avgTeleopPoints')).toFixed(1)})
-                                                </span>
-                                            )}
-                                        </div>
+                                ) : (
+                                    <div className="rounded border border-dashed p-4 text-sm text-muted-foreground">
+                                        Detailed scoring was not collected for this team. Use match notes, rate-based metrics, defense matchups, and external analytics for evaluation.
                                     </div>
-                                    <div className="flex justify-between items-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded">
-                                        <span className="text-sm font-medium">Endgame</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-orange-600">{getStatValue(teamStats, 'avgEndgamePoints').toFixed(1)} pts</span>
-                                            {compareStats && (
-                                                <span className={`text-xs font-medium ${(getStatValue(teamStats, 'avgEndgamePoints') - getStatValue(compareStats, 'avgEndgamePoints')) > 0 ? 'text-green-600' :
-                                                    (getStatValue(teamStats, 'avgEndgamePoints') - getStatValue(compareStats, 'avgEndgamePoints')) < 0 ? 'text-red-600' : 'text-gray-500'
-                                                    }`}>
-                                                    ({(getStatValue(teamStats, 'avgEndgamePoints') - getStatValue(compareStats, 'avgEndgamePoints')) > 0 ? '+' : ''}{(getStatValue(teamStats, 'avgEndgamePoints') - getStatValue(compareStats, 'avgEndgamePoints')).toFixed(1)})
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* Configurable: Rate sections (e.g., Reliability Metrics) */}

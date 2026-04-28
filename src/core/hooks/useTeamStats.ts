@@ -9,9 +9,13 @@ import {
 import type { TeamStats } from "@/types/game-interfaces";
 import type { ScoutingEntryBase } from "@/types/scouting-entry";
 import { getCachedTBAEventMatches } from "@/core/lib/tbaCache";
-import { calculateFuelOPRHybrid } from "@/game-template/fuelOpr";
+import { calculateFuelOPR } from "@/game-template/fuelOpr";
+import { calculateRollingFuelMoprRatings, type RollingFuelMoprRatings } from "@/game-template/rollingFuelOpr";
 import { getCachedCOPREventKeys, getCachedEventCOPRs } from "@/core/lib/tba/coprUtils";
 import { getCachedEventStatboticsEPA, getCachedStatboticsEventKeys } from "@/core/lib/statbotics/epaUtils";
+
+const FUEL_MOPR_INCLUDE_PLAYOFFS_STORAGE_KEY = 'fuelOprIncludePlayoffs';
+const FIXED_FUEL_MOPR_LAMBDA = 0.3;
 
 /**
  * useTeamStats - Hook for the Team Statistics page
@@ -26,6 +30,12 @@ export const useTeamStats = () => {
     const [availableEvents, setAvailableEvents] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const fuelOprCacheRef = useRef<Map<string, Map<number, { auto: number; teleop: number; total: number }>>>(new Map());
+    const rollingRatingsCacheRef = useRef<Map<string, Map<string, RollingFuelMoprRatings>>>(new Map());
+
+    const normalizeMatchKey = useCallback((matchKey: string): string => {
+        if (!matchKey.includes('_')) return matchKey;
+        return matchKey.split('_')[1] || matchKey;
+    }, []);
 
     const resolveOprEventKeys = useCallback((eventFilter?: string | string[], entries: ScoutingEntryBase[] = []): string[] => {
         if (Array.isArray(eventFilter)) {
@@ -199,6 +209,7 @@ export const useTeamStats = () => {
             const cacheKey = eventKeysForOpr.length > 0
                 ? `events:${[...eventKeysForOpr].sort().join('|')}`
                 : 'events:none';
+            const includePlayoffs = localStorage.getItem(FUEL_MOPR_INCLUDE_PLAYOFFS_STORAGE_KEY) !== 'false';
 
             let oprByTeam = fuelOprCacheRef.current.get(cacheKey);
 
@@ -207,12 +218,14 @@ export const useTeamStats = () => {
                     await Promise.all(eventKeysForOpr.map(eventKey => getCachedTBAEventMatches(eventKey, true)))
                 ).flat();
 
-                const hybrid = calculateFuelOPRHybrid(allMatches, {
-                    includePlayoffs: true,
+                const fixed = calculateFuelOPR(allMatches, {
+                    ridgeLambda: FIXED_FUEL_MOPR_LAMBDA,
+                    includePlayoffs,
+                    nonNegative: false,
                 });
 
                 oprByTeam = new Map(
-                    hybrid.opr.teams.map(team => [
+                    fixed.teams.map(team => [
                         team.teamNumber,
                         {
                             auto: team.autoFuelOPR,
@@ -226,6 +239,29 @@ export const useTeamStats = () => {
             }
 
             const teamOpr = oprByTeam.get(teamNum);
+
+            let rollingRatingsByMatch = rollingRatingsCacheRef.current.get(cacheKey);
+            if (!rollingRatingsByMatch) {
+                const allMatches = (
+                    await Promise.all(eventKeysForOpr.map(eventKey => getCachedTBAEventMatches(eventKey, true)))
+                ).flat();
+
+                const rolling = calculateRollingFuelMoprRatings(allMatches, {
+                    includePlayoffs,
+                    fixedLambda: FIXED_FUEL_MOPR_LAMBDA,
+                });
+
+                rollingRatingsByMatch = new Map<string, RollingFuelMoprRatings>();
+                for (const [matchTeamKey, values] of rolling.entries()) {
+                    const [matchKey, teamNumber] = matchTeamKey.split('::');
+                    if (!matchKey || !teamNumber) continue;
+
+                    rollingRatingsByMatch.set(`${teamNumber}::${matchKey}`, values);
+                    rollingRatingsByMatch.set(`${teamNumber}::${normalizeMatchKey(matchKey)}`, values);
+                }
+
+                rollingRatingsCacheRef.current.set(cacheKey, rollingRatingsByMatch);
+            }
 
             if (entries.length === 0) {
                 // Return a basic object with matchesPlayed: 0
@@ -342,6 +378,26 @@ export const useTeamStats = () => {
             baseStats.statboticsTotalTower = statboticsTotalTower === undefined ? undefined : round1(statboticsTotalTower);
             baseStats.statboticsAutoTower = statboticsAutoTower === undefined ? undefined : round1(statboticsAutoTower);
             baseStats.statboticsEndgameTower = statboticsEndgameTower === undefined ? undefined : round1(statboticsEndgameTower);
+
+            if (Array.isArray((baseStats as { matchResults?: Array<Record<string, unknown>> }).matchResults)) {
+                (baseStats as { matchResults: Array<Record<string, unknown>> }).matchResults = (baseStats as { matchResults: Array<Record<string, unknown>> }).matchResults.map(match => {
+                    const rawMatchKey = typeof match.matchKey === 'string'
+                        ? match.matchKey
+                        : (typeof match.matchNumber === 'string' ? `qm${match.matchNumber}` : null);
+
+                    const rolling = rawMatchKey
+                        ? rollingRatingsByMatch.get(`${teamNum}::${rawMatchKey}`)
+                            ?? rollingRatingsByMatch.get(`${teamNum}::${normalizeMatchKey(rawMatchKey)}`)
+                        : undefined;
+
+                    return {
+                        ...match,
+                        rollingOprTotalPoints: rolling?.fixedTotalMopr ?? 0,
+                        rollingCoprTotalPoints: rolling?.adaptiveTotalMopr ?? 0,
+                        rollingRatingsMatchCount: rolling?.matchesProcessed ?? 0,
+                    };
+                });
+            }
 
             baseStats.eventKey = resolvedEventKey;
 

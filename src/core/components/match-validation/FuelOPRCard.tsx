@@ -70,12 +70,12 @@ export const FuelOPRCard: React.FC<FuelOPRCardProps> = ({
     const headers = [
       'Team',
       'Matches',
-      'Auto OPR (lambda 0.3)',
-      'Teleop OPR (lambda 0.3)',
-      'Total OPR (lambda 0.3)',
-      'Auto OPR (adaptive)',
-      'Teleop OPR (adaptive)',
-      'Total OPR (adaptive)',
+      'Auto mOPR (lambda 0.3)',
+      'Teleop mOPR (lambda 0.3)',
+      'Total mOPR (lambda 0.3)',
+      'Auto mOPR (adaptive)',
+      'Teleop mOPR (adaptive)',
+      'Total mOPR (adaptive)',
       'Scaled Auto Avg',
       'Scaled Teleop Avg',
       'Scaled Total Avg',
@@ -121,7 +121,7 @@ export const FuelOPRCard: React.FC<FuelOPRCardProps> = ({
     const suffix = mode === 'production' ? 'production' : 'impact';
 
     link.href = url;
-    link.download = `fuel-opr-${suffix}-${timestamp}.csv`;
+    link.download = `fuel-mopr-${suffix}-${timestamp}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -133,7 +133,7 @@ export const FuelOPRCard: React.FC<FuelOPRCardProps> = ({
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex flex-wrap items-center gap-2">
-            <span>Fuel OPR & Scaled Fuel ({mode === 'production' ? 'Production' : 'Impact'})</span>
+            <span>Fuel mOPR & Scaled Fuel ({mode === 'production' ? 'Production' : 'Impact'})</span>
             <span className="text-xs font-normal text-muted-foreground">Fixed λ={fixedLambda}</span>
             {adaptiveLambda !== null && (
               <span className="text-xs font-normal text-muted-foreground">Adaptive λ={adaptiveLambda.toFixed(3)}</span>
@@ -172,10 +172,10 @@ export const FuelOPRCard: React.FC<FuelOPRCardProps> = ({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading OPR and scaled fuel views...</p>
+          <p className="text-sm text-muted-foreground">Loading mOPR and scaled fuel views...</p>
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No OPR/scaled fuel data yet. Validate the event first.
+            No mOPR/scaled fuel data yet. Validate the event first.
           </p>
         ) : (
           <div className="max-h-96 overflow-auto rounded-md border">
@@ -184,12 +184,12 @@ export const FuelOPRCard: React.FC<FuelOPRCardProps> = ({
                 <TableRow>
                   <TableHead>Team</TableHead>
                   <TableHead>Matches</TableHead>
-                  <TableHead>Auto OPR (0.3)</TableHead>
-                  <TableHead>Teleop OPR (0.3)</TableHead>
-                  <TableHead>Total OPR (0.3)</TableHead>
-                  <TableHead>Auto OPR (Adaptive)</TableHead>
-                  <TableHead>Teleop OPR (Adaptive)</TableHead>
-                  <TableHead>Total OPR (Adaptive)</TableHead>
+                  <TableHead>Auto mOPR (0.3)</TableHead>
+                  <TableHead>Teleop mOPR (0.3)</TableHead>
+                  <TableHead>Total mOPR (0.3)</TableHead>
+                  <TableHead>Auto mOPR (Adaptive)</TableHead>
+                  <TableHead>Teleop mOPR (Adaptive)</TableHead>
+                  <TableHead>Total mOPR (Adaptive)</TableHead>
                   <TableHead>Scaled Auto Avg</TableHead>
                   <TableHead>Scaled Teleop Avg</TableHead>
                   <TableHead>Scaled Total Avg</TableHead>

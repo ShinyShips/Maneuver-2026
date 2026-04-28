@@ -350,7 +350,7 @@ export const strategyColumns = {
         "rawValues.teleopPoints": { label: "Teleop Points", visible: true, numeric: true },
         "rawValues.endgamePoints": { label: "Endgame Points", visible: true, numeric: true },
         "rawValues.scaledTotalFuel": { label: "Scaled Fuel (Total)", visible: true, numeric: true },
-        "fuelTotalOPR": { label: "Fuel OPR (Total)", visible: true, numeric: true },
+        "fuelTotalOPR": { label: "Fuel mOPR (Total)", visible: true, numeric: true },
         "statboticsTotalPoints": { label: "Statbotics EPA (Total Points)", visible: false, numeric: true },
         "statboticsAutoPoints": { label: "Statbotics EPA (Auto Points)", visible: false, numeric: true },
         "statboticsTeleopPoints": { label: "Statbotics EPA (Teleop Points)", visible: false, numeric: true },
@@ -372,7 +372,7 @@ export const strategyColumns = {
     auto: {
         "rawValues.autoFuel": { label: "Auto Fuel", visible: true, numeric: true },
         "rawValues.scaledAutoFuel": { label: "Scaled Auto Fuel", visible: true, numeric: true },
-        "fuelAutoOPR": { label: "Fuel OPR (Auto)", visible: true, numeric: true },
+        "fuelAutoOPR": { label: "Fuel mOPR (Auto)", visible: true, numeric: true },
         "statboticsAutoFuel": { label: "Statbotics EPA (Auto Fuel)", visible: false, numeric: true },
         "statboticsAutoTower": { label: "Statbotics EPA (Auto Tower)", visible: false, numeric: true },
         "coprHubAutoPoints": { label: "TBA COPR (Hub Auto)", visible: false, numeric: true },
@@ -391,7 +391,7 @@ export const strategyColumns = {
     teleop: {
         "rawValues.teleopFuel": { label: "Teleop Fuel", visible: true, numeric: true },
         "rawValues.scaledTeleopFuel": { label: "Scaled Teleop Fuel", visible: true, numeric: true },
-        "fuelTeleopOPR": { label: "Fuel OPR (Teleop)", visible: true, numeric: true },
+        "fuelTeleopOPR": { label: "Fuel mOPR (Teleop)", visible: true, numeric: true },
         "statboticsTeleopFuel": { label: "Statbotics EPA (Teleop+Endgame Fuel)", visible: false, numeric: true },
         "coprHubTeleopPoints": { label: "TBA COPR (Hub Teleop)", visible: false, numeric: true },
         "defenseEffectivenessScore": { label: "Defense Effectiveness %", visible: true, numeric: true, percentage: true },

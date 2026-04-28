@@ -8,6 +8,7 @@ import { TrendingUp } from "lucide-react";
 import { compareMatchLabels, getDisplayMatchLabel } from "@/game-template/matchLabel";
 
 export interface MatchProgressionMatchResult {
+    matchKey?: string;
     matchNumber: string;
     matchLabel?: string;
     eventKey?: string;
@@ -19,6 +20,8 @@ export interface MatchProgressionMatchResult {
     teleopFuel?: number;
     fuelPassed?: number;
     climbLevel?: number;
+    rollingOprTotalPoints?: number;
+    rollingCoprTotalPoints?: number;
     [key: string]: unknown;
 }
 
@@ -29,7 +32,12 @@ interface MatchProgressionChartProps {
     compareTeamNumber?: number;
 }
 
-const metricOptions = [
+interface MetricOption {
+    key: string;
+    label: string;
+}
+
+const metricOptions: MetricOption[] = [
     { key: 'totalPoints', label: 'Total Points' },
     { key: 'autoPoints', label: 'Auto Points' },
     { key: 'teleopPoints', label: 'Teleop Points' },
@@ -38,7 +46,10 @@ const metricOptions = [
     { key: 'teleopFuel', label: 'Teleop Fuel' },
     { key: 'fuelPassed', label: 'Fuel Passed' },
     { key: 'climbLevel', label: 'Climb Level' },
+    { key: 'rollingOprTotalPoints', label: 'Rolling mOPR' },
 ];
+
+const defaultMetricOption: MetricOption = { key: 'totalPoints', label: 'Total Points' };
 
 function getSeriesColor(index: number, dashed: boolean): string {
     return getDistributedColor(index, {
@@ -108,7 +119,33 @@ export function MatchProgressionChart({
     teamNumber,
     compareTeamNumber
 }: MatchProgressionChartProps) {
-    const [selectedMetric, setSelectedMetric] = useState('totalPoints');
+    const allMatches = [...matchResults, ...(compareMatchResults ?? [])];
+
+    const availableMetricOptions: MetricOption[] = metricOptions.filter(metric =>
+        allMatches.some(match => {
+            const raw = match[metric.key as keyof MatchProgressionMatchResult];
+            return typeof raw === 'number' && Number.isFinite(raw) && raw !== 0;
+        })
+    );
+
+    const fallbackMetricOptions: MetricOption[] = availableMetricOptions.length > 0
+        ? availableMetricOptions
+        : metricOptions.filter(metric =>
+            allMatches.some(match => {
+                const raw = match[metric.key as keyof MatchProgressionMatchResult];
+                return typeof raw === 'number' && Number.isFinite(raw);
+            })
+        );
+
+    const visibleMetricOptions: MetricOption[] = fallbackMetricOptions.length > 0
+        ? fallbackMetricOptions
+        : [defaultMetricOption];
+
+    const firstVisibleMetric = visibleMetricOptions[0] ?? defaultMetricOption;
+    const [selectedMetric, setSelectedMetric] = useState(firstVisibleMetric.key);
+    const activeMetric = visibleMetricOptions.some(metric => metric.key === selectedMetric)
+        ? selectedMetric
+        : firstVisibleMetric.key;
 
     const primarySeries = buildSeries(matchResults, teamNumber, 'primary', false);
     const compareSeries = compareTeamNumber
@@ -138,7 +175,7 @@ export function MatchProgressionChart({
             sortLabel: getMatchLabel(match),
             sortMatchNumber: getMatchNumber(match),
         };
-        row[seriesKey] = getMetricValue(match, selectedMetric);
+        row[seriesKey] = getMetricValue(match, activeMetric);
         chartRows.set(rowKey, row);
     }
 
@@ -154,7 +191,7 @@ export function MatchProgressionChart({
                 sortLabel: getMatchLabel(match),
                 sortMatchNumber: getMatchNumber(match),
             };
-            row[seriesKey] = getMetricValue(match, selectedMetric);
+            row[seriesKey] = getMetricValue(match, activeMetric);
             chartRows.set(rowKey, row);
         }
     }
@@ -180,7 +217,7 @@ export function MatchProgressionChart({
         return config;
     }, {});
 
-    const metricLabel = metricOptions.find(m => m.key === selectedMetric)?.label || selectedMetric;
+    const metricLabel = visibleMetricOptions.find(m => m.key === activeMetric)?.label || activeMetric;
     const eventCount = primarySeries.length;
     const description = eventCount > 1
         ? `Performance trends across matches (${eventCount} events shown separately)`
@@ -204,11 +241,11 @@ export function MatchProgressionChart({
                         <label className="text-sm font-medium whitespace-nowrap">Metric:</label>
                         <GenericSelector
                             label="Select Metric"
-                            value={selectedMetric}
-                            availableOptions={metricOptions.map(m => m.key)}
+                            value={activeMetric}
+                            availableOptions={visibleMetricOptions.map(m => m.key)}
                             onValueChange={setSelectedMetric}
                             placeholder="Select metric"
-                            displayFormat={(key: string) => metricOptions.find(m => m.key === key)?.label || key}
+                            displayFormat={(key: string) => visibleMetricOptions.find(m => m.key === key)?.label || key}
                             className="w-48"
                         />
                     </div>

@@ -202,10 +202,10 @@ export const MatchValidationPage: React.FC = () => {
         });
 
         if (import.meta.env.DEV && eventKey.startsWith('demo')) {
-          console.log(`[Fuel OPR] Impact lambda for ${eventKey}: ${FIXED_FUEL_OPR_LAMBDA.toFixed(3)} (fixed)`);
-          console.log(`[Fuel OPR] Production lambda for ${eventKey}: ${FIXED_FUEL_OPR_LAMBDA.toFixed(3)} (fixed)`);
-          console.log(`[Fuel OPR] Impact adaptive lambda for ${eventKey}: ${impactHybrid.selectedLambda.toFixed(3)} (${impactHybrid.mode})`);
-          console.log(`[Fuel OPR] Production adaptive lambda for ${eventKey}: ${productionHybrid.selectedLambda.toFixed(3)} (${productionHybrid.mode})`);
+          console.log(`[Fuel mOPR] Impact lambda for ${eventKey}: ${FIXED_FUEL_OPR_LAMBDA.toFixed(3)} (fixed)`);
+          console.log(`[Fuel mOPR] Production lambda for ${eventKey}: ${FIXED_FUEL_OPR_LAMBDA.toFixed(3)} (fixed)`);
+          console.log(`[Fuel mOPR] Impact adaptive lambda for ${eventKey}: ${impactHybrid.selectedLambda.toFixed(3)} (${impactHybrid.mode})`);
+          console.log(`[Fuel mOPR] Production adaptive lambda for ${eventKey}: ${productionHybrid.selectedLambda.toFixed(3)} (${productionHybrid.mode})`);
         }
 
         const scaledByTeam = new Map<number, {
@@ -535,7 +535,7 @@ export const MatchValidationPage: React.FC = () => {
           setProductionAdaptiveFuelOprLambda(productionHybrid.selectedLambda);
         }
       } catch (error) {
-        console.error('Failed to load Fuel OPR data:', error);
+        console.error('Failed to load Fuel mOPR data:', error);
         if (!cancelled) {
           setImpactFuelOprRows([]);
           setProductionFuelOprRows([]);
@@ -785,7 +785,7 @@ export const MatchValidationPage: React.FC = () => {
         <ValidationSummaryCard results={matchList} />
       )}
 
-      {/* Fuel OPR + Scaled Fuel */}
+      {/* Fuel mOPR + Scaled Fuel */}
       {eventKey && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -799,7 +799,7 @@ export const MatchValidationPage: React.FC = () => {
               }}
             />
             <label htmlFor="fuel-opr-include-playoffs" className="text-sm text-muted-foreground">
-              Include playoff matches in Fuel OPR calculation
+              Include playoff matches in Fuel mOPR calculation
             </label>
           </div>
           <FuelOPRCard
