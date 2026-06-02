@@ -5,6 +5,7 @@ import { clearGamificationData as clearGameData } from "@/game-template/gamifica
 import { gamificationDB as gameDB } from "@/game-template/gamification";
 import { clearAllPitScoutingData } from "@/core/lib/pitScoutingUtils";
 import { clearAllTBACache, clearEventCache, clearEventValidationResults } from "@/core/lib/tbaCache";
+import { clearDerivedTbaCache } from "@/core/lib/tbaDerivedCache";
 import { clearStoredEventTeams, clearStoredNexusData } from "@/core/lib/tba";
 
 export const useDataCleaning = (
@@ -132,6 +133,7 @@ export const useDataCleaning = (
   const handleClearMatchData = useCallback(async () => {
     localStorage.setItem("matchData", "");
     await clearAllTBACache();
+    clearDerivedTbaCache();
     if (updateMatchData) {
       updateMatchData(null);
     }
@@ -162,6 +164,7 @@ export const useDataCleaning = (
       });
 
       await clearAllTBACache();
+      clearDerivedTbaCache();
 
       await refreshData();
       window.dispatchEvent(new Event('dataChanged'));
@@ -200,6 +203,7 @@ export const useDataCleaning = (
         clearEventCache(normalizedEventKey),
         clearEventValidationResults(normalizedEventKey),
       ]);
+      clearDerivedTbaCache(normalizedEventKey);
 
       clearEventLocalStorageData(normalizedEventKey);
 
@@ -224,6 +228,7 @@ export const useDataCleaning = (
       await clearAllPitScoutingData();
       await clearGameData();
       await clearAllTBACache();
+      clearDerivedTbaCache();
 
       localStorage.clear();
 

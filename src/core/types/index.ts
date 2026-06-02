@@ -15,6 +15,7 @@ export * from './scouting-entry';
 
 // Team statistics types
 export * from './team-stats';
+export * from './strategy-snapshot';
 
 // Pit scouting types
 export * from './pit-scouting';

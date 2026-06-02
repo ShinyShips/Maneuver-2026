@@ -6,7 +6,7 @@ import {
   type ConflictInfo
 } from "@/core/lib/scoutingDataUtils";
 import type { ScoutingEntryBase } from "@/types/scouting-entry";
-import { db } from "@/core/db/database";
+import { db, deleteScoutingEntry, saveScoutingEntries, saveScoutingEntry } from "@/core/db/database";
 
 export type UploadMode = "append" | "overwrite" | "smart-merge";
 
@@ -104,7 +104,7 @@ export const handleScoutingDataUpload = async (jsonData: unknown, mode: UploadMo
     
     // Auto-import: Save new entries
     if (conflictResult.autoImport.length > 0) {
-      await db.scoutingData.bulkPut(conflictResult.autoImport as never[]);
+      await saveScoutingEntries(conflictResult.autoImport);
       results.added = conflictResult.autoImport.length;
     }
     
@@ -121,11 +121,11 @@ export const handleScoutingDataUpload = async (jsonData: unknown, mode: UploadMo
         );
         
         if (existing) {
-          await db.scoutingData.delete(existing.id);
+          await deleteScoutingEntry(existing.id);
         }
         
         // Save new entry
-        await db.scoutingData.put(entry as never);
+        await saveScoutingEntry(entry as never);
       }
       results.replaced = conflictResult.autoReplace.length;
     }
@@ -192,8 +192,8 @@ export const applyConflictResolutions = async (
         incomingData: conflict.incoming,
         localId: conflict.local.id
       });
-      await db.scoutingData.delete(conflict.local.id);
-      await db.scoutingData.put(conflict.incoming as never);
+      await deleteScoutingEntry(conflict.local.id);
+      await saveScoutingEntry(conflict.incoming as never);
       replaced++;
     } else {
       // Skip - keep local, do nothing

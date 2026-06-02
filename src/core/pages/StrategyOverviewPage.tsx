@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { useTeamStatistics } from "@/core/hooks/useTeamStatistics";
 import { useChartData } from "@/core/hooks/useChartData";
 import { strategyConfig } from "@/game/strategy-config";
@@ -90,17 +90,56 @@ export default function StrategyOverviewPage() {
         }
         return selectedEvents;
     }, [selectedEvents]);
+
+    const requiredMetricKeys = useMemo(() => {
+        const keys = new Set<string>();
+
+        columnConfig.forEach((column) => {
+            if (column.visible) {
+                keys.add(column.key);
+            }
+        });
+
+        Object.keys(columnFilters).forEach((key) => keys.add(key));
+
+        if (chartType === "scatter") {
+            keys.add(scatterXMetric);
+            keys.add(scatterYMetric);
+        } else {
+            keys.add(chartMetric);
+        }
+
+        return keys;
+    }, [columnConfig, columnFilters, chartType, chartMetric, scatterXMetric, scatterYMetric]);
+
+    const requiresFuelOpr = useMemo(() => {
+        return Array.from(requiredMetricKeys).some((key) =>
+            key === "fuelTotalOPR" || key === "fuelAutoOPR" || key === "fuelTeleopOPR" || key === "fuelOprLambda"
+        );
+    }, [requiredMetricKeys]);
+
+    const requiresRollingRatings = useMemo(() => {
+        return Array.from(requiredMetricKeys).some((key) =>
+            key === "latestRollingFuelOPR" || key === "latestRollingFuelCOPR" || key === "latestRollingRatingsMatchCount"
+        );
+    }, [requiredMetricKeys]);
+
     // Calculate statistics using centralized hook
     const { teamStats, filteredTeamStats, isLoading, error, availableEvents } = useTeamStatistics(
         selectedEventFilter,
         { ...strategyConfig, columns: columnConfig },
         columnFilters,
-        aggregationType
+        aggregationType,
+        { includeFuelOpr: requiresFuelOpr, includeRollingRatings: requiresRollingRatings }
     );
+    const deferredTeamStats = useDeferredValue(teamStats);
+    const deferredFilteredTeamStats = useDeferredValue(filteredTeamStats);
+    const isHeavyContentPending =
+        deferredTeamStats !== teamStats || deferredFilteredTeamStats !== filteredTeamStats;
 
     // Prepare chart data using generic hook
     const { chartData, chartConfig } = useChartData(
-        filteredTeamStats,
+        deferredFilteredTeamStats,
         chartType,
         chartMetric,
         scatterXMetric,
@@ -181,8 +220,8 @@ export default function StrategyOverviewPage() {
     return (
         <div className="flex flex-col min-h-screen gap-6 px-4 pt-12 pb-24">
             <StrategyHeader
-                filteredTeamCount={filteredTeamStats.length}
-                totalTeamCount={teamStats.length}
+                filteredTeamCount={deferredFilteredTeamStats.length}
+                totalTeamCount={deferredTeamStats.length}
                 activeFilterCount={Object.keys(columnFilters).length}
                 selectedEvents={selectedEvents}
                 onEventChange={setSelectedEvents}
@@ -196,33 +235,46 @@ export default function StrategyOverviewPage() {
                 onChartTypeChange={setChartType}
             />
 
-            <StrategyChart
-                chartData={chartData}
-                chartType={chartType}
-                onChartTypeChange={setChartType}
-                chartMetric={chartMetric}
-                onChartMetricChange={setChartMetric}
-                scatterXMetric={scatterXMetric}
-                onScatterXMetricChange={setScatterXMetric}
-                scatterYMetric={scatterYMetric}
-                onScatterYMetricChange={setScatterYMetric}
-                columnConfig={columnConfig}
-                chartConfig={chartConfig}
-            />
+            {isHeavyContentPending ? (
+                <>
+                    <Skeleton className="h-[350px] w-full rounded-xl" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-20 w-full" />
+                    </div>
+                </>
+            ) : (
+                <>
+                    <StrategyChart
+                        chartData={chartData}
+                        chartType={chartType}
+                        onChartTypeChange={setChartType}
+                        chartMetric={chartMetric}
+                        onChartMetricChange={setChartMetric}
+                        scatterXMetric={scatterXMetric}
+                        onScatterXMetricChange={setScatterXMetric}
+                        scatterYMetric={scatterYMetric}
+                        onScatterYMetricChange={setScatterYMetric}
+                        columnConfig={columnConfig}
+                        chartConfig={chartConfig}
+                    />
 
-            <TeamStatsTableEnhanced
-                teamStats={teamStats}
-                filteredTeamStats={filteredTeamStats}
-                columnConfig={columnConfig}
-                columnFilters={columnFilters}
-                onToggleColumn={handleToggleColumn}
-                onApplyPreset={handleApplyPreset}
-                onSetColumnFilter={handleSetColumnFilter}
-                onRemoveColumnFilter={handleRemoveColumnFilter}
-                onClearAllFilters={handleClearAllFilters}
-                isColumnSettingsOpen={isColumnSettingsOpen}
-                onColumnSettingsOpenChange={setIsColumnSettingsOpen}
-            />
+                    <TeamStatsTableEnhanced
+                        teamStats={deferredTeamStats}
+                        filteredTeamStats={deferredFilteredTeamStats}
+                        columnConfig={columnConfig}
+                        columnFilters={columnFilters}
+                        onToggleColumn={handleToggleColumn}
+                        onApplyPreset={handleApplyPreset}
+                        onSetColumnFilter={handleSetColumnFilter}
+                        onRemoveColumnFilter={handleRemoveColumnFilter}
+                        onClearAllFilters={handleClearAllFilters}
+                        isColumnSettingsOpen={isColumnSettingsOpen}
+                        onColumnSettingsOpenChange={setIsColumnSettingsOpen}
+                    />
+                </>
+            )}
         </div>
     );
 }

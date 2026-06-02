@@ -9,7 +9,7 @@ import { detectConflicts, type ConflictInfo } from '@/core/lib/scoutingDataUtils
 import { importPitAssignmentsPayload, type PitAssignmentTransferPayload } from '@/core/lib/pitAssignmentTransfer';
 import type { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import { debugLog } from '@/core/lib/peerTransferUtils';
-import { db, pitDB, saveScoutingEntry } from '@/core/db/database';
+import { db, pitDB, deleteScoutingEntry, saveScoutingEntry } from '@/core/db/database';
 import { normalizeTransferredScoutProfile } from '@/core/lib/normalizeTransferredScoutProfile';
 import { normalizeTransferredMatchPrediction } from '@/core/lib/normalizeTransferredMatchPrediction';
 import { normalizeTransferredScoutAchievement } from '@/core/lib/normalizeTransferredScoutAchievement';
@@ -187,7 +187,7 @@ export function usePeerTransferImport(options: UsePeerTransferImportOptions) {
                     ));
 
                 if (existing) {
-                    await db.scoutingData.delete(existing.id);
+                    await deleteScoutingEntry(existing.id);
                 }
                 await saveScoutingEntry(entry);
             }

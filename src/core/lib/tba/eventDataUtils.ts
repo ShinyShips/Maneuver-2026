@@ -2,6 +2,7 @@
 
 import { clearStoredEventTeams } from './tbaUtils';
 import { clearStoredNexusData } from './nexusUtils';
+import { clearDerivedTbaCache } from '@/core/lib/tbaDerivedCache';
 import { toast } from 'sonner';
 
 // Storage keys
@@ -182,6 +183,7 @@ export const clearEventData = (eventKey: string): void => {
     // Clear TBA COPRs and Statbotics EPA caches
     localStorage.removeItem(`tba_event_coprs_${eventKey}`);
     localStorage.removeItem(`statbotics_event_epa_${eventKey}`);
+    clearDerivedTbaCache(eventKey);
     
     console.log(`Successfully cleared all event data for ${eventKey}`);
     toast.success(`Cleared all stored data for event ${eventKey}`);

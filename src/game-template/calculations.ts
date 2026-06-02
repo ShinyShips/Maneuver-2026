@@ -13,6 +13,28 @@ import type { TeamStats } from "@/core/types/team-stats";
 import { scoringCalculations } from "./scoring";
 import { millisecondsToSeconds } from "./duration";
 
+export interface ScoredMatchMetrics {
+    autoPoints: number;
+    teleopPoints: number;
+    endgamePoints: number;
+    totalPoints: number;
+}
+
+const isIncludedInStats = (match: ScoutingEntry): boolean => !match.ignoreForStats;
+
+export const scoreMatchForStats = (match: ScoutingEntry): ScoredMatchMetrics => {
+    const autoPoints = scoringCalculations.calculateAutoPoints({ gameData: match.gameData } as any);
+    const teleopPoints = scoringCalculations.calculateTeleopPoints({ gameData: match.gameData } as any);
+    const endgamePoints = scoringCalculations.calculateEndgamePoints({ gameData: match.gameData } as any);
+
+    return {
+        autoPoints,
+        teleopPoints,
+        endgamePoints,
+        totalPoints: autoPoints + teleopPoints + endgamePoints,
+    };
+};
+
 // Helper functions
 const sum = <T>(arr: T[], fn: (item: T) => number): number =>
     arr.reduce((acc, item) => acc + fn(item), 0);
@@ -49,21 +71,69 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         return getEmptyStats();
     }
 
-    const matchCount = teamMatches.length;
+    const includedMatches = teamMatches.filter(isIncludedInStats);
+    const matchCount = includedMatches.length;
+    const scoredMatches = teamMatches.map(match => ({
+        match,
+        scores: scoreMatchForStats(match),
+    }));
+    const includedScoredMatches = scoredMatches.filter(({ match }) => isIncludedInStats(match));
+
+    if (matchCount === 0) {
+        return {
+            ...getEmptyStats(),
+            rawValues: {
+                ...getEmptyStats().rawValues,
+                totalPoints: [],
+                autoPoints: [],
+                teleopPoints: [],
+                endgamePoints: [],
+            },
+            matchResults: teamMatches.map((match) => {
+                const scores = scoreMatchForStats(match);
+                const startPositionLabel = typeof match.gameData?.auto?.startPositionLabel === 'string'
+                    ? match.gameData.auto.startPositionLabel
+                    : undefined;
+                const startPosition = typeof match.gameData?.auto?.startPosition === 'number'
+                    ? match.gameData.auto.startPosition
+                    : getStartPositionIndex(startPositionLabel);
+
+                const autoPath = Array.isArray(match.gameData?.auto?.autoPath)
+                    ? match.gameData.auto.autoPath.filter((wp) => wp && wp.position)
+                    : (Array.isArray(match.gameData?.auto?.actions)
+                        ? match.gameData.auto.actions.filter((wp) => wp && wp.position)
+                        : []);
+
+                return {
+                    id: match.id,
+                    matchKey: match.matchKey,
+                    matchNumber: String(match.matchNumber),
+                    alliance: match.allianceColor,
+                    eventKey: match.eventKey || '',
+                    teamNumber: match.teamNumber,
+                    scoutName: match.scoutName,
+                    comment: match.comments || '',
+                    totalPoints: scores.totalPoints,
+                    autoPoints: scores.autoPoints,
+                    teleopPoints: scores.teleopPoints,
+                    endgamePoints: scores.endgamePoints,
+                    startPosition,
+                    autoFuel: val(match.gameData?.auto?.fuelScoredCount),
+                    teleopFuel: val(match.gameData?.teleop?.fuelScoredCount),
+                    autoPath,
+                    ignoreForStats: !!match.ignoreForStats,
+                };
+            }).sort((a, b) => parseInt(a.matchNumber) - parseInt(b.matchNumber)),
+        };
+    }
 
     // ============================================================================
     // POINT CALCULATIONS (using centralized scoring)
     // ============================================================================
 
-    const totalAutoPoints = sum(teamMatches, m =>
-        scoringCalculations.calculateAutoPoints({ gameData: m.gameData } as any)
-    );
-    const totalTeleopPoints = sum(teamMatches, m =>
-        scoringCalculations.calculateTeleopPoints({ gameData: m.gameData } as any)
-    );
-    const totalEndgamePoints = sum(teamMatches, m =>
-        scoringCalculations.calculateEndgamePoints({ gameData: m.gameData } as any)
-    );
+    const totalAutoPoints = sum(includedScoredMatches, ({ scores }) => scores.autoPoints);
+    const totalTeleopPoints = sum(includedScoredMatches, ({ scores }) => scores.teleopPoints);
+    const totalEndgamePoints = sum(includedScoredMatches, ({ scores }) => scores.endgamePoints);
     const totalPoints = totalAutoPoints + totalTeleopPoints + totalEndgamePoints;
 
     // ============================================================================
@@ -71,20 +141,20 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     // ============================================================================
 
     // Auto fuel
-    const autoFuelTotal = sum(teamMatches, m =>
+    const autoFuelTotal = sum(includedMatches, m =>
         val(m.gameData?.auto?.fuelScoredCount)
     );
 
-    const autoFuelPassedTotal = sum(teamMatches, m =>
+    const autoFuelPassedTotal = sum(includedMatches, m =>
         val(m.gameData?.auto?.fuelPassedCount)
     );
 
     // Teleop fuel
-    const teleopFuelTotal = sum(teamMatches, m =>
+    const teleopFuelTotal = sum(includedMatches, m =>
         val(m.gameData?.teleop?.fuelScoredCount)
     );
 
-    const teleopFuelPassedTotal = sum(teamMatches, m =>
+    const teleopFuelPassedTotal = sum(includedMatches, m =>
         val(m.gameData?.teleop?.fuelPassedCount)
     );
 
@@ -92,10 +162,10 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     const totalFuelScored = autoFuelTotal + teleopFuelTotal;
     const totalFuelPassed = autoFuelPassedTotal + teleopFuelPassedTotal;
     const totalPieces = totalFuelScored; // For compatibility
-    const autoShotOnTheMoveTotal = sum(teamMatches, m => val(m.gameData?.auto?.shotOnTheMoveCount));
-    const autoShotStationaryTotal = sum(teamMatches, m => val(m.gameData?.auto?.shotStationaryCount));
-    const teleopShotOnTheMoveTotal = sum(teamMatches, m => val(m.gameData?.teleop?.shotOnTheMoveCount));
-    const teleopShotStationaryTotal = sum(teamMatches, m => val(m.gameData?.teleop?.shotStationaryCount));
+    const autoShotOnTheMoveTotal = sum(includedMatches, m => val(m.gameData?.auto?.shotOnTheMoveCount));
+    const autoShotStationaryTotal = sum(includedMatches, m => val(m.gameData?.auto?.shotStationaryCount));
+    const teleopShotOnTheMoveTotal = sum(includedMatches, m => val(m.gameData?.teleop?.shotOnTheMoveCount));
+    const teleopShotStationaryTotal = sum(includedMatches, m => val(m.gameData?.teleop?.shotStationaryCount));
     const autoShotTypeTotal = autoShotOnTheMoveTotal + autoShotStationaryTotal;
     const teleopShotTypeTotal = teleopShotOnTheMoveTotal + teleopShotStationaryTotal;
 
@@ -104,15 +174,15 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     // ============================================================================
 
     // Auto climb (new for 2026!)
-    const autoClimbCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbL1 === true).length;
-    const autoClimbFromSideCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbFromSide === true).length;
-    const autoClimbFromMiddleCount = teamMatches.filter(m => m.gameData?.auto?.autoClimbFromMiddle === true).length;
-    const autoClimbStartTimes = teamMatches
+    const autoClimbCount = includedMatches.filter(m => m.gameData?.auto?.autoClimbL1 === true).length;
+    const autoClimbFromSideCount = includedMatches.filter(m => m.gameData?.auto?.autoClimbFromSide === true).length;
+    const autoClimbFromMiddleCount = includedMatches.filter(m => m.gameData?.auto?.autoClimbFromMiddle === true).length;
+    const autoClimbStartTimes = includedMatches
         .map(m => m.gameData?.auto?.autoClimbStartTimeSecRemaining)
         .filter((time): time is number => typeof time === 'number');
 
     // Starting positions
-    const startPositions = calculateStartPositions(teamMatches, matchCount);
+    const startPositions = calculateStartPositions(includedMatches, matchCount);
     const startPositionPercentages = startPositions.reduce<Record<string, number>>((acc, pos) => {
         const index = getStartPositionIndex(pos.position);
         if (index >= 0) {
@@ -121,10 +191,7 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         return acc;
     }, {});
 
-    const matchResults = teamMatches.map((match) => {
-        const autoPoints = scoringCalculations.calculateAutoPoints({ gameData: match.gameData } as any);
-        const teleopPoints = scoringCalculations.calculateTeleopPoints({ gameData: match.gameData } as any);
-        const endgamePoints = scoringCalculations.calculateEndgamePoints({ gameData: match.gameData } as any);
+    const matchResults = scoredMatches.map(({ match, scores }) => {
         const startPositionLabel = typeof match.gameData?.auto?.startPositionLabel === 'string'
             ? match.gameData.auto.startPositionLabel
             : undefined;
@@ -147,31 +214,32 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
             teamNumber: match.teamNumber,
             scoutName: match.scoutName,
             comment: match.comments || '',
-            totalPoints: autoPoints + teleopPoints + endgamePoints,
-            autoPoints,
-            teleopPoints,
-            endgamePoints,
+            totalPoints: scores.totalPoints,
+            autoPoints: scores.autoPoints,
+            teleopPoints: scores.teleopPoints,
+            endgamePoints: scores.endgamePoints,
             startPosition,
             autoFuel: val(match.gameData?.auto?.fuelScoredCount),
             teleopFuel: val(match.gameData?.teleop?.fuelScoredCount),
             autoPath,
+            ignoreForStats: !!match.ignoreForStats,
         };
     }).sort((a, b) => parseInt(a.matchNumber) - parseInt(b.matchNumber));
 
     // Auto stuck tracking
-    const autoTrenchStuckTotal = sum(teamMatches, m => val(m.gameData?.auto?.trenchStuckCount));
-    const autoBumpStuckTotal = sum(teamMatches, m => val(m.gameData?.auto?.bumpStuckCount));
-    const autoTrenchStuckDurationTotal = sum(teamMatches, m => val(m.gameData?.auto?.trenchStuckDuration));
-    const autoBumpStuckDurationTotal = sum(teamMatches, m => val(m.gameData?.auto?.bumpStuckDuration));
+    const autoTrenchStuckTotal = sum(includedMatches, m => val(m.gameData?.auto?.trenchStuckCount));
+    const autoBumpStuckTotal = sum(includedMatches, m => val(m.gameData?.auto?.bumpStuckCount));
+    const autoTrenchStuckDurationTotal = sum(includedMatches, m => val(m.gameData?.auto?.trenchStuckDuration));
+    const autoBumpStuckDurationTotal = sum(includedMatches, m => val(m.gameData?.auto?.bumpStuckDuration));
 
 
     // ============================================================================
     // ENDGAME STATS (Tower Climbing - 2026)
     // ============================================================================
 
-    const climbL1Count = teamMatches.filter(m => m.gameData?.endgame?.climbL1 === true).length;
-    const climbL2Count = teamMatches.filter(m => m.gameData?.endgame?.climbL2 === true).length;
-    const climbL3Count = teamMatches.filter(m => m.gameData?.endgame?.climbL3 === true).length;
+    const climbL1Count = includedMatches.filter(m => m.gameData?.endgame?.climbL1 === true).length;
+    const climbL2Count = includedMatches.filter(m => m.gameData?.endgame?.climbL2 === true).length;
+    const climbL3Count = includedMatches.filter(m => m.gameData?.endgame?.climbL3 === true).length;
     const hasAttemptAtLevel = (match: ScoutingEntry, level: 1 | 2 | 3): boolean => {
         const endgame = match.gameData?.endgame as Record<string, unknown> | undefined;
         if (endgame?.[`climbAttemptL${level}`] === true) return true;
@@ -188,28 +256,28 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
 
         return false;
     };
-    const climbAttemptL1Count = teamMatches.filter(m => hasAttemptAtLevel(m, 1)).length;
-    const climbAttemptL2Count = teamMatches.filter(m => hasAttemptAtLevel(m, 2)).length;
-    const climbAttemptL3Count = teamMatches.filter(m => hasAttemptAtLevel(m, 3)).length;
-    const climbFromSideCount = teamMatches.filter(m => m.gameData?.endgame?.climbFromSide === true).length;
-    const climbFromMiddleCount = teamMatches.filter(m => m.gameData?.endgame?.climbFromMiddle === true).length;
+    const climbAttemptL1Count = includedMatches.filter(m => hasAttemptAtLevel(m, 1)).length;
+    const climbAttemptL2Count = includedMatches.filter(m => hasAttemptAtLevel(m, 2)).length;
+    const climbAttemptL3Count = includedMatches.filter(m => hasAttemptAtLevel(m, 3)).length;
+    const climbFromSideCount = includedMatches.filter(m => m.gameData?.endgame?.climbFromSide === true).length;
+    const climbFromMiddleCount = includedMatches.filter(m => m.gameData?.endgame?.climbFromMiddle === true).length;
     const endgameClimbLocationAttemptCount = climbFromSideCount + climbFromMiddleCount;
-    const climbFailedCount = teamMatches.filter(m => m.gameData?.endgame?.climbFailed === true).length;
+    const climbFailedCount = includedMatches.filter(m => m.gameData?.endgame?.climbFailed === true).length;
     const climbSuccessCount = climbL1Count + climbL2Count + climbL3Count;
     const levelAttemptCount = climbAttemptL1Count + climbAttemptL2Count + climbAttemptL3Count;
     const teleopClimbAttemptCount = Math.max(levelAttemptCount, climbSuccessCount + climbFailedCount, endgameClimbLocationAttemptCount);
-    const usedTrenchInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedTrenchInTeleop === true).length;
-    const usedBumpInTeleopCount = teamMatches.filter(m => m.gameData?.endgame?.usedBumpInTeleop === true).length;
-    const passedToAllianceFromNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromNeutral === true).length;
-    const passedToAllianceFromOpponentCount = teamMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromOpponent === true).length;
-    const passedToNeutralCount = teamMatches.filter(m => m.gameData?.endgame?.passedToNeutral === true).length;
-    const teleopClimbStartTimes = teamMatches
+    const usedTrenchInTeleopCount = includedMatches.filter(m => m.gameData?.endgame?.usedTrenchInTeleop === true).length;
+    const usedBumpInTeleopCount = includedMatches.filter(m => m.gameData?.endgame?.usedBumpInTeleop === true).length;
+    const passedToAllianceFromNeutralCount = includedMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromNeutral === true).length;
+    const passedToAllianceFromOpponentCount = includedMatches.filter(m => m.gameData?.endgame?.passedToAllianceFromOpponent === true).length;
+    const passedToNeutralCount = includedMatches.filter(m => m.gameData?.endgame?.passedToNeutral === true).length;
+    const teleopClimbStartTimes = includedMatches
         .map(m => m.gameData?.teleop?.teleopClimbStartTimeSecRemaining)
         .filter((time): time is number => typeof time === 'number');
-    const brokeDownCount = teamMatches.filter(m =>
+    const brokeDownCount = includedMatches.filter(m =>
         val(m.gameData?.auto?.brokenDownCount) > 0 || val(m.gameData?.teleop?.brokenDownCount) > 0
     ).length;
-    const noShowCount = teamMatches.filter(m =>
+    const noShowCount = includedMatches.filter(m =>
         m.noShow === true || /no\s*show/i.test(m.comments || '')
     ).length;
 
@@ -217,7 +285,7 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     // TELEOP STATS
     // ============================================================================
 
-    const defenseCount = teamMatches.filter(m => m.gameData?.teleop?.playedDefense === true).length;
+    const defenseCount = includedMatches.filter(m => m.gameData?.teleop?.playedDefense === true).length;
 
     const defenseByTargetAccumulator: Record<string, { attempts: number; very: number; somewhat: number; not: number; }> = {};
     let totalDefenseEvents = 0;
@@ -225,7 +293,7 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
     let somewhatEffectiveCount = 0;
     let notEffectiveCount = 0;
 
-    teamMatches.forEach((match) => {
+    includedMatches.forEach((match) => {
         const teleopPath = match.gameData?.teleop?.teleopPath;
         if (!Array.isArray(teleopPath)) return;
 
@@ -296,42 +364,42 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         : 0;
 
     // Defense counts by zone
-    const defenseAllianceTotal = sum(teamMatches, m => val(m.gameData?.teleop?.defenseAllianceCount));
-    const defenseNeutralTotal = sum(teamMatches, m => val(m.gameData?.teleop?.defenseNeutralCount));
-    const defenseOpponentTotal = sum(teamMatches, m => val(m.gameData?.teleop?.defenseOpponentCount));
+    const defenseAllianceTotal = sum(includedMatches, m => val(m.gameData?.teleop?.defenseAllianceCount));
+    const defenseNeutralTotal = sum(includedMatches, m => val(m.gameData?.teleop?.defenseNeutralCount));
+    const defenseOpponentTotal = sum(includedMatches, m => val(m.gameData?.teleop?.defenseOpponentCount));
     const totalDefenseActions = defenseAllianceTotal + defenseNeutralTotal + defenseOpponentTotal;
 
     // Steal count
-    const stealTotal = sum(teamMatches, m => val(m.gameData?.teleop?.stealCount));
+    const stealTotal = sum(includedMatches, m => val(m.gameData?.teleop?.stealCount));
 
     // Stuck tracking
-    const trenchStuckTotal = sum(teamMatches, m => val(m.gameData?.teleop?.trenchStuckCount));
-    const bumpStuckTotal = sum(teamMatches, m => val(m.gameData?.teleop?.bumpStuckCount));
-    const trenchStuckDurationTotal = sum(teamMatches, m => val(m.gameData?.teleop?.trenchStuckDuration));
-    const bumpStuckDurationTotal = sum(teamMatches, m => val(m.gameData?.teleop?.bumpStuckDuration));
+    const trenchStuckTotal = sum(includedMatches, m => val(m.gameData?.teleop?.trenchStuckCount));
+    const bumpStuckTotal = sum(includedMatches, m => val(m.gameData?.teleop?.bumpStuckCount));
+    const trenchStuckDurationTotal = sum(includedMatches, m => val(m.gameData?.teleop?.trenchStuckDuration));
+    const bumpStuckDurationTotal = sum(includedMatches, m => val(m.gameData?.teleop?.bumpStuckDuration));
 
     // ============================================================================
     // ROLE CALCULATIONS (Active & Inactive Shifts - 2026)
     // ============================================================================
 
-    const roleActiveCyclerCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveCycler === true).length;
-    const roleActiveCleanUpCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveCleanUp === true).length;
-    const roleActivePasserCount = teamMatches.filter(m => m.gameData?.endgame?.roleActivePasser === true).length;
-    const roleActiveThiefCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveThief === true).length;
-    const roleActiveDefenseCount = teamMatches.filter(m => m.gameData?.endgame?.roleActiveDefense === true).length;
+    const roleActiveCyclerCount = includedMatches.filter(m => m.gameData?.endgame?.roleActiveCycler === true).length;
+    const roleActiveCleanUpCount = includedMatches.filter(m => m.gameData?.endgame?.roleActiveCleanUp === true).length;
+    const roleActivePasserCount = includedMatches.filter(m => m.gameData?.endgame?.roleActivePasser === true).length;
+    const roleActiveThiefCount = includedMatches.filter(m => m.gameData?.endgame?.roleActiveThief === true).length;
+    const roleActiveDefenseCount = includedMatches.filter(m => m.gameData?.endgame?.roleActiveDefense === true).length;
 
-    const roleInactiveCyclerCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveCycler === true).length;
-    const roleInactiveCleanUpCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveCleanUp === true).length;
-    const roleInactivePasserCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactivePasser === true).length;
-    const roleInactiveThiefCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveThief === true).length;
-    const roleInactiveDefenseCount = teamMatches.filter(m => m.gameData?.endgame?.roleInactiveDefense === true).length;
+    const roleInactiveCyclerCount = includedMatches.filter(m => m.gameData?.endgame?.roleInactiveCycler === true).length;
+    const roleInactiveCleanUpCount = includedMatches.filter(m => m.gameData?.endgame?.roleInactiveCleanUp === true).length;
+    const roleInactivePasserCount = includedMatches.filter(m => m.gameData?.endgame?.roleInactivePasser === true).length;
+    const roleInactiveThiefCount = includedMatches.filter(m => m.gameData?.endgame?.roleInactiveThief === true).length;
+    const roleInactiveDefenseCount = includedMatches.filter(m => m.gameData?.endgame?.roleInactiveDefense === true).length;
 
     // Accuracy selections (qualitative buckets)
-    const accuracyAllCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyAll === true).length;
-    const accuracyMostCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyMost === true).length;
-    const accuracySomeCount = teamMatches.filter(m => m.gameData?.endgame?.accuracySome === true).length;
-    const accuracyFewCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyFew === true).length;
-    const accuracyLittleCount = teamMatches.filter(m => m.gameData?.endgame?.accuracyLittle === true).length;
+    const accuracyAllCount = includedMatches.filter(m => m.gameData?.endgame?.accuracyAll === true).length;
+    const accuracyMostCount = includedMatches.filter(m => m.gameData?.endgame?.accuracyMost === true).length;
+    const accuracySomeCount = includedMatches.filter(m => m.gameData?.endgame?.accuracySome === true).length;
+    const accuracyFewCount = includedMatches.filter(m => m.gameData?.endgame?.accuracyFew === true).length;
+    const accuracyLittleCount = includedMatches.filter(m => m.gameData?.endgame?.accuracyLittle === true).length;
     const accuracySelectionCount = accuracyAllCount + accuracyMostCount + accuracySomeCount + accuracyFewCount + accuracyLittleCount;
     const weightedAccuracyTotal =
         (accuracyAllCount * 5)
@@ -375,43 +443,35 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
 
     const rawValues = {
         // Points (per match)
-        totalPoints: teamMatches.map(m =>
-            scoringCalculations.calculateTotalPoints({ gameData: m.gameData } as any)
-        ),
-        autoPoints: teamMatches.map(m =>
-            scoringCalculations.calculateAutoPoints({ gameData: m.gameData } as any)
-        ),
-        teleopPoints: teamMatches.map(m =>
-            scoringCalculations.calculateTeleopPoints({ gameData: m.gameData } as any)
-        ),
-        endgamePoints: teamMatches.map(m =>
-            scoringCalculations.calculateEndgamePoints({ gameData: m.gameData } as any)
-        ),
+        totalPoints: includedScoredMatches.map(({ scores }) => scores.totalPoints),
+        autoPoints: includedScoredMatches.map(({ scores }) => scores.autoPoints),
+        teleopPoints: includedScoredMatches.map(({ scores }) => scores.teleopPoints),
+        endgamePoints: includedScoredMatches.map(({ scores }) => scores.endgamePoints),
 
         // Fuel (per match)
-        autoFuel: teamMatches.map(m => val(m.gameData?.auto?.fuelScoredCount)),
-        teleopFuel: teamMatches.map(m => val(m.gameData?.teleop?.fuelScoredCount)),
-        totalFuel: teamMatches.map(m =>
+        autoFuel: includedMatches.map(m => val(m.gameData?.auto?.fuelScoredCount)),
+        teleopFuel: includedMatches.map(m => val(m.gameData?.teleop?.fuelScoredCount)),
+        totalFuel: includedMatches.map(m =>
             val(m.gameData?.auto?.fuelScoredCount) + val(m.gameData?.teleop?.fuelScoredCount)
         ),
-        autoFuelPassed: teamMatches.map(m => val(m.gameData?.auto?.fuelPassedCount)),
-        teleopFuelPassed: teamMatches.map(m => val(m.gameData?.teleop?.fuelPassedCount)),
-        totalFuelPassed: teamMatches.map(m =>
+        autoFuelPassed: includedMatches.map(m => val(m.gameData?.auto?.fuelPassedCount)),
+        teleopFuelPassed: includedMatches.map(m => val(m.gameData?.teleop?.fuelPassedCount)),
+        totalFuelPassed: includedMatches.map(m =>
             val(m.gameData?.auto?.fuelPassedCount) + val(m.gameData?.teleop?.fuelPassedCount)
         ),
-        scaledAutoFuel: teamMatches.map(m => {
+        scaledAutoFuel: includedMatches.map(m => {
             const scaledMetrics = m.gameData?.scaledMetrics as { scaledAutoFuel?: number } | undefined;
             return typeof scaledMetrics?.scaledAutoFuel === 'number'
                 ? scaledMetrics.scaledAutoFuel
                 : val(m.gameData?.auto?.fuelScoredCount);
         }),
-        scaledTeleopFuel: teamMatches.map(m => {
+        scaledTeleopFuel: includedMatches.map(m => {
             const scaledMetrics = m.gameData?.scaledMetrics as { scaledTeleopFuel?: number } | undefined;
             return typeof scaledMetrics?.scaledTeleopFuel === 'number'
                 ? scaledMetrics.scaledTeleopFuel
                 : val(m.gameData?.teleop?.fuelScoredCount);
         }),
-        scaledTotalFuel: teamMatches.map(m => {
+        scaledTotalFuel: includedMatches.map(m => {
             const scaledMetrics = m.gameData?.scaledMetrics as {
                 scaledAutoFuel?: number;
                 scaledTeleopFuel?: number;
@@ -428,33 +488,33 @@ export const calculateTeamStats = (teamMatches: ScoutingEntry[]): Omit<TeamStats
         }),
 
         // Climb (boolean per match - 1 if climbed, 0 if not)
-        climbL1: teamMatches.map(m => m.gameData?.endgame?.climbL1 === true ? 1 : 0),
-        climbL2: teamMatches.map(m => m.gameData?.endgame?.climbL2 === true ? 1 : 0),
-        climbL3: teamMatches.map(m => m.gameData?.endgame?.climbL3 === true ? 1 : 0),
-        climbAny: teamMatches.map(m =>
+        climbL1: includedMatches.map(m => m.gameData?.endgame?.climbL1 === true ? 1 : 0),
+        climbL2: includedMatches.map(m => m.gameData?.endgame?.climbL2 === true ? 1 : 0),
+        climbL3: includedMatches.map(m => m.gameData?.endgame?.climbL3 === true ? 1 : 0),
+        climbAny: includedMatches.map(m =>
             (m.gameData?.endgame?.climbL1 || m.gameData?.endgame?.climbL2 || m.gameData?.endgame?.climbL3) ? 1 : 0
         ),
-        autoClimb: teamMatches.map(m => m.gameData?.auto?.autoClimbL1 === true ? 1 : 0),
+        autoClimb: includedMatches.map(m => m.gameData?.auto?.autoClimbL1 === true ? 1 : 0),
 
         // Defense & Steals (per match)
-        steals: teamMatches.map(m => val(m.gameData?.teleop?.stealCount)),
-        defenseActions: teamMatches.map(m =>
+        steals: includedMatches.map(m => val(m.gameData?.teleop?.stealCount)),
+        defenseActions: includedMatches.map(m =>
             val(m.gameData?.teleop?.defenseAllianceCount) +
             val(m.gameData?.teleop?.defenseNeutralCount) +
             val(m.gameData?.teleop?.defenseOpponentCount)
         ),
 
         // Stuck Durations (per match, in seconds)
-        autoTrenchStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.auto?.trenchStuckDuration))),
-        autoBumpStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.auto?.bumpStuckDuration))),
-        teleopTrenchStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.teleop?.trenchStuckDuration))),
-        teleopBumpStuckDuration: teamMatches.map(m => millisecondsToSeconds(val(m.gameData?.teleop?.bumpStuckDuration))),
+        autoTrenchStuckDuration: includedMatches.map(m => millisecondsToSeconds(val(m.gameData?.auto?.trenchStuckDuration))),
+        autoBumpStuckDuration: includedMatches.map(m => millisecondsToSeconds(val(m.gameData?.auto?.bumpStuckDuration))),
+        teleopTrenchStuckDuration: includedMatches.map(m => millisecondsToSeconds(val(m.gameData?.teleop?.trenchStuckDuration))),
+        teleopBumpStuckDuration: includedMatches.map(m => millisecondsToSeconds(val(m.gameData?.teleop?.bumpStuckDuration))),
 
         // Climb start timing (seconds remaining) - include only matches with recorded values
-        autoClimbStartTimeSec: teamMatches
+        autoClimbStartTimeSec: includedMatches
             .map(m => m.gameData?.auto?.autoClimbStartTimeSecRemaining)
             .filter((time): time is number => typeof time === 'number'),
-        endgameClimbStartTimeSec: teamMatches
+        endgameClimbStartTimeSec: includedMatches
             .map(m => m.gameData?.teleop?.teleopClimbStartTimeSecRemaining)
             .filter((time): time is number => typeof time === 'number'),
     };

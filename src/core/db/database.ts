@@ -20,6 +20,10 @@ import type {
   PitScoutingEntryBase,
   PitScoutingStats,
 } from '../types';
+import type {
+  StrategySnapshot,
+  StrategySnapshotCacheMetadata,
+} from '../types/strategy-snapshot';
 
 // ============================================================================
 // DATABASE CLASSES
@@ -30,12 +34,20 @@ import type {
  */
 export class MatchScoutingDB extends Dexie {
   scoutingData!: Table<ScoutingEntryBase, string>;
+  strategySnapshots!: Table<StrategySnapshot, string>;
+  strategyCacheMetadata!: Table<StrategySnapshotCacheMetadata, string>;
 
   constructor() {
     super('MatchScoutingDB');
 
     this.version(1).stores({
       scoutingData: 'id, teamNumber, matchNumber, allianceColor, scoutName, eventKey, matchKey, timestamp, isCorrected, [teamNumber+eventKey], [scoutName+eventKey+matchNumber]'
+    });
+
+    this.version(2).stores({
+      scoutingData: 'id, teamNumber, matchNumber, allianceColor, scoutName, eventKey, matchKey, timestamp, isCorrected, [teamNumber+eventKey], [scoutName+eventKey+matchNumber]',
+      strategySnapshots: 'id, teamNumber, eventKey, updatedAt, cacheVersion, [teamNumber+eventKey]',
+      strategyCacheMetadata: 'id, version, updatedAt',
     });
   }
 }
@@ -62,9 +74,25 @@ export class PitScoutingDB extends Dexie {
 export const db = new MatchScoutingDB();
 export const pitDB = new PitScoutingDB();
 
+db.on('blocked', () => {
+  console.warn('MatchScoutingDB upgrade blocked. Close other tabs or older app instances, then reload.');
+});
+
+db.on('versionchange', () => {
+  console.warn('MatchScoutingDB version change detected. Closing current connection so the upgrade can proceed.');
+  db.close();
+});
+
 // Open databases and log any errors
 db.open().catch(error => {
   console.error('Failed to open MatchScoutingDB:', error);
+});
+
+db.on('ready', () => {
+  console.log('MatchScoutingDB ready:', {
+    version: db.verno,
+    tables: db.tables.map(table => table.name),
+  });
 });
 
 pitDB.open().catch(error => {
@@ -81,7 +109,13 @@ pitDB.open().catch(error => {
 export const saveScoutingEntry = async <TGameData = Record<string, unknown>>(
   entry: ScoutingEntryBase<TGameData>
 ): Promise<void> => {
+  const existingEntry = await db.scoutingData.get(entry.id);
   await db.scoutingData.put(entry as ScoutingEntryBase<Record<string, unknown>>);
+  const { applyScoutingEntryUpsertToStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+  await applyScoutingEntryUpsertToStrategySnapshots(
+    entry as ScoutingEntryBase<Record<string, unknown>>,
+    existingEntry
+  );
 };
 
 /**
@@ -90,7 +124,13 @@ export const saveScoutingEntry = async <TGameData = Record<string, unknown>>(
 export const saveScoutingEntries = async <TGameData = Record<string, unknown>>(
   entries: ScoutingEntryBase<TGameData>[]
 ): Promise<void> => {
+  const existingEntries = await db.scoutingData.bulkGet(entries.map(entry => entry.id));
   await db.scoutingData.bulkPut(entries as ScoutingEntryBase<Record<string, unknown>>[]);
+  const { applyScoutingEntriesUpsertToStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+  await applyScoutingEntriesUpsertToStrategySnapshots(
+    entries as ScoutingEntryBase<Record<string, unknown>>[],
+    existingEntries.filter((entry): entry is ScoutingEntryBase<Record<string, unknown>> => !!entry)
+  );
 };
 
 /**
@@ -192,13 +232,23 @@ export const updateScoutingEntryWithCorrection = async <TGameData = Record<strin
   };
 
   await db.scoutingData.put(updatedEntry as ScoutingEntryBase<Record<string, unknown>>);
+  const { applyScoutingEntryUpsertToStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+  await applyScoutingEntryUpsertToStrategySnapshots(
+    updatedEntry as ScoutingEntryBase<Record<string, unknown>>,
+    existing
+  );
 };
 
 /**
  * Delete a single scouting entry
  */
 export const deleteScoutingEntry = async (id: string): Promise<void> => {
+  const existing = await db.scoutingData.get(id);
   await db.scoutingData.delete(id);
+  if (existing) {
+    const { applyScoutingEntryDeleteToStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+    await applyScoutingEntryDeleteToStrategySnapshots(existing);
+  }
 };
 
 /**
@@ -208,10 +258,24 @@ export const updateScoutingEntryIgnoreForStats = async (
   id: string,
   ignoreForStats: boolean
 ): Promise<void> => {
+  const existing = await db.scoutingData.get(id);
+  if (!existing) {
+    throw new Error(`Scouting entry not found: ${id}`);
+  }
+
   const updatedCount = await db.scoutingData.update(id, { ignoreForStats });
   if (updatedCount === 0) {
     throw new Error(`Scouting entry not found: ${id}`);
   }
+
+  const { applyScoutingEntryUpsertToStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+  await applyScoutingEntryUpsertToStrategySnapshots(
+    {
+      ...existing,
+      ignoreForStats,
+    },
+    existing
+  );
 };
 
 /**
@@ -219,6 +283,8 @@ export const updateScoutingEntryIgnoreForStats = async (
  */
 export const clearAllScoutingData = async (): Promise<void> => {
   await db.scoutingData.clear();
+  await db.strategySnapshots.clear();
+  await db.strategyCacheMetadata.clear();
 };
 
 // ============================================================================
@@ -327,12 +393,16 @@ export const importScoutingData = async <TGameData = Record<string, unknown>>(
     if (mode === 'overwrite') {
       await clearAllScoutingData();
       await db.scoutingData.bulkPut(importData.entries as ScoutingEntryBase<Record<string, unknown>>[]);
+      const { rebuildStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+      await rebuildStrategySnapshots();
       return { success: true, importedCount: importData.entries.length };
     } else {
       const existingIds = await db.scoutingData.orderBy('id').keys();
       const existingIdSet = new Set(existingIds);
       const newEntries = importData.entries.filter(entry => !existingIdSet.has(entry.id));
       await db.scoutingData.bulkPut(newEntries as ScoutingEntryBase<Record<string, unknown>>[]);
+      const { applyScoutingEntriesUpsertToStrategySnapshots } = await import('@/core/lib/strategySnapshotCache');
+      await applyScoutingEntriesUpsertToStrategySnapshots(newEntries as ScoutingEntryBase<Record<string, unknown>>[]);
       return {
         success: true,
         importedCount: newEntries.length,

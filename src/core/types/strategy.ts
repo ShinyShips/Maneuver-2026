@@ -229,5 +229,6 @@ export interface TeamData {
   teamNumber: number;
   eventKey: string;
   matchCount: number;
-  [key: string]: string | number;
+  rawValues?: Record<string, number[]>;
+  [key: string]: string | number | Record<string, number[]> | undefined;
 }

@@ -21,6 +21,7 @@
 import { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import { ScalingFactors, ScaledTeamMetrics, AllianceScalingResult } from './types/scalingTypes';
 import { db } from '@/db';
+import { applyScoutingEntryUpsertToStrategySnapshots } from '@/core/lib/strategySnapshotCache';
 
 const normalizeMatchKey = (matchKey: string): string => {
     if (!matchKey.includes('_')) return matchKey;
@@ -267,6 +268,10 @@ export async function updateEntriesWithScaling(
                 await db.scoutingData.update(entry.id, {
                     gameData: updatedGameData,
                 } as Partial<ScoutingEntryBase>);
+                await applyScoutingEntryUpsertToStrategySnapshots({
+                    ...entry,
+                    gameData: updatedGameData,
+                });
 
                 updated++;
                 console.log(`[2026 Scaling] Updated entry for team ${team.teamNumber}:`, {
@@ -331,6 +336,10 @@ export async function clearMatchScaling(eventKey: string, matchKey: string): Pro
             await db.scoutingData.update(entry.id, {
                 gameData: restGameData,
             } as Partial<ScoutingEntryBase>);
+            await applyScoutingEntryUpsertToStrategySnapshots({
+                ...entry,
+                gameData: restGameData,
+            });
             cleared++;
         }
     }

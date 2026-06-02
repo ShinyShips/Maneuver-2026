@@ -16,6 +16,7 @@ import type { ScoutingEntryBase } from '@/core/types/scouting-entry';
 import type { PitScoutingEntryBase, DrivetrainType, ProgrammingLanguage } from '@/core/types/pit-scouting';
 import { setCurrentEvent } from '@/core/lib/tba/eventDataUtils';
 import { cacheTBAMatches, clearEventCache, clearEventValidationResults, storeValidationResult } from '@/core/lib/tbaCache';
+import { primeDerivedTbaCacheForEvent } from '@/core/lib/tbaDerivedCache';
 import { getOrCreateScoutByName, updateScoutStats } from '@/core/lib/scoutGamificationUtils';
 import { gamificationDB, createMatchPrediction } from '@/game/gamification';
 import type {
@@ -1009,6 +1010,7 @@ async function cacheAndStoreDemoSchedule(
     });
 
     await cacheTBAMatches(tbaMatches);
+    await primeDerivedTbaCacheForEvent(eventKey, tbaMatches);
     console.log(`  ✓ Cached ${tbaMatches.length} matches as TBA data`);
 
     const matchData = matches.map(match => ({

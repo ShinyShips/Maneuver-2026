@@ -4,7 +4,7 @@
  */
 
 import type { ScoutingEntryBase } from '@/types/scouting-entry';
-import { db } from '@/core/db/database';
+import { db, saveScoutingEntries } from '@/core/db/database';
 
 /**
  * Normalize event key for consistent storage and comparison
@@ -131,8 +131,7 @@ export const loadScoutingData = async (): Promise<ScoutingEntryBase[]> => {
 
 export const saveScoutingData = async (entries: ScoutingEntryBase[]): Promise<void> => {
   try {
-    // Cast to match database generic type
-    await db.scoutingData.bulkPut(entries as any);
+    await saveScoutingEntries(entries);
   } catch (error) {
     console.error('Error saving scouting data:', error);
     throw error;

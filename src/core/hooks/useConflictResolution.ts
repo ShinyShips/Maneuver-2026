@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import type { ConflictInfo } from "@/core/lib/scoutingDataUtils";
 import type { ScoutingEntryBase } from "@/types/scouting-entry";
 import { computeChangedFields } from "@/core/lib/scoutingDataUtils";
-import { db } from "@/core/db/database";
+import { db, deleteScoutingEntry, saveScoutingEntry } from "@/core/db/database";
 
 // Debug logging helper - only logs in development
 const DEBUG = import.meta.env.DEV;
@@ -66,8 +66,8 @@ export const useConflictResolution = () => {
           hasData: 'data' in conflict.incoming,
           localId: conflict.local.id
         });
-        await db.scoutingData.delete(conflict.local.id);
-        await db.scoutingData.put(conflict.incoming as never);
+        await deleteScoutingEntry(conflict.local.id);
+        await saveScoutingEntry(conflict.incoming as never);
         replaced++;
       } else if (decision === 'skip') {
         // Keep existing entry, do nothing
@@ -116,8 +116,8 @@ export const useConflictResolution = () => {
         const decision = newResolutions.get(conflictKey);
 
         if (decision === 'replace') {
-          await db.scoutingData.delete(conflict.local.id);
-          await db.scoutingData.put(conflict.incoming as never);
+          await deleteScoutingEntry(conflict.local.id);
+          await saveScoutingEntry(conflict.incoming as never);
           replaced++;
         } else {
           skipped++;
@@ -198,9 +198,9 @@ export const useConflictResolution = () => {
           ));
         
         if (existing) {
-          await db.scoutingData.delete(existing.id);
+          await deleteScoutingEntry(existing.id);
         }
-        await db.scoutingData.put(entry as never);
+        await saveScoutingEntry(entry as never);
         replaced++;
         
         // Log progress for large batches

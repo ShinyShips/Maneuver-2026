@@ -27,6 +27,7 @@ import {
   getCacheMetadata,
   getTBACacheStats,
 } from '@/core/lib/tbaCache';
+import { primeDerivedTbaCacheForEvent } from '@/core/lib/tbaDerivedCache';
 
 const inFlightEventFetches = new Map<string, Promise<TBAMatchData[]>>();
 
@@ -204,6 +205,9 @@ export function useTBAMatchData(): UseTBAMatchDataReturn {
 
         // Cache the results (replaces old data)
         await cacheTBAMatches(matchesWithBreakdowns);
+        void primeDerivedTbaCacheForEvent(eventKey, matchesWithBreakdowns).catch((primeError) => {
+          console.warn(`[TBA Derived] Failed to precompute derived caches for ${eventKey}:`, primeError);
+        });
 
         setMatches(matchesWithBreakdowns);
         setCacheExpired(false);

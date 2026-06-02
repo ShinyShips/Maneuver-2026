@@ -5,7 +5,7 @@
  * It handles data transformation, database saving, and cleanup.
  */
 
-import { db } from '@/core/db/database';
+import { db, saveScoutingEntry } from '@/core/db/database';
 import { isSubstantiveComment } from '@/core/lib/commentValidation';
 import { clearScoutingLocalStorage } from '@/core/lib/utils';
 import { toast } from 'sonner';
@@ -148,7 +148,7 @@ export async function submitMatchData({
                 },
             };
 
-            await db.scoutingData.put(entry as never);
+            await saveScoutingEntry(entry as never);
 
             try {
                 await maybeRecordCommentAchievement(existingEntry?.comments);
@@ -198,7 +198,7 @@ export async function submitMatchData({
         };
 
         // Save to database
-        await db.scoutingData.put(scoutingEntry as never);
+        await saveScoutingEntry(scoutingEntry as never);
 
         try {
             await maybeRecordCommentAchievement(existingEntry?.comments);

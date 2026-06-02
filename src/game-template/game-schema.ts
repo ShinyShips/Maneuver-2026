@@ -351,6 +351,8 @@ export const strategyColumns = {
         "rawValues.endgamePoints": { label: "Endgame Points", visible: true, numeric: true },
         "rawValues.scaledTotalFuel": { label: "Scaled Fuel (Total)", visible: true, numeric: true },
         "fuelTotalOPR": { label: "Fuel mOPR (Total)", visible: true, numeric: true },
+        "latestRollingFuelOPR": { label: "Rolling mOPR (Latest)", visible: true, numeric: true },
+        "latestRollingFuelCOPR": { label: "Rolling cOPR (Latest)", visible: false, numeric: true },
         "statboticsTotalPoints": { label: "Statbotics EPA (Total Points)", visible: false, numeric: true },
         "statboticsAutoPoints": { label: "Statbotics EPA (Auto Points)", visible: false, numeric: true },
         "statboticsTeleopPoints": { label: "Statbotics EPA (Teleop Points)", visible: false, numeric: true },
@@ -432,7 +434,7 @@ export const strategyColumns = {
  * Strategy presets for quick column selection
  */
 export const strategyPresets: Record<string, string[]> = {
-    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.scaledTotalFuel", "fuelTotalOPR", "endgame.climbSuccessRate"],
+    essential: ["teamNumber", "matchCount", "rawValues.totalPoints", "rawValues.scaledTotalFuel", "fuelTotalOPR", "latestRollingFuelOPR", "endgame.climbSuccessRate"],
     auto: ["teamNumber", "matchCount", "rawValues.autoPoints", "rawValues.autoFuel", "rawValues.scaledAutoFuel", "fuelAutoOPR", "autoShotOnTheMoveRate", "autoShotStationaryRate", "autoClimbRate", "autoClimbAttempts", "autoClimbFromSideRate", "autoClimbFromMiddleRate", "rawValues.autoClimbStartTimeSec"],
     teleop: ["teamNumber", "matchCount", "rawValues.teleopPoints", "rawValues.teleopFuel", "rawValues.scaledTeleopFuel", "fuelTeleopOPR", "defenseEffectivenessScore", "teleopShotOnTheMoveRate", "teleopShotStationaryRate", "rawValues.teleopFuelPassed", "endgame.usedTrenchInTeleopRate", "endgame.usedBumpInTeleopRate", "endgame.passedToAllianceFromNeutralRate", "endgame.passedToAllianceFromOpponentRate", "endgame.passedToNeutralRate"],
     endgame: ["teamNumber", "matchCount", "rawValues.endgamePoints", "rawValues.endgameClimbStartTimeSec", "endgame.climbAttempts", "endgame.climbL1Rate", "endgame.climbL1Attempts", "endgame.climbL2Rate", "endgame.climbL2Attempts", "endgame.climbL3Rate", "endgame.climbL3Attempts", "endgame.climbFromSideRate", "endgame.climbFromMiddleRate"],

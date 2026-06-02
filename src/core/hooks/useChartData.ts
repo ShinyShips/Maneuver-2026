@@ -25,25 +25,22 @@ export const useChartData = (
             }));
         }
         else if (chartType === "box") {
-            // Box plot logic requires raw match data which we aggregated away in TeamStats.
-            // The original logic simulated distribution based on average. 
-            // We will preserve that simulation logic as it's year-agnostic (just math).
             const boxData: Array<{ team: string; value: number; eventKey: string }> = [];
 
             filteredTeamStats.forEach(team => {
                 const baseVal = typeof team[chartMetric] === 'number' ? team[chartMetric] as number : 0;
-                const matches = typeof team.matchCount === 'number' ? team.matchCount as number : 1;
+                const rawMetricValues = team.rawValues?.[chartMetric];
+                const values = rawMetricValues && rawMetricValues.length > 0
+                    ? rawMetricValues
+                    : [baseVal];
 
-                // Simulate distribution (original logic)
-                for (let i = 0; i < Math.max(1, Math.min(matches, 12)); i++) {
-                    const variationFactor = Math.random() < 0.1 ? 0.6 : 0.4;
-                    const variation = (Math.random() - 0.5) * variationFactor * baseVal;
+                values.forEach(value => {
                     boxData.push({
                         team: String(team.teamNumber),
-                        value: Math.max(0, baseVal + variation),
+                        value,
                         eventKey: team.eventKey
                     });
-                }
+                });
             });
             return boxData;
         }

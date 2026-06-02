@@ -83,6 +83,11 @@ export interface TeamStats {
     statboticsAutoTower?: number;
     statboticsEndgameTower?: number;
 
+    // Latest rolling derived metrics from cached TBA event matches
+    latestRollingFuelOPR?: number;
+    latestRollingFuelCOPR?: number;
+    latestRollingRatingsMatchCount?: number;
+
     // Allow additional game-specific fields
     [key: string]: any;
 }

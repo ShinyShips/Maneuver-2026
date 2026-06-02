@@ -99,6 +99,10 @@ export type {
   TeamStats,
   TeamStatsWithId,
 } from '../core/types/team-stats';
+export type {
+  StrategySnapshot,
+  StrategySnapshotCacheMetadata,
+} from '../core/types/strategy-snapshot';
 
 // Team stats display configuration types (from team-stats-display.ts)
 export type {

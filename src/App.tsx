@@ -7,6 +7,8 @@ import {
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/core/components/theme-provider"
 import { analytics } from '@/core/lib/analytics';
+import { ensureStrategySnapshotsCurrent, rebuildStrategySnapshots } from "@/core/lib/strategySnapshotCache";
+import { primeDerivedTbaCacheForEvent } from '@/core/lib/tbaDerivedCache';
 
 import MainLayout from "@/core/layouts/MainLayout";
 import NotFoundPage from "@/core/pages/NotFoundPage";
@@ -74,7 +76,7 @@ import logo from "../src/assets/Maneuver Wordmark Vertical.png";
 import { generateDemoEvent, generateDemoEventScheduleOnly } from "@/core/lib/demoDataGenerator";
 import { generate2026GameData } from "@/game-template/demoDataGenerator2026";
 import { db, pitDB, gameDB } from "@/db";
-import { clearEventCache, clearEventValidationResults, getCachedTBAEventMatches } from "@/core/lib/tbaCache";
+import { clearEventCache, clearEventValidationResults, getCachedTBAEventKeys, getCachedTBAEventMatches } from "@/core/lib/tbaCache";
 
 // Mock implementations for missing template parts
 const mockConfig = { year: 2026, gameName: "REBUILT", scoring: { auto: {}, teleop: {}, endgame: {} } };
@@ -234,7 +236,7 @@ function App() {
             <HomePage 
               logo={logo} 
               appName="Maneuver 2026"
-              version="2026.7.0"
+              version="2026.8.0"
               onLoadDemoData={loadDemoData}
               onLoadDemoScheduleOnly={loadDemoScheduleOnly}
               onClearData={clearDemoData}
@@ -294,6 +296,25 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    void ensureStrategySnapshotsCurrent().catch(error => {
+      console.error("Failed to initialize strategy snapshot cache:", error);
+    });
+
+    void (async () => {
+      try {
+        const cachedEventKeys = await getCachedTBAEventKeys();
+        await Promise.all(
+          cachedEventKeys.map(async (eventKey) => {
+            const matches = await getCachedTBAEventMatches(eventKey, true);
+            if (matches.length >= 2) {
+              await primeDerivedTbaCacheForEvent(eventKey, matches);
+            }
+          })
+        );
+      } catch (error) {
+        console.warn("Failed to warm derived TBA caches:", error);
+      }
+    })();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js");
@@ -328,7 +349,19 @@ function App() {
           (window as any).dev = {
             seedData: () => testData.generateRandomScoutingData(30),
             seedScouts: testData.generateRandomScouts,
-            resetDB: testData.resetEntireDatabase
+            resetDB: testData.resetEntireDatabase,
+            rebuildStrategyCache: rebuildStrategySnapshots,
+            warmDerivedTbaCaches: async () => {
+              const cachedEventKeys = await getCachedTBAEventKeys();
+              await Promise.all(
+                cachedEventKeys.map(async (eventKey) => {
+                  const matches = await getCachedTBAEventMatches(eventKey, true);
+                  if (matches.length >= 2) {
+                    await primeDerivedTbaCacheForEvent(eventKey, matches);
+                  }
+                })
+              );
+            },
           };
           console.log('🧪 Dev utilities available on window.dev');
         });
