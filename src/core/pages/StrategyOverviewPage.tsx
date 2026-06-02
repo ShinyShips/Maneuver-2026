@@ -91,6 +91,10 @@ export default function StrategyOverviewPage() {
         return selectedEvents;
     }, [selectedEvents]);
 
+    const shouldShowAllChartTeams = useMemo(() => {
+        return selectedEvents.length === 1 && selectedEvents[0] !== "all";
+    }, [selectedEvents]);
+
     const requiredMetricKeys = useMemo(() => {
         const keys = new Set<string>();
 
@@ -144,7 +148,8 @@ export default function StrategyOverviewPage() {
         chartMetric,
         scatterXMetric,
         scatterYMetric,
-        { ...strategyConfig, columns: columnConfig }
+        { ...strategyConfig, columns: columnConfig },
+        shouldShowAllChartTeams ? "all" : 12
     );
 
     // Handlers

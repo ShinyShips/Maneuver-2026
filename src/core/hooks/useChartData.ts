@@ -7,7 +7,8 @@ export const useChartData = (
     chartMetric: string,
     scatterXMetric: string,
     scatterYMetric: string,
-    config: StrategyConfig
+    config: StrategyConfig,
+    chartTeamLimit: number | "all" = 12
 ) => {
 
     // Helper to get column definition
@@ -47,8 +48,8 @@ export const useChartData = (
         else if (chartType === "stacked") {
             // Stacked bar logic for phase breakdown
             // Access the rawValues arrays that have already been aggregated by useTeamStatistics
-            
-            return filteredTeamStats.map(team => {
+
+            const stackedData = filteredTeamStats.map(team => {
                 // Try to get the already-aggregated values first, or fall back to direct access
                 const auto = (team['rawValues.autoPoints'] as number) || (team['autoPoints'] as number) || 0;
                 const teleop = (team['rawValues.teleopPoints'] as number) || (team['teleopPoints'] as number) || 0;
@@ -63,21 +64,23 @@ export const useChartData = (
                     eventKey: team.eventKey
                 };
             })
-                .sort((a, b) => b.totalPoints - a.totalPoints)
-                .slice(0, 12);
+                .sort((a, b) => b.totalPoints - a.totalPoints);
+
+            return chartTeamLimit === "all" ? stackedData : stackedData.slice(0, chartTeamLimit);
         }
         else {
             // Bar chart
-            return filteredTeamStats.map(team => ({
+            const barData = filteredTeamStats.map(team => ({
                 team: String(team.teamNumber),
                 value: (team[chartMetric] as number) || 0,
                 eventKey: team.eventKey
             }))
-                .sort((a, b) => (b.value as number) - (a.value as number))
-                .slice(0, 12); // Top 12
+                .sort((a, b) => (b.value as number) - (a.value as number));
+
+            return chartTeamLimit === "all" ? barData : barData.slice(0, chartTeamLimit);
         }
 
-    }, [filteredTeamStats, chartType, chartMetric, scatterXMetric, scatterYMetric]);
+    }, [filteredTeamStats, chartType, chartMetric, scatterXMetric, scatterYMetric, chartTeamLimit]);
 
     const chartConfig = useMemo(() => {
         const xCol = getCol(scatterXMetric);
