@@ -1,0 +1,28 @@
+{
+  "pkg": "maneuver-2026",
+  "globalName": "ManeuverUI",
+  "shape": "package",
+  "projectId": "cf4a9915-261e-448e-bb46-a106499c3953",
+  "srcDir": "src/core/components/ui",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".design-sync/compiled/app.css",
+  "buildCmd": "npm run build",
+  "componentSrcMap": {
+    "MobileOverlay": null,
+    "SwipeToOpenDetector": null
+  },
+  "extraFonts": ["src/index.css"],
+  "guidelinesGlob": [],
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "Alert": {"cardMode": "column"},
+    "Skeleton": {"cardMode": "column"},
+    "AlertDialog": {"cardMode": "single", "primaryStory": "DeleteScoutingData"},
+    "Dialog": {"cardMode": "single", "primaryStory": "EditMatchNotes"},
+    "DropdownMenu": {"cardMode": "single", "primaryStory": "TeamRowActions"},
+    "Popover": {"cardMode": "single", "primaryStory": "TeamQuickInfo"},
+    "Select": {"cardMode": "single", "primaryStory": "AllianceOpen"},
+    "Sheet": {"cardMode": "single", "primaryStory": "TeamDetailPanel"},
+    "Tooltip": {"cardMode": "single", "primaryStory": "StatInfo"}
+  }
+}
