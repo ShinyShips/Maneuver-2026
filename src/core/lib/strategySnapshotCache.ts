@@ -168,7 +168,7 @@ export const applyScoutingEntryUpsertToStrategySnapshots = async (
         return;
     }
 
-    await db.transaction("rw", db.strategySnapshots, db.strategyCacheMetadata, async () => {
+    await db.transaction("rw", db.scoutingData, db.strategySnapshots, db.strategyCacheMetadata, async () => {
         for (const key of keys) {
             await recomputeKey(key);
         }
@@ -191,7 +191,7 @@ export const applyScoutingEntriesUpsertToStrategySnapshots = async (
         return;
     }
 
-    await db.transaction("rw", db.strategySnapshots, db.strategyCacheMetadata, async () => {
+    await db.transaction("rw", db.scoutingData, db.strategySnapshots, db.strategyCacheMetadata, async () => {
         for (const key of keys) {
             await recomputeKey(key);
         }
@@ -206,7 +206,7 @@ export const applyScoutingEntryDeleteToStrategySnapshots = async (entry: Scoutin
         return;
     }
 
-    await db.transaction("rw", db.strategySnapshots, db.strategyCacheMetadata, async () => {
+    await db.transaction("rw", db.scoutingData, db.strategySnapshots, db.strategyCacheMetadata, async () => {
         await recomputeKey(key);
         await putMetadata();
     });
